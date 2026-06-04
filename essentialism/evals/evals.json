@@ -1,0 +1,37 @@
+{
+  "skill_name": "essentialism",
+  "evals": [
+    {
+      "id": 0,
+      "name": "classic-feature-explosion",
+      "prompt": "I want to build a habit tracker app. Thinking streaks, a social feed, an AI coach, gamification, an Apple Watch app, leaderboards, and maybe a Notion integration. Where do I start?",
+      "expected_output": "Refuses to start building all of it. Forces a single essential intent (the one thing the habit tracker must do), scores the proposed features against it with the 90% rule, keeps only 9-10s, parks the rest. Produces ESSENTIAL_INTENT.md with intent, vital few, non-goals, parked list.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 1,
+      "name": "mid-build-scope-creep",
+      "prompt": "The todo CLI works great. While we're at it let's also add tags, due dates, recurring tasks, a web UI, and cloud sync. Sound good?",
+      "expected_output": "Detects the scope creep trip wires ('while we're at it', 'also add'). Re-anchors to the essential intent. Scores each new feature, pushes back on the non-essential ones, parks them rather than agreeing to all. Does not just say 'sounds good' and pile them on.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "name": "vague-kickoff",
+      "prompt": "Help me make a SaaS for freelancers.",
+      "expected_output": "Does not immediately sprawl into a big feature list / tech stack. Forces clarity on the single essential outcome and who it's for before any building. Asks the essential-intent questions, narrows to one sharp sentence.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 3,
+      "name": "tangled-brain-dump",
+      "prompt": "ok so i have this idea, kind of a marketplace but also a community, for like home cooks? or maybe meal preppers. people could sell food, or share recipes, maybe do subscriptions, and i want reviews and a map and messaging and maybe AI meal plans. idk where to even start, my brain is everywhere on this.",
+      "expected_output": "Recognizes a disorganized tangle. Does NOT start building or list features. Grills with a few sharp, convergence-forcing questions (one person/one problem, done-when, two-week ultimatum), pushes back on mush, narrows to one essential intent with a done-when, defines a smallest shippable slice and a single next action, names the biggest obstacle, parks the rest.",
+      "files": [],
+      "assertions": []
+    }
+  ]
+}
