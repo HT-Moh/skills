@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-06
+
+### Added
+
+**Stilted / overly formal language (Wikipedia Signs of AI writing #9)**
+- Phrases (references/phrases.md): archaic/ceremonial words (henceforth, heretofore, whilst, verily) and pompous Latinate verbs (utilize→use, commence→start, facilitate→help) with plain replacements and a before/after
+- Quick Check (SKILL.md): flag overly formal or stilted phrasing and rewrite it plainly
+
 ## 2026-01-13
 
 ### Added

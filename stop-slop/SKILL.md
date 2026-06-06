@@ -44,6 +44,7 @@ Before delivering prose:
 - Vague declarative ("The implications are significant")? Name the specific implication.
 - Narrator-from-a-distance ("Nobody designed this")? Put the reader in the scene.
 - Meta-joiners ("The rest of this essay...")? Delete. Let the essay move.
+- Overly formal or stilted phrasing (archaic words like "henceforth," "heretofore," "whilst," "verily," or pompous Latinate verbs like "utilize," "commence," "facilitate")? Rewrite it plainly. See [references/phrases.md](references/phrases.md).
 
 ## Scoring
 

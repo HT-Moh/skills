@@ -126,3 +126,35 @@ Sentences that announce importance without naming the specific thing. Kill these
 - "The consequences are real"
 
 If a sentence says something is important/deep/structural without showing the specific thing, cut it or replace it with the specific thing.
+
+## Stilted / Overly Formal Language
+
+Wikipedia's *Signs of AI writing* #9: overly formal or stilted phrasing. Archaic,
+ceremonial, or pompous Latinate words make prose sound like a Victorian legal notice.
+Say it the way a person would.
+
+Archaic / ceremonial words — cut or replace:
+
+- "henceforth," "heretofore," "hereby," "herein," "thereof," "wherein," "aforementioned"
+- "whilst" → "while"
+- "amongst" → "among"
+- "verily," "doth," "thus," "hence" (when ornamental)
+- "pursuant to" / "in accordance with" → "under," "following"
+- "it is incumbent upon X to" → "X should"
+
+Pompous Latinate verbs — prefer the plain word:
+
+| Avoid | Use instead |
+|-------|-------------|
+| Utilize | Use |
+| Commence | Start |
+| Terminate | End, stop |
+| Endeavor | Try |
+| Ascertain | Find out, check |
+| Facilitate | Help, ease |
+| Demonstrate | Show |
+| Necessitate | Need, require |
+| Subsequent to | After |
+
+**Before:** "This function, hereby designated as 'calculateFoo', doth perform the computation of foo given bar and baz, in accordance with the established conventions."
+**After:** "Calculates foo from bar and baz."
