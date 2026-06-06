@@ -133,7 +133,7 @@ Wikipedia's *Signs of AI writing* #9: overly formal or stilted phrasing. Archaic
 ceremonial, or pompous Latinate words make prose sound like a Victorian legal notice.
 Say it the way a person would.
 
-Archaic / ceremonial words — cut or replace:
+Archaic / ceremonial words to cut or replace:
 
 - "henceforth," "heretofore," "hereby," "herein," "thereof," "wherein," "aforementioned"
 - "whilst" → "while"
@@ -142,7 +142,7 @@ Archaic / ceremonial words — cut or replace:
 - "pursuant to" / "in accordance with" → "under," "following"
 - "it is incumbent upon X to" → "X should"
 
-Pompous Latinate verbs — prefer the plain word:
+Pompous Latinate verbs; prefer the plain word:
 
 | Avoid | Use instead |
 |-------|-------------|
