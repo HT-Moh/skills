@@ -4,6 +4,12 @@
 
 ### Added
 
+**Recognizable-not-perfect, from copywriting articles**
+- voice.md: "Aim for recognizable, not perfect" (the perfection trap); two tests (write to one reader; recognize it with no byline or logo); "say something non-obvious" (information gain)
+- structures.md: "Template Shape" pattern (hook, list, wrap-up, CTA) that readers spot on sight
+- SKILL.md: Quick Checks for no-recognizable-voice, nothing-non-obvious, and template shape
+- Deliberately left out of scope: copywriting craft (buyer psychology, customer-language mining, SEO/E-E-A-T). stop-slop humanizes prose; it is not a full copywriting skill.
+
 **Voice and soul (references/voice.md)**
 - New file: the six properties of human writing, signs of soulless drafts, how to add voice, with a before/after. Closes the "only removes, never adds" gap that produces clean-but-soulless prose.
 - SKILL.md: a "Two jobs" frame (remove tells AND add voice); Scoring expanded with three substance dimensions (Specificity, Restraint, Voice), a 56/80 threshold, and per-half floors; a new Self-Audit step ("what still reads as AI?" then fix).

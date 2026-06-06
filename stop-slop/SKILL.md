@@ -54,6 +54,9 @@ Before delivering prose:
 - Narrator-from-a-distance ("Nobody designed this")? Put the reader in the scene.
 - Meta-joiners ("The rest of this essay...")? Delete. Let the essay move.
 - Overly formal or stilted phrasing (archaic words like "henceforth," "heretofore," "whilst," "verily," or pompous Latinate verbs like "utilize," "commence," "facilitate")? Rewrite it plainly. See [references/phrases.md](references/phrases.md).
+- Could belong to any brand (no recognizable voice)? Add a point of view. See [references/voice.md](references/voice.md).
+- Says nothing non-obvious, just repackages what is already out there? Add one real insight or cut it.
+- Reads like a template (hook, list, wrap-up, CTA)? Break the shape.
 
 ## Scoring
 

@@ -33,6 +33,19 @@ Every revision should strengthen at least one of these without damaging the othe
 - **Let some mess in.** Tangents and half-formed thoughts read human. Perfect structure reads algorithmic.
 - **Be specific about feeling.** Not "this is concerning" but the concrete thing that unsettles: "agents churning away at 3am while nobody is watching."
 
+## Aim for recognizable, not perfect
+
+Too clean reads as manufactured. AI smooths out the pauses, the emphasis, and the rough edges that signal a real person wrote this. A draft that could belong to any brand belongs to none. Do not polish the voice out of it. Leave the blunt short sentence, the aside, the strong opinion. The goal is writing a reader could recognize as the author's, not writing that passes a grammar check.
+
+## Two tests
+
+- **The one-reader test.** Write to one specific person the author understands, not a "broad audience." Specific beats broad. A line that would suit anyone lands on no one.
+- **The recognition test.** Could a reader tell this is the author's writing with no byline and no logo? If not, it has no voice yet. Keep working.
+
+## Say something non-obvious
+
+AI repackages what already exists. If a piece has no "I had not thought of it that way" moment, the reader gained nothing and will not finish. Before delivering, find one specific claim, example, or angle the reader could not get from any other piece on the topic. If there is none, the draft is not done.
+
 ## Before / after
 
 **Before (clean but soulless):**

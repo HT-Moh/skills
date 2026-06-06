@@ -126,6 +126,18 @@ Wh- openers become a crutch. "What makes this hard is..." becomes "The constrain
 | Staccato fragmentation | Don't stack short punchy sentences |
 | "Not always. Not perfectly." | Hedging disguised as reassurance |
 
+## Template Shape
+
+The default AI essay shape: a hook, a numbered list, a tidy conclusion, a call to action. Readers recognize it on sight and stop trusting it. The shape itself signals "generated," even when every sentence is clean.
+
+| Pattern | Problem |
+|---------|---------|
+| Hook, then a numbered list, then a wrap-up, then a CTA | The template feel. Predictable from the first scroll. |
+| Every section the same length and shape | Mechanical pacing |
+| A conclusion that restates the introduction | Adds nothing the reader did not already have |
+
+**Instead:** Break the mold. Start in the middle of a thought. Let one section run long and the next be two lines. Cut the wrap-up if the piece already landed.
+
 ## Word Patterns
 
 | Pattern | Problem |
