@@ -4,6 +4,10 @@
 
 ### Added
 
+**Voice and soul (references/voice.md)**
+- New file: the six properties of human writing, signs of soulless drafts, how to add voice, with a before/after. Closes the "only removes, never adds" gap that produces clean-but-soulless prose.
+- SKILL.md: a "Two jobs" frame (remove tells AND add voice); Scoring expanded with three substance dimensions (Specificity, Restraint, Voice), a 56/80 threshold, and per-half floors; a new Self-Audit step ("what still reads as AI?" then fix).
+
 **Rewrite prompt library (references/prompts.md)**
 - New file: targeted rewrite prompts per slop pattern (throat-clearing, overused words, not-X-but-Y, rule of three, nominalizations, filler transitions, vague authority, passive voice, false agency, hedging stacks, stilted language, quotable bait). Each names the pattern to spot and the specific fix.
 - SKILL.md: new "Rewrite Prompts" section pointing to the file

@@ -10,6 +10,15 @@ metadata:
 
 Eliminate predictable AI writing patterns from prose.
 
+## Two jobs
+
+Slop fails in two directions. Catch both.
+
+1. **Inflated slop (remove the tells):** puffery, AI vocabulary, emojis, three-item lists, "stands as a testament." The Core Rules and references catch these.
+2. **Flattened slop (add what is human):** passive narrator-from-a-distance, vague declaratives, metronomic rhythm, no opinion. Removing tells does not fix this. You have to add voice.
+
+A clean draft with no voice is still obviously AI. Run both attacks. See [references/voice.md](references/voice.md) for the voice half and the six properties of human writing.
+
 ## Core Rules
 
 1. **Cut filler phrases.** Remove throat-clearing openers, emphasis crutches, and all adverbs. See [references/phrases.md](references/phrases.md).
@@ -48,7 +57,9 @@ Before delivering prose:
 
 ## Scoring
 
-Rate 1-10 on each dimension:
+Rate 1-10 on each dimension. The first five test **mechanics** (how sentences land). The last three test **substance** (whether the text says something specific, at honest size, from a real point of view). A draft can pass mechanics and still be soulless.
+
+**Mechanics**
 
 | Dimension | Question |
 |-----------|----------|
@@ -58,7 +69,28 @@ Rate 1-10 on each dimension:
 | Authenticity | Sounds human? |
 | Density | Anything cuttable? |
 
-Below 35/50: revise.
+**Substance**
+
+| Dimension | Question |
+|-----------|----------|
+| Specificity | Names the actual thing, or gestures at categories? |
+| Restraint | States things at honest size, or puffs them up? |
+| Voice | Has a point of view, or neutral wire copy? |
+
+Below 56/80: revise. Also revise if either half fails on its own: mechanics under 35/50, or substance under 21/30.
+
+Diagnostic: high mechanics with low substance is "clean but soulless." Add voice (see [references/voice.md](references/voice.md)). High substance with low mechanics is "interesting but slop-shaped." Scrub the patterns again.
+
+## Self-Audit
+
+After the rewrite scores well, run one more pass. Ask: "What still makes this obviously AI generated?" Answer honestly, then fix what surfaces. Common late tells:
+
+- Rhythm still too tidy (clean contrasts, evenly paced paragraphs)
+- Named people or numbers that read as plausible-but-fabricated
+- Closers that lean slogan-y instead of conversational
+- A three-item list that snuck back in
+
+This catches what the checklist misses.
 
 ## Examples
 
