@@ -64,6 +64,10 @@ Below 35/50: revise.
 
 See [references/examples.md](references/examples.md) for before/after transformations.
 
+## Rewrite Prompts
+
+See [references/prompts.md](references/prompts.md) for targeted rewrite prompts: each names a slop pattern to spot and the specific instruction to fix it.
+
 ## License
 
 MIT

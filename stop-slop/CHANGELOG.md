@@ -4,6 +4,10 @@
 
 ### Added
 
+**Rewrite prompt library (references/prompts.md)**
+- New file: targeted rewrite prompts per slop pattern (throat-clearing, overused words, not-X-but-Y, rule of three, nominalizations, filler transitions, vague authority, passive voice, false agency, hedging stacks, stilted language, quotable bait). Each names the pattern to spot and the specific fix.
+- SKILL.md: new "Rewrite Prompts" section pointing to the file
+
 **Stilted / overly formal language (Wikipedia Signs of AI writing #9)**
 - Phrases (references/phrases.md): archaic/ceremonial words (henceforth, heretofore, whilst, verily) and pompous Latinate verbs (utilize→use, commence→start, facilitate→help) with plain replacements and a before/after
 - Quick Check (SKILL.md): flag overly formal or stilted phrasing and rewrite it plainly
