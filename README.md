@@ -10,6 +10,7 @@ instructions) that Claude loads on demand when its description matches the task.
 |-------|--------------|
 | [**essentialism**](./essentialism) | Applies Greg McKeown's *Essentialism* to stop project ideas (or any over-committed pursuit) from blowing up in scope, and drives the vital few to ship. Grills a tangled idea into one essential intent with a done-when, scores features with the 90% rule, defines the smallest shippable slice, and keeps a living `ESSENTIAL_INTENT.md`. |
 | [**stop-slop**](./stop-slop) | Removes AI writing patterns from prose — filler phrases, formulaic structures, passive voice, em dashes, vague declaratives. Scores drafts across directness, rhythm, trust, authenticity, and density. Starting point copied from [hardikpandya/stop-slop](https://github.com/hardikpandya/stop-slop) (MIT, © Hardik Pandya). |
+| [**viral-audit**](./viral-audit) | Audits a SaaS app against Marc Lou's *32 Principles of a Viral Product*. Reads the real code first (code is source of truth), diffs marketing claims against what the code actually does, scores the 32 principles, and outputs a terse 3-block fix list — LIES / FAILS / DO NEXT — with `file:line` and effort. Proposes, never edits until told. Invoke with `/viral-audit`. |
 
 ## Install
 
