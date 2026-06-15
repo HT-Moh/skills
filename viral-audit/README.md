@@ -39,9 +39,10 @@ DO NEXT (ranked impact ÷ effort):
 
 ```
 /viral-audit
+/viral-audit "the fastest way to ship a landing page"
 ```
 
-Run it inside a SaaS repo. The skill confirms your USP from the code before scoring, then audits. It **proposes** — it does not edit files. Say `apply 1` or `fix #12` to have it make a change.
+Run it inside a SaaS repo. Pass your USP as an optional argument to skip inference. If you don't, the skill infers the USP from the code and only asks when the code is silent (backend-only or pre-marketing repos), then audits. It **proposes** — it does not edit files. Say `apply 1` or `fix #12` to have it make a change.
 
 ## Principles
 
