@@ -1,6 +1,6 @@
 ---
 name: viral-audit
-description: Audits a SaaS app's landing page, positioning, pricing, and monetization code against Marc Lou's 32 Principles of a Viral Product, then outputs a terse, actionable fix list. Code is the source of truth. Use when the user wants to know why their app isn't converting or going viral, wants a landing-page/pricing/positioning critique, asks to "make my SaaS go viral", runs /viral-audit, or names Marc Lou's viral principles. Catches divergence where the code and the docs/landing claims disagree (e.g. README says one-time payment but Stripe creates a subscription). Reads the real code first, never trusts marketing copy over implementation.
+description: Audits a SaaS app's landing page, positioning, pricing, and monetization code against Marc Lou's 32 Principles of a Viral Product, then outputs a terse, actionable fix list. Code is the source of truth. Use when the user wants to know why their app isn't converting or going viral, wants a landing-page/pricing/positioning critique, asks to "make my SaaS go viral", runs /viral-audit, or names Marc Lou's viral principles. Catches divergence where the code and the docs/landing claims disagree (e.g. README says one-time payment but Stripe creates a subscription). Reads the real code first, never trusts marketing copy over implementation. Accepts an optional USP/positioning string as an argument (e.g. /viral-audit "the fastest way to X"); when omitted it infers the USP from the code and only asks the user if the code is silent.
 ---
 
 # Viral Audit
@@ -62,8 +62,14 @@ DO NEXT (ranked impact ÷ effort):
 
 No text before or after the blocks except the confirmed USP line from Step 1.5.
 
-## Step 1.5 — Confirm the USP (between Stage 1 and 2)
-Infer the one-thing + USP + target user from the **code**, show 3 lines, ask the user to confirm or correct. Audit nothing until confirmed — a wrong USP poisons every verdict.
+## Step 1.5 — Resolve the USP (between Stage 1 and 2)
+A wrong USP poisons every verdict. Resolve it with the least user effort that still gets it right:
+
+1. **Argument given.** If the user passed a USP/positioning string (`/viral-audit "the fastest way to X"`), use it verbatim. Skip to Stage 2.
+2. **No arg, code is clear.** If the landing copy / hero headline / value prop exists in the code, infer the one-thing + USP + target user, show 3 lines, and proceed unless the user corrects within the turn. Silence = accepted. Do not block.
+3. **No arg, code is silent.** If there is no landing/positioning copy (backend-only, API, pre-marketing repo) and inference would be a guess, ask **one** targeted question: "What is the one thing this sells, and to whom?" Nothing more. Do not interrogate.
+
+Never invent a USP and audit against it silently — that is the failure mode this step exists to prevent.
 
 ## The 32 principles — detection table
 
