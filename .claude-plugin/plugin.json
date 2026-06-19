@@ -1,0 +1,10 @@
+{
+  "name": "skills",
+  "description": "Reusable, model-invoked Claude Code / agent skills.",
+  "version": "1.0.0",
+  "skills": [
+    "./productivity/essentialism",
+    "./productivity/stop-slop",
+    "./marketing/viral-audit"
+  ]
+}
