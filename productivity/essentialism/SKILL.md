@@ -1,18 +1,13 @@
 ---
 name: essentialism
 description: >-
-  Applies Greg McKeown's Essentialism (the disciplined pursuit of less) to stop any
-  over-committed pursuit — a software project, a product, or a person's tangle of
-  commitments — from blowing up in scope, and to drive the essential few to completion.
-  Use whenever the user starts a new project, feature, or app, especially when the idea
-  is vague, tangled, or ballooning into a long feature list; when scope creeps mid-build
-  ("while we're at it", "let's also add", a growing backlog); or when the user feels
-  overwhelmed by too many projects, priorities, or commitments and needs to cut to what
-  matters. It grills with a few sharp questions until one essential outcome is clear,
-  scores every option against it (the 90% rule), defines the smallest shippable slice and
-  the single next action, parks the rest, and keeps a living ESSENTIAL_INTENT.md. Use it
-  even when Essentialism isn't named — if something is sprawling, stalling, or
-  overwhelming, this applies.
+  Greg McKeown's Essentialism — the disciplined pursuit of less but better, shipped.
+  Grills a vague or sprawling idea into one essential intent with a done-when, scores
+  options with the 90% rule, ships the smallest slice, parks the rest, keeps a living
+  ESSENTIAL_INTENT.md. Use when the user starts a project/feature/app, when scope creeps
+  ("while we're at it", "also add", a growing backlog), or when they're overwhelmed by too
+  many commitments. Fires even when "essentialism" isn't named — anything sprawling,
+  stalling, or overwhelming.
 ---
 
 # Essentialism
@@ -81,6 +76,9 @@ How to grill well:
 - Stop at "enough to commit." You need a single outcome, a done-when, and a first slice —
   not a complete spec. Over-interrogating is its own non-essential noise.
 
+**Done when:** you can name *one* user, *one* problem, and *one* observable thing they can
+do after using it once. Can't fill all three? Keep grilling. Do not advance to Step 1.
+
 ## Step 1 — Lock the Essential Intent
 
 From their answers, write **one sharp sentence** with a built-in finish line. McKeown:
@@ -95,6 +93,9 @@ No done-when, no finish line, no delivery. This sentence becomes the ruler every
 else is measured against. Write it to ESSENTIAL_INTENT.md and reflect it back to the
 user to confirm before building.
 
+**Done when:** the intent sentence contains an observable done-when ("done when one
+freelancer completes the flow"). No observable finish line in the sentence → not done.
+
 ## Step 2 — Apply the 90% rule
 
 Every proposed feature — theirs or yours — gets scored against the intent:
@@ -106,6 +107,9 @@ trap — "pretty good" is exactly how scope dies, because saying yes to the mere
 spends the finite time the essential thing needs. Score out loud, explain *why* a cut
 doesn't serve the one thing, and park it (it may be a great *future* project, just not
 now).
+
+**Done when:** every proposed feature carries a 0–10 score, and everything under 9 is in
+the Parked list. An unscored feature is an open scope hole — close it before Step 3.
 
 ## Step 3 — Execute: smallest slice + one next action
 
@@ -121,6 +125,9 @@ small real wins keep the project alive where grand plans rot.
 menu of five. "Build the add-lead form that saves one lead to local storage." This is
 how discipline becomes delivery. If you find yourself listing options, you've stopped
 driving.
+
+**Done when:** ESSENTIAL_INTENT.md holds exactly one smallest-slice definition and exactly
+one next action. More than one next action = not done; cut back to one.
 
 ## Step 4 — Subtract the obstacle, and buffer
 
@@ -189,7 +196,6 @@ Keep it short. If it grows long, that's a signal scope is creeping — prune it.
 
 Channel the Essentialist, not a bureaucrat. Grill hard, but in service of the user's own
 goal: ship the thing that matters. Explain the *why* behind every no and every question
-so it lands as clarity, not obstruction. When you cut, you give the user back their
-focus. When you name the next action, you give them momentum.
+so it lands as clarity, not obstruction.
 
 > "The way of the Essentialist is the relentless pursuit of less but better."
