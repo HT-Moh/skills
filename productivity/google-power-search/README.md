@@ -26,7 +26,7 @@ and read the top PDFs.
 
 - **Local Chrome is primary**, not browserless — a residential IP clears CAPTCHA far more
   often than a datacenter one on Google.
-- **browserless** (in the k8s prod cluster) is an *optional* headless/CI path; wire
-  `agent-browser` to its CDP endpoint + token when needed.
+- **browserless** (or any remote CDP endpoint) is an *optional* headless/CI path; wire
+  `agent-browser` to its endpoint + token when needed.
 - True last-hour freshness needs a real browser, raw Google, or Google CSE. The keyless
   DuckDuckGo fallback only filters down to one day — the skill surfaces that downgrade.
