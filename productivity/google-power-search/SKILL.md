@@ -85,8 +85,10 @@ exact block that stopped every rung tried — never an unexplained empty list.
 The user usually wants what's *in* the results, not just links. For each chosen result —
 prioritize PDFs — walk this chain:
 
-1. **Download + Read.** `curl -sL "<url>" -o /tmp/gs-<n>.pdf`, then Read `/tmp/gs-<n>.pdf`
-   — the Read tool extracts PDF text and pages natively, no extra dependency.
+1. **Download + Read.** `curl -sfL "<url>" -o /tmp/gs-<n>.pdf`, then Read `/tmp/gs-<n>.pdf`
+   — the Read tool extracts PDF text and pages natively, no extra dependency. The `-f`
+   makes curl exit non-zero on a 4xx/5xx instead of silently saving an error page as a
+   `.pdf`, so a dead link fails fast rather than feeding Read garbage.
 2. **WebFetch.** For HTML pages, or PDFs that curl can't reach, WebFetch the URL.
 3. **Browser extract.** If both fail (auth wall, JS render), open it via the `agent-browser`
    skill and read the rendered text.
@@ -105,8 +107,8 @@ Lead with a ranked list, one row per result:
 <title> — <url> — <date if known>
 ```
 
-Then, for each document the user wanted read, a tight summary of its content. No preamble,
-no "I found several results" throat-clearing — the list is the opening line.
+Then, for each document the user wanted read, a tight summary of its content. The list is
+the opening line — no preamble.
 
 ## Reference
 
@@ -150,6 +152,12 @@ Chain freely — operators combine and group with parentheses:
 | Pages exposing emails | `site:example.com intext:"@"` |
 | Coupon / referral codes | `site:example.com ("coupon" OR "referral code" OR "discount code")` |
 | Who uses a widget | `intext:"Powered by Intercom" -site:intercom.com` |
+
+The email/spreadsheet recipes are for auditing *your own* exposed surface or
+open-source research — not for harvesting third-party PII or hunting leaked
+credentials. If a request is aimed at collecting personal data or finding a
+target's secrets, decline; dorking surfaces what is already public, it does not
+license misuse of it.
 
 ### Time window — `tbs=qdr:`
 
