@@ -10,10 +10,15 @@ comes back, PDFs included. A dork is a query carrying operators (`filetype:`, `s
 `"exact"`) and a freshness window, so it returns the few right documents instead of a
 million pages.
 
-A real browser dodges Google's bot wall better than a raw fetch, but Google CAPTCHAs
-(`/sorry/index`) aggressively even from a local residential IP — so in practice the
-keyless DuckDuckGo rung often carries the search when the target is Google. Execution
-degrades down a ladder; treat every rung as fallible and drop on a *named* block.
+**This is Google-first.** The query is a *Google* dork and Step 1 builds a *Google* URL;
+the goal is always Google's index and its full operator set. A real browser dodges Google's
+bot wall better than a raw fetch, but Google CAPTCHAs (`/sorry/index`) aggressively even
+from a local residential IP. When every Google-capable rung is blocked, execution degrades
+to a DuckDuckGo fallback — a **downgrade, not the engine**: DDG silently drops Google-only
+operators (`related:`, `inanchor:`, `AROUND()`, wildcard `*`; see the operator table). If
+the query depends on those, say so and prefer a Google-capable rung (real browser, raw
+fetch, or a Google CSE key) over a fallback that would quietly change what you searched for.
+Treat every rung as fallible and drop only on a *named* block.
 
 ## Step 1 — Build the dork URL
 
@@ -107,18 +112,44 @@ no "I found several results" throat-clearing — the list is the opening line.
 
 ### Operators
 
-| Operator | Effect | Example |
-|---|---|---|
-| `filetype:` / `ext:` | Restrict to a file type | `filetype:pdf` |
-| `site:` | One domain or TLD | `site:arxiv.org`, `site:.gov` |
-| `intitle:` / `allintitle:` | Term(s) in the page title | `intitle:benchmark` |
-| `inurl:` / `allinurl:` | Term(s) in the URL | `inurl:2026` |
-| `"..."` | Exact phrase | `"chain of thought"` |
-| `OR` / `|` | Either term | `LLM OR "language model"` |
-| `-` | Exclude a term | `AI -crypto` |
-| `*` | Wildcard within a phrase | `"best * for RAG"` |
-| `after:` / `before:` | Absolute date bound | `after:2026-06-01` |
-| `related:` | Sites like this one | `related:huggingface.co` |
+Full reference: [Google Guide advanced operators](https://www.googleguide.com/advanced_operators_reference.html).
+The `G` column flags **Google-only** operators — the DDG fallback silently drops them (see
+the caveat below), so a query leaning on them must run on a Google-capable rung (1, 2, 4,
+or a Google CSE key on 5).
+
+| Operator | Effect | Example | G |
+|---|---|---|:-:|
+| `"..."` | Exact phrase | `"chain of thought"` | |
+| `-term` | Exclude | `AI -crypto` | |
+| `term1 OR term2` / `\|` | Either term | `LLM OR "language model"` | |
+| `term1 AND term2` | Both required | `"privacy" AND "GDPR"` | |
+| `site:` | One domain or TLD | `site:arxiv.org`, `site:.edu` | |
+| `filetype:` / `ext:` | Restrict to a file type | `filetype:pdf` | |
+| `intitle:` / `allintitle:` | Term(s) in the page title | `allintitle:"support this"` | |
+| `inurl:` / `allinurl:` | Term(s) in the URL | `inurl:bug-bounty` | |
+| `intext:` / `allintext:` | Term(s) in the body | `intext:"@gmail.com"` | |
+| `*` | Wildcard — any word(s) | `* design tools` | ● |
+| `related:` | Sites like this one | `related:huggingface.co` | ● |
+| `inanchor:` / `allinanchor:` | Term(s) in inbound anchor text | `inanchor:"cyber security"` | ● |
+| `AROUND(n)` | Two terms within n words | `tesla AROUND(3) lawsuit` | ● |
+| `after:` / `before:` | Absolute date bound | `after:2026-06-01` | ● |
+
+Chain freely — operators combine and group with parentheses:
+`(inurl:security OR inurl:bug-bounty OR site:hackerone.com) "gumroad"`
+`site:.edu filetype:xls inurl:"email.xls"`
+`site:intercom.com (filetype:pdf OR filetype:ppt)`
+
+### Recipes
+
+| Goal | Query |
+|---|---|
+| Pages within a site | `site:gumroad.com dynamodb` |
+| Spreadsheets anywhere | `filetype:csv OR filetype:xlsx OR filetype:xls` |
+| Competitor whitepapers | `site:intercom.com (filetype:pdf OR filetype:ppt)` |
+| Case studies on a rival | `inurl:hubspot-case-study -site:hubspot.com` |
+| Pages exposing emails | `site:example.com intext:"@"` |
+| Coupon / referral codes | `site:example.com ("coupon" OR "referral code" OR "discount code")` |
+| Who uses a widget | `intext:"Powered by Intercom" -site:intercom.com` |
 
 ### Time window — `tbs=qdr:`
 
@@ -143,5 +174,13 @@ Custom range: `tbs=cdr:1,cd_min:6/1/2026,cd_max:6/17/2026`.
   fallback bottoms out at one day — surface that downgrade, don't hide it.
 - **Google throttles automation.** Expect consent walls and CAPTCHAs on datacenter IPs.
   The local browser is the mitigation; the manual-URL hand-off is the floor.
+- **Making Google itself reliable (staying off the DDG downgrade).** Two paths keep you on
+  Google's real index: (1) a real browser reusing an existing signed-in Google session —
+  run `agent-browser` against a Chrome profile that already has Google cookies, so requests
+  look human and clear `/sorry` far more often than a cold headless launch; (2) the **Google
+  Programmable Search Engine (CSE) JSON API** or a paid aggregator (Serper, SerpAPI) — real
+  Google results, honoring `filetype:`/`site:` and `dateRestrict` freshness, no CAPTCHA. If
+  a query needs Google-only operators or true last-hour freshness *and* the browser rung is
+  blocked, a CSE/Serper key is the right fix — not the DDG fallback.
 - **Respect scale.** This is precise lookup, not bulk scraping. Don't loop hundreds of
   queries — that's what earns an IP block.
