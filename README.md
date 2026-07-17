@@ -15,6 +15,7 @@ auto-fire when their description matches; you can also type their name). See
 | Skill | What it does |
 |-------|--------------|
 | [**essentialism**](./productivity/essentialism) | Applies Greg McKeown's *Essentialism* to stop project ideas (or any over-committed pursuit) from blowing up in scope, and drives the vital few to ship. Grills a tangled idea into one essential intent with a done-when, scores features with the 90% rule, defines the smallest shippable slice, and keeps a living `ESSENTIAL_INTENT.md`. |
+| [**google-power-search**](./productivity/google-power-search) | Builds a precise Google query (a *dork*) — `filetype:`, `site:`, `"exact"`, plus a `tbs=qdr:` freshness window (last hour/day/week) — strips tracking junk, runs it in a real browser, and reads the results including PDFs. Degrades down a fallback ladder (local Chrome → browserless → DuckDuckGo → raw fetch → search API → manual URL). |
 | [**stop-slop**](./productivity/stop-slop) | Removes AI writing patterns from prose — filler phrases, formulaic structures, passive voice, em dashes, vague declaratives. Scores drafts across directness, rhythm, trust, authenticity, and density. Starting point copied from [hardikpandya/stop-slop](https://github.com/hardikpandya/stop-slop) (MIT, © Hardik Pandya). |
 
 ### [marketing/](./marketing) — landing-page, positioning, and growth audits
