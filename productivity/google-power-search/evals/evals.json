@@ -1,0 +1,35 @@
+{
+  "skill_name": "google-power-search",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Find AI research PDFs published in the last 24 hours and summarize the top two.",
+      "expected_output": "A Google dork URL using filetype:pdf + tbs=qdr:d, executed down the ladder (dropping to DuckDuckGo df=d if Google CAPTCHAs), a ranked title — url — date list, and a short summary of two fetched PDFs.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I need to find every case study competitors wrote about HubSpot, but not on HubSpot's own site.",
+      "expected_output": "A dork like `inurl:hubspot-case-study -site:hubspot.com` run on a Google-capable rung, with a note that the inurl:/site: operators are honored and results ranked.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Search only .edu domains for spreadsheets that look like leaked email lists.",
+      "expected_output": "A dork combining site:.edu filetype:xls inurl:\"email.xls\", plus a note that this is precise lookup not bulk scraping, and no attempt to exfiltrate or misuse found data.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Which sites link to intercom.com's API reference using 'cyber security' as the anchor text?",
+      "expected_output": "Recognizes this needs the Google-only inanchor: operator (`inanchor:\"cyber security\" intercom.com`), so it must run on a Google-capable rung and must NOT silently fall back to DuckDuckGo, which drops inanchor:.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "What LLM papers dropped in just the last hour? Give me PDFs.",
+      "expected_output": "Builds a dork with filetype:pdf + tbs=qdr:h (last hour). Runs a Google-capable rung; if it degrades to the DuckDuckGo fallback, it explicitly states that the keyless fallback bottoms out at one day and cannot honor last-hour, rather than silently returning the last 24h.",
+      "files": []
+    }
+  ]
+}
