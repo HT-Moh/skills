@@ -56,10 +56,12 @@ why before dropping to the next.
    Even then Google may hit you with `/sorry/index` (a CAPTCHA page, not results) — if the
    snapshot shows "Why did this happen?" or a `/sorry/` URL, that is a named block: drop to
    the next rung.
-2. **browserless (optional).** Only if a browserless CDP endpoint + token are configured in
-   the environment — point `agent-browser` at it for headless/CI/parallel runs. Not
-   required, and its datacenter IP is *more* CAPTCHA-prone on Google, so it is not the
-   default.
+2. **browserless skill (remote browser).** Run the `browserless` skill to execute the query
+   on the self-hosted browserless instance — that skill owns the endpoint and auth, so this
+   one just calls it; configure nothing here. Use when there is no local Chrome (CI,
+   container, headless box). Apply the same `/sorry/index` named-block check: a browserless
+   node is a datacenter IP, so Google CAPTCHAs it *more* readily than local Chrome — drop on
+   a block. browserless is most useful at Step-3 content-fetch for JS/auth pages.
 3. **DuckDuckGo HTML (keyless fallback — often the practical primary for Google).**
    `https://html.duckduckgo.com/html/?q=<query>` via WebFetch or curl with a browser
    User-Agent. Honors `filetype:` and `site:`. Time filter is `df=d|w|m` only — **no hour**;
@@ -91,7 +93,9 @@ prioritize PDFs — walk this chain:
    `.pdf`, so a dead link fails fast rather than feeding Read garbage.
 2. **WebFetch.** For HTML pages, or PDFs that curl can't reach, WebFetch the URL.
 3. **Browser extract.** If both fail (auth wall, JS render), open it via the `agent-browser`
-   skill and read the rendered text.
+   skill (local) or the `browserless` skill (remote) and read the rendered text. This is
+   where a headless browser earns its keep: no CAPTCHA problem on an ordinary content page,
+   unlike Google search.
 
 Report a per-document failure explicitly (`403`, `paywall`, `not a PDF`) rather than
 dropping the document without a word.

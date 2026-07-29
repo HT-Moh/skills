@@ -26,7 +26,8 @@ and read the top PDFs.
 
 - **Local Chrome is primary**, not browserless — a residential IP clears CAPTCHA far more
   often than a datacenter one on Google.
-- **browserless** (or any remote CDP endpoint) is an *optional* headless/CI path; wire
-  `agent-browser` to its endpoint + token when needed.
+- **Remote browser** rung calls the `browserless` skill (it owns the endpoint + auth — this
+  skill configures nothing). Used for headless/CI, or Step-3 content-fetch of JS/auth pages.
+  A datacenter IP still gets CAPTCHA'd on Google search itself, so it's not a Google fix.
 - True last-hour freshness needs a real browser, raw Google, or Google CSE. The keyless
   DuckDuckGo fallback only filters down to one day — the skill surfaces that downgrade.
