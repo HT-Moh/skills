@@ -4,6 +4,8 @@ description: Remove AI writing patterns from prose. Use when drafting, editing, 
 metadata:
   trigger: Writing prose, editing drafts, reviewing content for AI patterns
   author: Hardik Pandya (https://hvpandya.com)
+  upstream: https://github.com/hardikpandya/stop-slop (MIT)
+  maintainer: Mohamed Habbat (https://github.com/HT-Moh)
 ---
 
 # Stop Slop
