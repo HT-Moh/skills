@@ -1,6 +1,15 @@
 ---
 name: google-power-search
-description: Runs precise Google searches with advanced operators (a "dork") and reads the results, including PDFs. Builds a clean query URL — filetype:, site:, intitle:, "exact", OR, exclusion — with a time window (last hour/day/week via tbs=qdr:), executes it in a real browser, and extracts the results. Use when the user wants recent PDFs or docs on a topic ("AI papers from the last hour", "filetype:pdf"), a targeted site: or operator search, results filtered by freshness, or wants the found documents' content fetched and summarized, not just links.
+description: >-
+  Runs precise Google searches with advanced operators (a "dork") and reads the results,
+  including PDFs. Builds a clean query URL — filetype:, site:, intitle:, "exact", OR,
+  exclusion — with a time window (last hour/day/week via tbs=qdr:), executes it in a real
+  browser, and extracts the results. Use when the user wants recent PDFs or docs on a topic
+  ("AI papers from the last hour", "filetype:pdf"), a targeted site: or operator search,
+  results filtered by freshness, or wants the found documents' content fetched and
+  summarized, not just links.
+metadata:
+  author: Mohamed Habbat (https://github.com/HT-Moh)
 ---
 
 # Google Power Search
@@ -60,8 +69,11 @@ why before dropping to the next.
    on the self-hosted browserless instance — that skill owns the endpoint and auth, so this
    one just calls it; configure nothing here. Use when there is no local Chrome (CI,
    container, headless box). Apply the same `/sorry/index` named-block check: a browserless
-   node is a datacenter IP, so Google CAPTCHAs it *more* readily than local Chrome — drop on
-   a block. browserless is most useful at Step-3 content-fetch for JS/auth pages.
+   node is a datacenter IP, so Google CAPTCHAs it *more* readily than local Chrome — expect
+   a block here, and treat it as terminal for this rung. A self-hosted instance has no
+   `/unblock` endpoint, so there is nothing to escalate to; stealth flags don't help either.
+   Drop immediately rather than retrying — each attempt spends a browser unit. browserless
+   earns its keep at Step-3 content-fetch for JS/auth pages, not at search.
 3. **DuckDuckGo HTML (keyless fallback — often the practical primary for Google).**
    `https://html.duckduckgo.com/html/?q=<query>` via WebFetch or curl with a browser
    User-Agent. Honors `filetype:` and `site:`. Time filter is `df=d|w|m` only — **no hour**;
