@@ -12,6 +12,7 @@
     "./productivity/essentialism",
     "./productivity/google-power-search",
     "./productivity/stop-slop",
-    "./marketing/viral-audit"
+    "./marketing/viral-audit",
+    "./social/linkedin-post"
   ]
 }

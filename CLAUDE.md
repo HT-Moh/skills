@@ -4,6 +4,7 @@ Skills live in bucket folders under the repo root:
 
 - `productivity/` — daily non-code workflow tools (essentialism, stop-slop)
 - `marketing/` — landing-page, positioning, and growth audits (viral-audit)
+- `social/` — posting & scheduling to social networks (linkedin-post)
 
 Add a bucket folder when a new skill doesn't fit an existing one. Keep bucket names to a
 single lowercase word.

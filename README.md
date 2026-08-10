@@ -25,6 +25,12 @@ auto-fire when their description matches; you can also type their name). See
 |-------|--------------|
 | [**viral-audit**](./marketing/viral-audit) | Audits a SaaS app against Marc Lou's *32 Principles of a Viral Product*. Reads the real code first (code is source of truth), diffs marketing claims against what the code actually does, scores the 32 principles, and outputs a terse 3-block fix list — LIES / FAILS / DO NEXT — with `file:line` and effort. Proposes, never edits until told. Invoke with `/viral-audit`. |
 
+### [social/](./social) — posting & scheduling to social networks
+
+| Skill | What it does |
+|-------|--------------|
+| [**linkedin-post**](./social/linkedin-post) | Publishes or natively schedules a LinkedIn post from a `linkedin.json` session export, driving the real LinkedIn composer through a self-hosted browserless instance (no API, no password). Converts exported cookies to Puppeteer shape, fills the composer + native Schedule dialog, screenshots each step. Dry-run by default — publishes only on explicit `--confirm`. |
+
 ## Install
 
 Copy a skill folder into your personal skills directory, then restart Claude Code:
