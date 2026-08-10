@@ -8,6 +8,8 @@ description: >-
   ("while we're at it", "also add", a growing backlog), or when they're overwhelmed by too
   many commitments. Fires even when "essentialism" isn't named — anything sprawling,
   stalling, or overwhelming.
+metadata:
+  author: Mohamed Habbat (https://github.com/HT-Moh)
 ---
 
 # Essentialism

@@ -14,6 +14,9 @@ single lowercase word.
   frontmatter `name` + `description`, then instructions). Optional siblings: `README.md`,
   `references/`, `evals/`.
 - The skill's `name` frontmatter must equal its folder name.
+- Every skill carries `metadata.author: Mohamed Habbat (https://github.com/HT-Moh)`. A skill
+  vendored from someone else keeps *their* `author` — add `upstream:` (repo + license) and
+  `maintainer:` instead. Never overwrite a third party's attribution.
 - Every skill must be listed in the top-level `README.md` and in `.claude-plugin/plugin.json`.
 - Each bucket folder has a `README.md` listing its skills, one line each, name linked to
   the skill's `SKILL.md`.

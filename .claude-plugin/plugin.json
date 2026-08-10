@@ -2,7 +2,13 @@
   "name": "skills",
   "description": "Reusable, model-invoked Claude Code / agent skills.",
   "version": "1.0.0",
+  "author": {
+    "name": "Mohamed Habbat",
+    "email": "mohamed.habbat@bicatalyst.ch",
+    "url": "https://github.com/HT-Moh"
+  },
   "skills": [
+    "./productivity/browserless",
     "./productivity/essentialism",
     "./productivity/google-power-search",
     "./productivity/stop-slop",
