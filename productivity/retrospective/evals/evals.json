@@ -1,0 +1,37 @@
+{
+  "skill_name": "retrospective",
+  "evals": [
+    {
+      "id": 0,
+      "name": "sprint-retro-with-carryover",
+      "prompt": "We just wrapped our two-week sprint and it's retro time. Team of 5, all remote. Honestly it was rough — half the stories carried over again, and people are frustrated. Can you run the retro with me?",
+      "expected_output": "Picks iteration-retro mode and notes the remote + high-frustration context (emotion-first format like Mad/Sad/Glad or anonymous input, silent writing before discussion). Asks about / reviews previous retro actions before new topics. Gathers objective data (carry-over numbers, planned vs shipped) before feelings. Digs the carry-over symptom to a systemic cause (planning realism, WIP, unclear stories) rather than 'team was slow'. Ends with 1-3 specific owned actions with deadlines and writes a retros/YYYY-MM-DD.md artifact. No blame of individuals anywhere.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 1,
+      "name": "incident-postmortem",
+      "prompt": "prod was down for about 40 minutes yesterday because a db migration locked the users table during peak hours. the on-call engineer ran it manually at 2pm. we need to write this up for the team",
+      "expected_output": "Switches to incident-postmortem mode (reads references/variants.md). Produces a blameless postmortem doc: impact quantified, timestamped timeline, contributing factors (no single root cause hunt), trigger vs causes distinguished, detection, lessons learned incl. where-we-got-lucky, action items table with owner/priority. Does NOT blame the on-call engineer — asks how running it at 2pm made sense (no guardrail? no staging run? no runbook?). No 'should have' language in the doc.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "name": "solo-week-retro",
+      "prompt": "friday afternoon. before I log off, give me a quick retro on my week in this repo",
+      "expected_output": "Solo/session mode. Mines the repo itself (git log --since, branches, reverts, repeated fix attempts) instead of only asking the user. Interviews briefly with a solo-suitable format (went well / didn't / change, or 4Ls). Checks for a previous retro file and reviews its actions if present. Keeps it short (~weekly cadence scale), lands on 1-3 concrete owned actions for next week, writes the dated retro file. No self-blame framing.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 3,
+      "name": "vague-lessons-learned",
+      "prompt": "the launch is done, thank god. we should probably do some kind of lessons learned thing with everyone before people forget what happened",
+      "expected_output": "Recognizes a project/milestone retro (months of history, cross-functional 'everyone'). Proposes timeline reconstruction before judgments, plans safety (Prime Directive framing, anonymous input if needed, manager question), budgets more than a 60-min slot. Output is organizational lessons plus owned actions, not next-sprint tweaks. Does not run a generic start/stop/continue on a whole launch.",
+      "files": [],
+      "assertions": []
+    }
+  ]
+}
