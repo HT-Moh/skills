@@ -16,7 +16,7 @@
 //     time verbatim and return that subtitle so the caller can verify the zone.
 
 export default async function ({ page, context }) {
-  const { cookies, text, schedule, dateStr, dayLabel, monthLabel, timeStr, confirm } = context;
+  const { cookies, text, schedule, dateStr, dayLabel, monthLabel, timeStr, confirm, media } = context;
   const shots = {};
   const log = [];
   const say = (m) => log.push(m);
@@ -108,6 +108,56 @@ export default async function ({ page, context }) {
     await sleep(600);
     await snap('composed');
     say(`typed ${text.length} chars`);
+
+    // --- Attach media (optional) ----------------------------------------
+    // "Add media" opens an Editor that mounts a DOM input[type=file]. Because browserless
+    // is remote, inject the bytes in-page (base64 -> File -> DataTransfer -> change) rather
+    // than a real file path. Then wait out LinkedIn's server-side processing (video) and
+    // advance through the Editor's Next step(s) back to the composer.
+    if (media && media.b64) {
+      const am = await clickDeep({ tag: 'BUTTON', ariaRe: 'add media' });
+      if (!am) { await snap('no_add_media'); return done(false, 'add-media'); }
+      await sleep(2500);
+      const injected = await page.evaluate((b64, fn, mime) => {
+        const walk = (r) => { for (const e of (r.querySelectorAll ? r.querySelectorAll('*') : [])) { if (e.tagName === 'INPUT' && e.type === 'file') return e; if (e.shadowRoot) { const h = walk(e.shadowRoot); if (h) return h; } } return null; };
+        const input = walk(document);
+        if (!input) return 'no-input';
+        const bin = atob(b64); const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        const dt = new DataTransfer(); dt.items.add(new File([arr], fn, { type: mime }));
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files').set.call(input, dt.files);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return 'injected';
+      }, media.b64, media.name || 'media', media.mime || 'application/octet-stream');
+      if (injected !== 'injected') { await snap('media_inject_fail'); return done(false, 'media-inject', { detail: injected }); }
+
+      // Poll for the Editor becoming ready (Next enabled) or a rejection.
+      let mReady = false, mErr = null;
+      for (let i = 0; i < 45 && !mReady && !mErr; i++) {
+        await sleep(1500);
+        const st = await page.evaluate(() => {
+          const w = (r, a) => { for (const e of (r.querySelectorAll ? r.querySelectorAll('*') : [])) { a.push(e); if (e.shadowRoot) w(e.shadowRoot, a); } return a; };
+          const all = w(document, []);
+          return {
+            next: all.some(e => e.tagName === 'BUTTON' && (e.innerText || '').trim() === 'Next' && !e.disabled),
+            err: /Something went wrong|larger than|couldn't|could not|unsupported/i.test(document.body.innerText),
+          };
+        });
+        mReady = st.next; if (st.err) mErr = 'linkedin rejected the media';
+      }
+      if (mErr) { await snap('media_error'); return done(false, 'media-rejected', { detail: mErr }); }
+      if (!mReady) { await snap('media_timeout'); return done(false, 'media-processing-timeout'); }
+      await snap('media_loaded');
+
+      // Advance through the Editor's Next step(s) back to the composer.
+      for (let i = 0; i < 3; i++) {
+        const clicked = await clickDeep({ tag: 'BUTTON', textExact: 'Next' });
+        await sleep(2500);
+        if (!clicked) break;
+      }
+      say(`media attached (${media.mime})`);
+      await snap('media_in_composer');
+    }
 
     // --- Immediate post (no schedule) -----------------------------------
     if (!schedule) {

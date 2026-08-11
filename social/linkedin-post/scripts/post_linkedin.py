@@ -52,6 +52,7 @@ def main():
                     "/media/bicatalyst/79c246d3-d109-43c4-89f7-33feaac39dee2/src/cookies/linkedin.json"))
     ap.add_argument("--at", help="schedule time as ISO 'YYYY-MM-DDTHH:MM', typed VERBATIM "
                     "into LinkedIn (interpreted in the account's own timezone). Omit = post now.")
+    ap.add_argument("--media", help="path to an image/gif/video to attach (uploaded through the composer)")
     ap.add_argument("--confirm", action="store_true",
                     help="actually publish/schedule; without it the flow stops at a screenshot")
     ap.add_argument("--outdir", default=tempfile.mkdtemp(prefix="li-post-"))
@@ -71,7 +72,17 @@ def main():
         sys.exit(f"{args.cookies} has no li_at cookie — not a LinkedIn session export")
 
     ctx = {"cookies": cookies, "text": text, "confirm": bool(args.confirm),
-           "schedule": False, "dateStr": None, "timeStr": None}
+           "schedule": False, "dateStr": None, "timeStr": None, "media": None}
+    if args.media:
+        mp = Path(args.media)
+        if not mp.is_file():
+            sys.exit(f"--media file not found: {mp}")
+        mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                ".gif": "image/gif", ".webp": "image/webp", ".mp4": "video/mp4",
+                ".mov": "video/quicktime", ".webm": "video/webm"}.get(mp.suffix.lower(),
+                                                                       "application/octet-stream")
+        ctx["media"] = {"b64": base64.b64encode(mp.read_bytes()).decode(),
+                        "name": mp.name, "mime": mime}
     if args.at:
         # The LinkedIn schedule dialog interprets the typed time in the ACCOUNT's own
         # timezone (shown in its subtitle), NOT the host's. We do NOT convert: we type the
