@@ -16,7 +16,7 @@ Usage:
   post_linkedin.py --text "…" --at 2026-08-12T09:00 --tz Europe/Zurich   # dry-run schedule
   post_linkedin.py --text "…" --at 2026-08-12T09:00 --confirm            # really schedule
 """
-import argparse, base64, json, os, subprocess, sys, tempfile
+import argparse, base64, json, os, subprocess, sys, tempfile, time
 from datetime import datetime
 from pathlib import Path
 
@@ -86,16 +86,29 @@ def main():
 
     body = json.dumps({"code": FLOW_JS.read_text(), "context": ctx})
     endpoint = f"{url}/function?token={token}&timeout=120000"
-    proc = subprocess.run(
-        ["curl", "-sS", "--max-time", "150", "-X", "POST", endpoint,
-         "-H", "Content-Type: application/json", "--data-binary", "@-"],
-        input=body, capture_output=True, text=True)
-    if proc.returncode != 0:
-        sys.exit(f"browserless call failed: {proc.stderr.strip()}")
-    try:
-        res = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        sys.exit(f"non-JSON reply from browserless (first 500 chars):\n{proc.stdout[:500]}")
+    # Retry transient browserless/network failures (connection resets, 5xx, non-JSON).
+    # Note: on --confirm a reset AFTER LinkedIn scheduled but before the reply could
+    # double-schedule on retry; that's visible and cancelable in LinkedIn's Scheduled
+    # queue (the pipeline's schedule-only + human-verify design covers it).
+    res = None
+    last = ""
+    for attempt in range(3):
+        proc = subprocess.run(
+            ["curl", "-sS", "--max-time", "150", "-X", "POST", endpoint,
+             "-H", "Content-Type: application/json", "--data-binary", "@-"],
+            input=body, capture_output=True, text=True)
+        if proc.returncode != 0:
+            last = f"curl rc={proc.returncode}: {proc.stderr.strip()[-160:]}"
+        else:
+            try:
+                res = json.loads(proc.stdout)
+                break
+            except json.JSONDecodeError:
+                last = f"non-JSON reply: {proc.stdout[:160]}"
+        if attempt < 2:
+            time.sleep(3 * (attempt + 1))
+    if res is None:
+        sys.exit(f"browserless call failed after 3 attempts: {last}")
 
     data = res.get("data", res)
     outdir = Path(args.outdir)
