@@ -131,19 +131,26 @@ export default async function ({ page, context }) {
       }, media.b64, media.name || 'media', media.mime || 'application/octet-stream');
       if (injected !== 'injected') { await snap('media_inject_fail'); return done(false, 'media-inject', { detail: injected }); }
 
-      // Poll for the Editor becoming ready (Next enabled) or a rejection.
+      // Poll for the Editor becoming ready (Next enabled) or a rejection. The positive
+      // signal wins: if Next is enabled the media loaded, regardless of stray error-like
+      // words elsewhere on the page (the feed behind the modal is in document.body too, so
+      // the error text is scoped to the Editor dialog and only counts when Next is absent).
       let mReady = false, mErr = null;
       for (let i = 0; i < 45 && !mReady && !mErr; i++) {
         await sleep(1500);
         const st = await page.evaluate(() => {
           const w = (r, a) => { for (const e of (r.querySelectorAll ? r.querySelectorAll('*') : [])) { a.push(e); if (e.shadowRoot) w(e.shadowRoot, a); } return a; };
           const all = w(document, []);
-          return {
-            next: all.some(e => e.tagName === 'BUTTON' && (e.innerText || '').trim() === 'Next' && !e.disabled),
-            err: /Something went wrong|larger than|couldn't|could not|unsupported/i.test(document.body.innerText),
-          };
+          const next = all.some(e => e.tagName === 'BUTTON' && (e.innerText || '').trim() === 'Next' && !e.disabled);
+          // The media Editor error card is a dialog; find its own text, not the feed's.
+          const dlg = all.find(e => (e.getAttribute && e.getAttribute('role') === 'dialog'
+            && /Select files to begin|Editor|Something went wrong/i.test(e.innerText || '')));
+          const scope = dlg ? (dlg.innerText || '') : '';
+          const err = /Something went wrong|file which is larger than|try a (different|smaller)|unable to (process|upload)|failed to upload/i.test(scope);
+          return { next, err };
         });
-        mReady = st.next; if (st.err) mErr = 'linkedin rejected the media';
+        mReady = st.next;
+        if (!mReady && st.err) mErr = 'linkedin rejected the media';
       }
       if (mErr) { await snap('media_error'); return done(false, 'media-rejected', { detail: mErr }); }
       if (!mReady) { await snap('media_timeout'); return done(false, 'media-processing-timeout'); }
