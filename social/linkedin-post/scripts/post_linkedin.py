@@ -97,13 +97,15 @@ def main():
 
     body = json.dumps({"code": FLOW_JS.read_text(), "context": ctx})
     endpoint = f"{url}/function?token={token}&timeout=120000"
-    # Retry transient browserless/network failures (connection resets, 5xx, non-JSON).
-    # Note: on --confirm a reset AFTER LinkedIn scheduled but before the reply could
-    # double-schedule on retry; that's visible and cancelable in LinkedIn's Scheduled
-    # queue (the pipeline's schedule-only + human-verify design covers it).
+    # Retry transient failures ONLY in preview. Under --confirm a connection reset can land
+    # AFTER LinkedIn already scheduled the post but before the reply arrives (e.g. a proxy
+    # read-timeout cutting the response); retrying would re-run the whole flow and schedule
+    # a DUPLICATE. So --confirm gets exactly one attempt, and a cut reply is reported as
+    # "unknown — check LinkedIn" rather than retried.
+    attempts = 1 if args.confirm else 3
     res = None
     last = ""
-    for attempt in range(3):
+    for attempt in range(attempts):
         proc = subprocess.run(
             ["curl", "-sS", "--max-time", "150", "-X", "POST", endpoint,
              "-H", "Content-Type: application/json", "--data-binary", "@-"],
@@ -116,10 +118,14 @@ def main():
                 break
             except json.JSONDecodeError:
                 last = f"non-JSON reply: {proc.stdout[:160]}"
-        if attempt < 2:
+        if attempt < attempts - 1:
             time.sleep(3 * (attempt + 1))
     if res is None:
-        sys.exit(f"browserless call failed after 3 attempts: {last}")
+        if args.confirm:
+            sys.exit(f"UNKNOWN — the browserless reply was cut ({last}). The post MAY have been "
+                     f"scheduled before the connection dropped. Do NOT re-run blindly; check "
+                     f"LinkedIn → Scheduled posts and only re-run for posts that are absent.")
+        sys.exit(f"browserless call failed after {attempts} attempts: {last}")
 
     data = res.get("data", res)
     outdir = Path(args.outdir)

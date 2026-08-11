@@ -117,7 +117,7 @@ export default async function ({ page, context }) {
     if (media && media.b64) {
       const am = await clickDeep({ tag: 'BUTTON', ariaRe: 'add media' });
       if (!am) { await snap('no_add_media'); return done(false, 'add-media'); }
-      await sleep(2500);
+      await sleep(1800);
       const injected = await page.evaluate((b64, fn, mime) => {
         const walk = (r) => { for (const e of (r.querySelectorAll ? r.querySelectorAll('*') : [])) { if (e.tagName === 'INPUT' && e.type === 'file') return e; if (e.shadowRoot) { const h = walk(e.shadowRoot); if (h) return h; } } return null; };
         const input = walk(document);
@@ -159,8 +159,8 @@ export default async function ({ page, context }) {
       // Advance through the Editor's Next step(s) back to the composer.
       for (let i = 0; i < 3; i++) {
         const clicked = await clickDeep({ tag: 'BUTTON', textExact: 'Next' });
-        await sleep(2500);
-        if (!clicked) break;
+        if (!clicked) break;   // no Next left → already back in the composer
+        await sleep(1500);
       }
       say(`media attached (${media.mime})`);
       await snap('media_in_composer');
