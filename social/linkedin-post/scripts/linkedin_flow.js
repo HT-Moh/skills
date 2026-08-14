@@ -21,7 +21,7 @@ export default async function ({ page, context }) {
   const log = [];
   const say = (m) => log.push(m);
   const snap = async (name) => {
-    try { shots[name] = await page.screenshot({ type: 'jpeg', quality: 55, encoding: 'base64' }); }
+    try { shots[name] = await page.screenshot({ type: 'jpeg', quality: 38, encoding: 'base64' }); }
     catch (e) { say(`screenshot ${name} failed: ${e.message}`); }
   };
   const done = (ok, stage, extra = {}) =>
@@ -171,8 +171,9 @@ export default async function ({ page, context }) {
       if (!confirm) { await snap('preview'); return done(true, 'preview', { note: 'dry-run — Post NOT clicked; pass confirm=true to publish' }); }
       const posted = await clickDeep({ tag: 'BUTTON', textExact: 'Post', notDisabled: true });
       if (!posted) { await snap('no_post_button'); return done(false, 'submit-immediate'); }
-      await sleep(3000);
+      await sleep(1000);
       await snap('posted');
+      for (const k in shots) if (k !== 'posted') delete shots[k]; // slim reply so it returns under proxy timeout
       return done(true, 'posted');
     }
 
@@ -235,8 +236,9 @@ export default async function ({ page, context }) {
 
     const scheduled = await clickDeep({ tag: 'BUTTON', textExact: 'Schedule', notDisabled: true });
     if (!scheduled) { await snap('no_final_schedule'); return done(false, 'submit-schedule'); }
-    await sleep(3000);
+    await sleep(800);
     await snap('scheduled');
+    for (const k in shots) if (k !== 'scheduled') delete shots[k]; // slim reply so it returns under proxy timeout
     return done(true, 'scheduled', { dateStr, timeStr, tzLine });
   } catch (e) {
     await snap('exception');
