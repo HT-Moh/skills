@@ -16,12 +16,13 @@ Usage:
   post_linkedin.py --text "…" --at 2026-08-12T09:00 --tz Europe/Zurich   # dry-run schedule
   post_linkedin.py --text "…" --at 2026-08-12T09:00 --confirm            # really schedule
 """
-import argparse, base64, json, os, subprocess, sys, tempfile, time
+import argparse, base64, json, os, re, subprocess, sys, tempfile, time
 from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 FLOW_JS = HERE / "linkedin_flow.js"
+WS_JS = HERE / "linkedin_ws.js"
 _SAMESITE = {"no_restriction": "None", "unspecified": None, "lax": "Lax",
              "strict": "Strict", "none": "None", None: None}
 
@@ -43,6 +44,70 @@ def to_puppeteer(raw):
     return out
 
 
+def _run_ws(url: str, token: str, ctx: dict, media_path, outdir: Path) -> dict:
+    """Default path: drive browserless over CDP/WebSocket via the Node driver.
+
+    A WS session with a keepalive is immune to the browserless VIP's 50s idle timeout, so
+    long flows (video processing) and clean confirmation replies both work. The Node driver
+    saves screenshots directly to outdir and prints one JSON result.
+    """
+    import shutil
+    node = shutil.which("node")
+    if not node:
+        sys.exit("node not found on PATH — the WS driver needs Node. Install Node or pass --http.")
+    ws_ep = re.sub(r"^http", "ws", url) + f"?token={token}"
+    ws_ctx = dict(ctx)
+    ws_ctx.update(wsEndpoint=ws_ep, mediaPath=media_path, outdir=str(outdir))
+    proc = subprocess.run([node, str(WS_JS)], input=json.dumps(ws_ctx),
+                          capture_output=True, text=True, timeout=300)
+    if proc.returncode != 0:
+        sys.exit(f"WS driver failed (rc={proc.returncode}): {proc.stderr.strip()[-400:]}")
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        sys.exit(f"WS driver produced non-JSON output.\nstdout: {proc.stdout[:300]}\n"
+                 f"stderr: {proc.stderr[-300:]}")
+
+
+def _run_http(url: str, token: str, ctx: dict, media_path, outdir: Path, confirm: bool) -> dict:
+    """Legacy path: one stateless /function POST. Subject to the VIP 50s idle timeout."""
+    ctx = dict(ctx)
+    ctx["media"] = None
+    if media_path:
+        mp = Path(media_path)
+        mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                ".gif": "image/gif", ".webp": "image/webp", ".mp4": "video/mp4",
+                ".mov": "video/quicktime", ".webm": "video/webm"}.get(mp.suffix.lower(),
+                                                                       "application/octet-stream")
+        ctx["media"] = {"b64": base64.b64encode(mp.read_bytes()).decode(), "name": mp.name, "mime": mime}
+    body = json.dumps({"code": FLOW_JS.read_text(), "context": ctx})
+    endpoint = f"{url}/function?token={token}&timeout=120000"
+    attempts = 1 if confirm else 3   # never retry a confirm — a cut reply may have scheduled already
+    res, last = None, ""
+    for attempt in range(attempts):
+        proc = subprocess.run(["curl", "-sS", "--max-time", "150", "-X", "POST", endpoint,
+                               "-H", "Content-Type: application/json", "--data-binary", "@-"],
+                              input=body, capture_output=True, text=True)
+        if proc.returncode != 0:
+            last = f"curl rc={proc.returncode}: {proc.stderr.strip()[-160:]}"
+        else:
+            try:
+                res = json.loads(proc.stdout); break
+            except json.JSONDecodeError:
+                last = f"non-JSON reply: {proc.stdout[:160]}"
+        if attempt < attempts - 1:
+            time.sleep(3 * (attempt + 1))
+    if res is None:
+        if confirm:
+            sys.exit(f"UNKNOWN — reply cut ({last}). Post MAY be scheduled; check LinkedIn before re-running.")
+        sys.exit(f"browserless call failed after {attempts} attempts: {last}")
+    data = res.get("data", res)
+    for name, b64 in (data.get("shots") or {}).items():
+        (outdir / f"{name}.jpg").write_bytes(base64.b64decode(b64))
+    data.pop("shots", None)
+    return data
+
+
 def main():
     ap = argparse.ArgumentParser()
     src = ap.add_mutually_exclusive_group(required=True)
@@ -53,6 +118,9 @@ def main():
     ap.add_argument("--at", help="schedule time as ISO 'YYYY-MM-DDTHH:MM', typed VERBATIM "
                     "into LinkedIn (interpreted in the account's own timezone). Omit = post now.")
     ap.add_argument("--media", help="path to an image/gif/video to attach (uploaded through the composer)")
+    ap.add_argument("--http", action="store_true",
+                    help="use the legacy stateless /function HTTP path instead of WS/CDP "
+                         "(subject to the browserless proxy's 50s idle timeout). Default is WS.")
     ap.add_argument("--confirm", action="store_true",
                     help="actually publish/schedule; without it the flow stops at a screenshot")
     ap.add_argument("--outdir", default=tempfile.mkdtemp(prefix="li-post-"))
@@ -71,18 +139,10 @@ def main():
     if not any(c["name"] == "li_at" for c in cookies):
         sys.exit(f"{args.cookies} has no li_at cookie — not a LinkedIn session export")
 
+    outdir = Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
     ctx = {"cookies": cookies, "text": text, "confirm": bool(args.confirm),
-           "schedule": False, "dateStr": None, "timeStr": None, "media": None}
-    if args.media:
-        mp = Path(args.media)
-        if not mp.is_file():
-            sys.exit(f"--media file not found: {mp}")
-        mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-                ".gif": "image/gif", ".webp": "image/webp", ".mp4": "video/mp4",
-                ".mov": "video/quicktime", ".webm": "video/webm"}.get(mp.suffix.lower(),
-                                                                       "application/octet-stream")
-        ctx["media"] = {"b64": base64.b64encode(mp.read_bytes()).decode(),
-                        "name": mp.name, "mime": mime}
+           "schedule": False, "dateStr": None, "timeStr": None}
     if args.at:
         # The LinkedIn schedule dialog interprets the typed time in the ACCOUNT's own
         # timezone (shown in its subtitle), NOT the host's. We do NOT convert: we type the
@@ -95,44 +155,17 @@ def main():
         ctx["monthLabel"] = dt.strftime("%B %Y")          # e.g. "August 2026" (for month navigation)
         ctx["timeStr"] = dt.strftime("%-I:%M %p")         # e.g. "9:00 AM"
 
-    body = json.dumps({"code": FLOW_JS.read_text(), "context": ctx})
-    endpoint = f"{url}/function?token={token}&timeout=120000"
-    # Retry transient failures ONLY in preview. Under --confirm a connection reset can land
-    # AFTER LinkedIn already scheduled the post but before the reply arrives (e.g. a proxy
-    # read-timeout cutting the response); retrying would re-run the whole flow and schedule
-    # a DUPLICATE. So --confirm gets exactly one attempt, and a cut reply is reported as
-    # "unknown — check LinkedIn" rather than retried.
-    attempts = 1 if args.confirm else 3
-    res = None
-    last = ""
-    for attempt in range(attempts):
-        proc = subprocess.run(
-            ["curl", "-sS", "--max-time", "150", "-X", "POST", endpoint,
-             "-H", "Content-Type: application/json", "--data-binary", "@-"],
-            input=body, capture_output=True, text=True)
-        if proc.returncode != 0:
-            last = f"curl rc={proc.returncode}: {proc.stderr.strip()[-160:]}"
-        else:
-            try:
-                res = json.loads(proc.stdout)
-                break
-            except json.JSONDecodeError:
-                last = f"non-JSON reply: {proc.stdout[:160]}"
-        if attempt < attempts - 1:
-            time.sleep(3 * (attempt + 1))
-    if res is None:
-        if args.confirm:
-            sys.exit(f"UNKNOWN — the browserless reply was cut ({last}). The post MAY have been "
-                     f"scheduled before the connection dropped. Do NOT re-run blindly; check "
-                     f"LinkedIn → Scheduled posts and only re-run for posts that are absent.")
-        sys.exit(f"browserless call failed after {attempts} attempts: {last}")
+    media_path = None
+    if args.media:
+        mp = Path(args.media)
+        if not mp.is_file():
+            sys.exit(f"--media file not found: {mp}")
+        media_path = str(mp.resolve())
 
-    data = res.get("data", res)
-    outdir = Path(args.outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
-    for name, b64 in (data.get("shots") or {}).items():
-        (outdir / f"{name}.jpg").write_bytes(base64.b64decode(b64))
-    data.pop("shots", None)
+    if args.http:
+        data = _run_http(url, token, ctx, media_path, outdir, bool(args.confirm))
+    else:
+        data = _run_ws(url, token, ctx, media_path, outdir)
 
     print(json.dumps(data, indent=2))
     print(f"\nscreenshots -> {outdir}")
