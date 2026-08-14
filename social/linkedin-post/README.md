@@ -40,3 +40,13 @@ instance. No LinkedIn API, no password — your account, your cookies, your infr
 
 Selectors and the schedule flow are documented in `references/selectors.md` — update it
 with `scripts/linkedin_flow.js` when LinkedIn changes its DOM.
+
+## WebSocket mode (default)
+
+The poster drives browserless over CDP/WebSocket by default (survives proxy idle timeouts, uploads video, clean reporting). It needs `puppeteer-core`:
+
+```bash
+cd scripts && npm install
+```
+
+Pass `--http` to fall back to the stateless `/function` path (subject to any proxy idle/body limits).
