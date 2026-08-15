@@ -32,11 +32,19 @@ function readStdin() {
   fs.mkdirSync(outdir, { recursive: true });
   const log = [];
   const say = (m) => log.push(m);
-  let browser, keepalive;
+  let browser, keepalive, exited = false;
   const out = (ok, stage, extra = {}) => {
+    if (exited) return;
+    exited = true;
     if (keepalive) clearInterval(keepalive);
     const url = (globalThis.__page && globalThis.__page.url && globalThis.__page.url()) || null;
-    process.stdout.write(JSON.stringify({ ok, stage, url, log, ...extra }));
+    const payload = JSON.stringify({ ok, stage, url, log, ...extra });
+    // Force-exit after the write flushes. A live puppeteer WS connection (and a
+    // disconnect() that can hang through the VIP) keeps the event loop alive otherwise,
+    // so relying on it to drain risks a multi-minute hang. Fire-and-forget the disconnect.
+    if (browser) { try { browser.disconnect().catch(() => {}); } catch (_) {} }
+    process.stdout.write(payload, () => process.exit(0));
+    setTimeout(() => process.exit(0), 2000); // hard backstop if the write callback never fires
   };
 
   try {
