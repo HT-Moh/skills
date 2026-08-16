@@ -90,18 +90,85 @@ function readStdin() {
       if (c) { await page.mouse.click(c.x, c.y); return true; }
       return false;
     };
+    // Navigate with a retry — LinkedIn's first-paint can exceed a single timeout under load,
+    // and every op (auth, metrics) depends on a page load landing. Shared so one fix covers all.
+    const gotoRetry = async (u, tries = 2) => {
+      for (let i = 0; i < tries; i++) {
+        try { await page.goto(u, { waitUntil: 'domcontentloaded', timeout: 60000 }); return true; }
+        catch (e) { if (i === tries - 1) throw e; await sleep(1500); }
+      }
+    };
+
+    // --- op: scrape per-post metrics for known live posts ---------------------
+    // targets: [{urn, url}] where url is the POST-SCOPED analytics page
+    // (/analytics/post-summary/<urn>/). That page is authoritative per post, but it flakes on
+    // first load ("Trouble Loading — please refresh"), so we reload-and-repoll. We deliberately
+    // do NOT read the feed sidebar or the creator dashboard — both are account AGGREGATES that
+    // return the same number for every post. null (never 0) when a stat can't be read.
+    const scanMetrics = async () => {
+      const targets = ctx.targets || [];
+      const metrics = [];
+      const readStats = () => page.evaluate(() => {
+        const walk = (r, a) => { for (const e of (r.querySelectorAll ? r.querySelectorAll('*') : [])) { a.push(e); if (e.shadowRoot) walk(e.shadowRoot, a); } return a; };
+        const all = walk(document, []);
+        const trouble = /unable to load analytics|Trouble Loading/i.test(document.body.innerText || '');
+        const compact = (s) => { if (s == null) return null; s = String(s).replace(/,/g, '').trim(); const mm = s.match(/([\d.]+)\s*([KM]?)/i); if (!mm) return null; let n = parseFloat(mm[1]); if (/k/i.test(mm[2])) n *= 1e3; if (/m/i.test(mm[2])) n *= 1e6; return Math.round(n); };
+        // A labelled stat renders both the word and its number in one small node
+        // (e.g. "334 Impressions", "Reactions 9"); pull the number out of that node.
+        const grab = (label) => {
+          const re = new RegExp(label, 'i');
+          for (const e of all) {
+            const tx = (e.innerText || '').trim();
+            if (re.test(tx) && /\d/.test(tx) && tx.length < 45 && e.childElementCount <= 3) {
+              const num = tx.replace(/,/g, '').match(/\d[\d.]*\s*[KM]?/i);
+              if (num) return compact(num[0]);
+            }
+          }
+          return null;
+        };
+        return { impressions: grab('impression'), reactions: grab('reaction'),
+                 comments: grab('comment'), reposts: grab('repost'), _trouble: trouble };
+      });
+      for (const t of targets) {
+        if (!t.url) { metrics.push({ urn: t.urn, error: 'no-url' }); continue; }
+        try {
+          let m = { impressions: null, reactions: null, comments: null, reposts: null, _trouble: false };
+          for (let attempt = 0; attempt < 3; attempt++) {
+            if (attempt === 0) await gotoRetry(t.url);
+            else { try { await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 }); } catch (_) {} }
+            let ok = false;
+            for (let i = 0; i < 12; i++) {
+              await sleep(1200);
+              m = await readStats();
+              if (m.impressions != null || m.reactions != null) { ok = true; break; }
+              if (m._trouble) break;   // LinkedIn asked for a refresh — reload on the next attempt
+            }
+            if (ok) break;
+          }
+          delete m._trouble;
+          metrics.push({ urn: t.urn, url: t.url, ...m });
+        } catch (e) {
+          metrics.push({ urn: t.urn, url: t.url, error: e.message });
+        }
+      }
+      await snap('metrics');
+      return out(true, 'scanned', { metrics });
+    };
 
     await page.setViewport({ width: 1300, height: 1300 });
     if (!Array.isArray(cookies) || cookies.length === 0) return out(false, 'no-cookies');
     await page.setCookie(...cookies);
 
     // --- Authenticate ---------------------------------------------------
-    await page.goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await gotoRetry('https://www.linkedin.com/feed/');
     await sleep(3000);
     if (/\/(login|uas|checkpoint|authwall)/.test(page.url())) {
       await snap('auth_fail');
       return out(false, 'auth', { hint: 'cookies rejected — refresh linkedin.json' });
     }
+
+    // --- Route read-only scrape ops (no composer/text/media needed) ------
+    if (ctx.op === 'scan_metrics') return await scanMetrics();
 
     // --- Open composer --------------------------------------------------
     const editorReady = async () => (await page.$('pierce/.ql-editor')) != null;

@@ -10,6 +10,12 @@ Skills are grouped into bucket folders. All current skills are model-invoked (th
 auto-fire when their description matches; you can also type their name). See
 [CLAUDE.md](./CLAUDE.md) for repo conventions.
 
+### [engineering/](./engineering) — codebase audit & hygiene tools
+
+| Skill | What it does |
+|-------|--------------|
+| [**dead-code-sweep**](./engineering/dead-code-sweep) | Finds dead code, stale comments/docs that contradict the tree, and config/env gaps. Mechanical detectors (knip, vulture, ruff) accuse; a six-class reference search convicts or acquits; every finding ships with a DELETE/REWRITE/KEEP verdict and its evidence line — blocking gaps reported first, acquitted false positives recorded so the next sweep doesn't re-litigate them. |
+
 ### [productivity/](./productivity) — daily non-code workflow tools
 
 | Skill | What it does |

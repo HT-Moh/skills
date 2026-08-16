@@ -44,6 +44,16 @@ def to_puppeteer(raw):
     return out
 
 
+def resolve_browserless():
+    """(url, token) from the environment, or exit. One owner of this check so callers
+    (poster, tracker) don't each re-derive it."""
+    url = os.environ.get("BROWSERLESS_URL")
+    token = os.environ.get("BROWSERLESS_TOKEN")
+    if not url or not token:
+        sys.exit("set BROWSERLESS_URL and BROWSERLESS_TOKEN (see the browserless skill)")
+    return url, token
+
+
 def _run_ws(url: str, token: str, ctx: dict, media_path, outdir: Path) -> dict:
     """Default path: drive browserless over CDP/WebSocket via the Node driver.
 
@@ -126,10 +136,7 @@ def main():
     ap.add_argument("--outdir", default=tempfile.mkdtemp(prefix="li-post-"))
     args = ap.parse_args()
 
-    url = os.environ.get("BROWSERLESS_URL")
-    token = os.environ.get("BROWSERLESS_TOKEN")
-    if not url or not token:
-        sys.exit("set BROWSERLESS_URL and BROWSERLESS_TOKEN (see the browserless skill)")
+    url, token = resolve_browserless()
 
     text = args.text if args.text is not None else Path(args.file).read_text()
     if not text.strip():
