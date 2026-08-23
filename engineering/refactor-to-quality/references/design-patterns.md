@@ -1,6 +1,7 @@
 # Design patterns — intent, the smell each answers, and when NOT to reach for it
 
-The 23 Gang-of-Four patterns (per refactoring.guru's catalog). In this skill a pattern is a
+The 23 Gang-of-Four patterns (per refactoring.guru's catalog). Intent, applicability, and the
+"when NOT" cost of each were verified against the live refactoring.guru pages. In this skill a pattern is a
 **destination you refactor toward once a real, repeated problem exists** — never a template
 imposed up front. Every entry carries a **When NOT** line because the most common failure this
 skill guards against is applying a pattern to a problem the code has *once*. Over-applied patterns
@@ -22,8 +23,11 @@ report.
   one product family — it's ceremony.
 - **Builder** — construct a complex object step by step. *Answers:* telescoping constructors, a
   Long Parameter List of optionals. *When NOT:* 2–3 fields; a constructor or parameter object suffices.
-- **Prototype** — clone existing objects. *Answers:* costly construction, or needing copies
-  independent of concrete class. *When NOT:* cheap-to-build objects; a constructor is clearer.
+- **Prototype** — clone existing objects. *Answers:* needing copies without depending on their
+  concrete classes (e.g. objects from third-party code, reached through an interface), or replacing
+  subclasses that differ *only* in their initialization with a set of pre-configured clones.
+  *When NOT:* cheap-to-build objects a constructor handles; objects with circular references, where
+  cloning gets tricky.
 - **Singleton** — one instance, global access. *Answers:* genuinely one resource (rare). *When NOT:*
   almost always — it's global mutable state, hides dependencies, and breaks tests. Prefer passing the
   dependency in. Treat as a last resort, not a default.
