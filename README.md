@@ -10,6 +10,12 @@ Skills are grouped into bucket folders. All current skills are model-invoked (th
 auto-fire when their description matches; you can also type their name). See
 [CLAUDE.md](./CLAUDE.md) for repo conventions.
 
+### [engineering/](./engineering) — codebase audit & hygiene tools
+
+| Skill | What it does |
+|-------|--------------|
+| [**dead-code-sweep**](./engineering/dead-code-sweep) | Finds dead code, stale comments/docs that contradict the tree, and config/env gaps. Mechanical detectors (knip, vulture, ruff) accuse; a six-class reference search convicts or acquits; every finding ships with a DELETE/REWRITE/KEEP verdict and its evidence line — blocking gaps reported first, acquitted false positives recorded so the next sweep doesn't re-litigate them. |
+
 ### [productivity/](./productivity) — daily non-code workflow tools
 
 | Skill | What it does |
@@ -25,6 +31,12 @@ auto-fire when their description matches; you can also type their name). See
 | Skill | What it does |
 |-------|--------------|
 | [**viral-audit**](./marketing/viral-audit) | Audits a SaaS app against Marc Lou's *32 Principles of a Viral Product*. Reads the real code first (code is source of truth), diffs marketing claims against what the code actually does, scores the 32 principles, and outputs a terse 3-block fix list — LIES / FAILS / DO NEXT — with `file:line` and effort. Proposes, never edits until told. Invoke with `/viral-audit`. |
+
+### [social/](./social) — posting & scheduling to social networks
+
+| Skill | What it does |
+|-------|--------------|
+| [**linkedin-post**](./social/linkedin-post) | Publishes or natively schedules a LinkedIn post from a `linkedin.json` session export, driving the real LinkedIn composer through a self-hosted browserless instance (no API, no password). Converts exported cookies to Puppeteer shape, fills the composer + native Schedule dialog, screenshots each step. Dry-run by default — publishes only on explicit `--confirm`. |
 
 ## Install
 

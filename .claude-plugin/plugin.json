@@ -8,11 +8,13 @@
     "url": "https://github.com/HT-Moh"
   },
   "skills": [
+    "./engineering/dead-code-sweep",
     "./productivity/browserless",
     "./productivity/essentialism",
     "./productivity/google-power-search",
     "./productivity/retrospective",
     "./productivity/stop-slop",
-    "./marketing/viral-audit"
+    "./marketing/viral-audit",
+    "./social/linkedin-post"
   ]
 }

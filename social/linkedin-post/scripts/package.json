@@ -1,0 +1,2 @@
+{ "name":"linkedin-post-driver","version":"1.0.0","private":true,"type":"commonjs",
+  "dependencies":{"puppeteer-core":"^24.0.0"} }

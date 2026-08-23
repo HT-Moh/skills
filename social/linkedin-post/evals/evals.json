@@ -1,0 +1,37 @@
+{
+  "skill_name": "linkedin-post",
+  "evals": [
+    {
+      "id": 0,
+      "name": "schedule-with-time",
+      "prompt": "Schedule this on my LinkedIn for next Tuesday at 9am: \"Most retros die at the action step. 1-3 owned actions, or it didn't happen.\"",
+      "expected_output": "Preflights BROWSERLESS_URL/TOKEN and li_at freshness. Writes the post text to a file. Runs scripts/post_linkedin.py with --at (next Tuesday 09:00, local tz) as a DRY RUN first, reads the schedule_filled/schedule_review screenshots to confirm text and time, then asks the user to confirm before re-running with --confirm. Reports the scheduled local time. Never runs --confirm unprompted.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 1,
+      "name": "post-now",
+      "prompt": "post this to linkedin right now: We just open-sourced our retrospective skill. Link in comments.",
+      "expected_output": "Recognizes an immediate post (no schedule time). Notes that in-body links suppress reach and offers/handles the first-comment strategy. Dry-runs first (composed.jpg), gets confirmation, then --confirm. Verifies via the returned stage=posted, does not claim success on any other stage.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "name": "dead-session",
+      "prompt": "put a post on linkedin for me",
+      "expected_output": "During preflight, checks li_at expiry. If the cookie file is missing/expired, stops and explains the session must be re-exported from a browser — does NOT attempt a password login and does NOT fabricate a success. If session is live, proceeds to compose + dry-run. (Also acceptable: asks what the post should say before doing anything.)",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 3,
+      "name": "wrong-network",
+      "prompt": "schedule a tweet for tomorrow morning",
+      "expected_output": "Recognizes this is X/Twitter, not LinkedIn, and does not run the linkedin-post flow. Says this skill is LinkedIn-only (even though x.json cookies exist in the same folder), rather than posting to the wrong network.",
+      "files": [],
+      "assertions": []
+    }
+  ]
+}
