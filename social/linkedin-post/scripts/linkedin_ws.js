@@ -28,7 +28,8 @@ function readStdin() {
 
 (async () => {
   const ctx = JSON.parse(await readStdin());
-  const { cookies, text, schedule, dateStr, dayLabel, monthLabel, timeStr, confirm, mediaPath, outdir } = ctx;
+  const { cookies, text, schedule, dateStr, dayLabel, monthLabel, timeStr, confirm, mediaPath, mediaPaths, outdir } = ctx;
+  const mediaList = (Array.isArray(mediaPaths) && mediaPaths.length) ? mediaPaths : (mediaPath ? [mediaPath] : []);
   fs.mkdirSync(outdir, { recursive: true });
   const log = [];
   const say = (m) => log.push(m);
@@ -202,26 +203,32 @@ function readStdin() {
     // which browserless doesn't have, so the file arrives empty ("larger than 75 Kb"). We
     // read the bytes locally in Node and inject them in-page as a real File (the base64
     // rides as a CDP evaluate argument = actual content over the socket).
-    if (mediaPath) {
+    if (mediaList.length) {
       const am = await clickDeep({ tag: 'BUTTON', ariaRe: 'add media' });
       if (!am) { await snap('no_add_media'); return out(false, 'add-media'); }
       await sleep(1800);
-      const b64 = fs.readFileSync(mediaPath).toString('base64');
-      const ext = path.extname(mediaPath).toLowerCase();
-      const mime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+      const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
         '.gif': 'image/gif', '.webp': 'image/webp', '.mp4': 'video/mp4',
-        '.mov': 'video/quicktime', '.webm': 'video/webm' }[ext] || 'application/octet-stream';
-      const injected = await page.evaluate((b64, fn, mime) => {
+        '.mov': 'video/quicktime', '.webm': 'video/webm' };
+      const files = mediaList.map((p) => ({
+        b64: fs.readFileSync(p).toString('base64'),
+        fn: path.basename(p),
+        mime: MIME[path.extname(p).toLowerCase()] || 'application/octet-stream',
+      }));
+      const injected = await page.evaluate((files) => {
         const walk = (r) => { for (const e of (r.querySelectorAll ? r.querySelectorAll('*') : [])) { if (e.tagName === 'INPUT' && e.type === 'file') return e; if (e.shadowRoot) { const h = walk(e.shadowRoot); if (h) return h; } } return null; };
         const input = walk(document);
         if (!input) return 'no-input';
-        const bin = atob(b64); const arr = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-        const dt = new DataTransfer(); dt.items.add(new File([arr], fn, { type: mime }));
+        const dt = new DataTransfer();
+        for (const f of files) {
+          const bin = atob(f.b64); const arr = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          dt.items.add(new File([arr], f.fn, { type: f.mime }));
+        }
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files').set.call(input, dt.files);
         input.dispatchEvent(new Event('change', { bubbles: true }));
         return 'injected';
-      }, b64, path.basename(mediaPath), mime);
+      }, files);
       if (injected !== 'injected') { await snap('media_inject_fail'); return out(false, 'media-inject', { detail: injected }); }
 
       let mReady = false, mErr = null;
@@ -248,7 +255,7 @@ function readStdin() {
         if (!clicked) break;
         await sleep(1500);
       }
-      say(`media attached (${path.basename(mediaPath)})`);
+      say(`media attached (${mediaList.length} file(s))`);
       await snap('media_in_composer');
     }
 
