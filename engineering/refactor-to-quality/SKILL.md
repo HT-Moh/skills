@@ -111,7 +111,7 @@ the list; it's done when the charter is clean.
 
 ### Phase 5 — Report (account for everything)
 
-Emit the mandatory account (the charter's AI-obligation rules are hard requirements):
+Emit the mandatory account (the charter's "Report back" rules are hard requirements):
 
 - **Every file created / changed / deleted**, one line each, with why.
 - **Every new file, class, layer, or design pattern justified** — which real duplication or
@@ -126,8 +126,9 @@ Never report complete while any test fails or any gate is red. That is the chart
 ## References (load when the phase needs them)
 
 - `references/rules-charter.md` — **the completion checklist.** The grouped, measurable rules
-  (code, structure, folders, AI obligations) with thresholds. This is the done-condition; read it
-  in Phase 2 and again in Phase 4.
+  (files, names, design, errors, data, tests, cleanliness, folders, report-back) with thresholds.
+  Record each as `pass`, `fail → <ledger id>`, or `waive → <reason>`. This is the done-condition;
+  read it in Phase 2 and again in Phase 4.
 - `references/code-smells.md` — symptom → refactoring map (the 22 smells, 5 families). Phase 2.
 - `references/refactoring-catalog.md` — the named moves and their mechanics. Phase 3.
 - `references/design-patterns.md` — the 23 patterns: intent, the smell each answers, and **when
