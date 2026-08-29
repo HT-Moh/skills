@@ -9,6 +9,7 @@
   },
   "skills": [
     "./engineering/dead-code-sweep",
+    "./engineering/refactor-to-quality",
     "./productivity/browserless",
     "./productivity/essentialism",
     "./productivity/google-power-search",
