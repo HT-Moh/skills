@@ -54,7 +54,7 @@ def resolve_browserless():
     return url, token
 
 
-def _run_ws(url: str, token: str, ctx: dict, media_path, outdir: Path) -> dict:
+def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path) -> dict:
     """Default path: drive browserless over CDP/WebSocket via the Node driver.
 
     A WS session with a keepalive is immune to the browserless VIP's 50s idle timeout, so
@@ -67,7 +67,8 @@ def _run_ws(url: str, token: str, ctx: dict, media_path, outdir: Path) -> dict:
         sys.exit("node not found on PATH — the WS driver needs Node. Install Node or pass --http.")
     ws_ep = re.sub(r"^http", "ws", url) + f"?token={token}"
     ws_ctx = dict(ctx)
-    ws_ctx.update(wsEndpoint=ws_ep, mediaPath=media_path, outdir=str(outdir))
+    ws_ctx.update(wsEndpoint=ws_ep, mediaPaths=(media_paths or []),
+                  mediaPath=(media_paths[0] if media_paths else None), outdir=str(outdir))
     proc = subprocess.run([node, str(WS_JS)], input=json.dumps(ws_ctx),
                           capture_output=True, text=True, timeout=300)
     if proc.returncode != 0:
@@ -127,7 +128,9 @@ def main():
                     "/media/bicatalyst/79c246d3-d109-43c4-89f7-33feaac39dee2/src/cookies/linkedin.json"))
     ap.add_argument("--at", help="schedule time as ISO 'YYYY-MM-DDTHH:MM', typed VERBATIM "
                     "into LinkedIn (interpreted in the account's own timezone). Omit = post now.")
-    ap.add_argument("--media", help="path to an image/gif/video to attach (uploaded through the composer)")
+    ap.add_argument("--media", action="append",
+                    help="path to an image/gif/video to attach (uploaded through the composer). "
+                         "Repeat --media for a multi-image post (carousel). WS path only for >1.")
     ap.add_argument("--http", action="store_true",
                     help="use the legacy stateless /function HTTP path instead of WS/CDP "
                          "(subject to the browserless proxy's 50s idle timeout). Default is WS.")
@@ -162,17 +165,20 @@ def main():
         ctx["monthLabel"] = dt.strftime("%B %Y")          # e.g. "August 2026" (for month navigation)
         ctx["timeStr"] = dt.strftime("%-I:%M %p")         # e.g. "9:00 AM"
 
-    media_path = None
-    if args.media:
-        mp = Path(args.media)
+    media_paths = []
+    for m in (args.media or []):
+        mp = Path(m)
         if not mp.is_file():
             sys.exit(f"--media file not found: {mp}")
-        media_path = str(mp.resolve())
+        media_paths.append(str(mp.resolve()))
 
     if args.http:
-        data = _run_http(url, token, ctx, media_path, outdir, bool(args.confirm))
+        if len(media_paths) > 1:
+            print("warning: --http supports one image only; attaching the first. Use the WS path for multi-image.",
+                  file=sys.stderr)
+        data = _run_http(url, token, ctx, (media_paths[0] if media_paths else None), outdir, bool(args.confirm))
     else:
-        data = _run_ws(url, token, ctx, media_path, outdir)
+        data = _run_ws(url, token, ctx, media_paths, outdir)
 
     print(json.dumps(data, indent=2))
     print(f"\nscreenshots -> {outdir}")
