@@ -1,3 +1,5 @@
 .omc/
 *.jsonl
 repo.md
+__pycache__/
+*.py[cod]
