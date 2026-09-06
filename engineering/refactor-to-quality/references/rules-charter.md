@@ -1,104 +1,113 @@
-# The charter — the completion checklist
+# Development rules
 
-This is the **done-condition** for `refactor-to-quality`. The work is complete only when every
-line below is `pass` or `waived (reason)`. Walk it in Phase 2 (to find violations) and again in
-Phase 4 (to prove you fixed them). Thresholds are defaults; a project's own config (linter,
-formatter, agreed limits) overrides a default when stricter or explicitly set.
+Apply to every project. A project's own `CLAUDE.md` overrides a rule when it sets a stricter or
+different limit.
 
-Drawn from *Clean Code*, *The Pragmatic Programmer*, *Refactoring*, *Code Complete*, and
-*Designing Data-Intensive Applications*.
+Grounded in *Clean Code* (Martin), *Refactoring*, *The Pragmatic Programmer*, *Code Complete*,
+and *Designing Data-Intensive Applications*. Thresholds are defaults; a project's own linter,
+formatter, or agreed limit wins when it is stricter or explicitly set.
 
-How to use: for each rule, record `pass`, `fail → <ledger id>`, or `waive → <reason>`. A `fail`
-anywhere means not done. A waiver must name a concrete reason the user can see, not "seemed fine".
+This file is used two ways: as always-on development instruction, and as the completion
+checklist for the `refactor-to-quality` skill — where every rule below is recorded as `pass`,
+`fail → <ledger id>`, or `waive → <reason the user can see>`.
 
----
+## Files and functions
 
-## A. Units — files & functions
+- Keep files under 300 lines. Give each file one clear purpose.
+- Give each function one task. Keep it under 30 lines.
+- Keep every statement in a function at the same level of abstraction.
+- Put high-level functions at the top of a file and the details below.
+- Limit function arguments to four. Fewer is better.
+- Never pass a boolean flag that switches behaviour. Write two functions instead.
+- Make inputs and outputs explicit. Never return a result through a mutated argument.
+- Split code that handles more than one concern.
+- Make a function a command or a query, never both. A getter must not mutate.
+- Avoid hidden state and surprise side effects.
+- Avoid deep nesting. Use early returns. Keep nesting at three levels or fewer.
 
-- [ ] Files under **300 lines**. Every file over 300 is flagged with a split proposal.
-- [ ] Each file has **one clear purpose**. Unrelated functions do not share a file.
-- [ ] Functions do **one task**, target under **30 lines**.
-- [ ] Function arguments **≤ 4**. More → Introduce Parameter Object / Preserve Whole Object.
-- [ ] Code that handles **more than one concern** is split.
-- [ ] Names are clear and specific. No `data`, `item`, `process`, `handle`, `tmp`, `obj`, `mgr`.
-- [ ] Function inputs and outputs are explicit; no output smuggled through mutated arguments.
-- [ ] **No hidden state or surprise side effects.** A function's effect is visible from its name
-      and signature. Query and modifier are separated (a getter doesn't mutate).
+## Names
 
-## B. Design principles
+- Use clear, specific names. Never `data`, `item`, `process`, `handle`, `tmp`, `obj`, `mgr`.
+- Use names you can pronounce and search for.
+- Replace magic numbers with named constants.
+- Do not encode type or scope in a name (no `strName`, no `m_prefix`).
 
-- [ ] **DRY** — no copy-pasted logic. Duplication is extracted to one owner.
-- [ ] **KISS** — the simplest solution that works. No cleverness a reader must decode.
-- [ ] **YAGNI** — no feature, parameter, or abstraction added "for later". Present need only.
-- [ ] Existing functions reused before new ones are written (searched first).
-- [ ] **Business logic separated** from APIs, databases, and UI. Domain code has no I/O imports.
-- [ ] Modules expose **clear public interfaces**; internals stay internal.
-- [ ] Dependencies are **few and direct**. No incidental coupling.
-- [ ] **Shallow composition over deep inheritance.** Prefer small components; no tall class trees.
-- [ ] **No deep nesting.** Early returns / guard clauses. Target max nesting depth 3.
-- [ ] A new layer exists only if it **removes real repeated work** — never speculative.
-- [ ] No generic helper built for a **single** use case.
+## Design
 
-## C. Robustness & boundaries
+- Follow DRY. Move duplicated logic to one owner.
+- Follow KISS. Choose the simplest solution that works.
+- Follow YAGNI. Build for the present need only.
+- Search the codebase and reuse an existing function before writing a new one.
+- Keep business logic out of APIs, databases, and UI. Domain code imports no I/O.
+- Give each module a clear public interface. Keep internals internal.
+- Keep dependencies few and direct. Inject them rather than reaching for globals.
+- Prefer small components over deep inheritance.
+- Prefer polymorphism over a long if/else or switch chain.
+- Add a layer only when it removes real repeated work.
+- Do not write a generic helper for a single use case.
+- Follow the Law of Demeter. Talk to direct dependencies, not to their internals.
+- Fix the root cause, not the symptom.
 
-- [ ] Errors handled at the **right level** (where there's enough context to act), not swallowed.
-- [ ] Data **validated at system boundaries** (inputs, external responses, deserialization).
-- [ ] External calls have **timeouts, retries, and limits**.
-- [ ] Explicit limits set for CPU, memory, request size, and file size where the code accepts input.
-- [ ] Jobs are **safe to retry** (idempotent) where retried.
-- [ ] Services **stateless where possible**; state pushed to stores, not held in the process.
-- [ ] Slow / background work goes through a **queue**, not the request path.
-- [ ] Useful **logs, metrics, and error detail** at the points that fail in production.
+## Errors and boundaries
 
-## D. Data & performance (measure, don't guess)
+- Handle an error where there is enough context to act on it. Never swallow it.
+- Throw exceptions. Do not return error codes.
+- Do not return null and do not pass null. Return an empty collection instead.
+- Validate data at system boundaries: inputs, external responses, deserialization.
+- Give every external call a timeout, a retry policy, and a limit.
+- Set explicit limits for CPU, memory, request size, and file size.
+- Make any job that can be retried idempotent.
+- Keep services stateless where possible.
+- Move slow or background work to a queue, off the request path.
+- Log, measure, and carry useful error detail where production fails.
 
-- [ ] No repeated **DB queries inside loops** (N+1 eliminated: batch / join / preload).
-- [ ] **Batch operations and pagination** for large datasets.
-- [ ] Queries **select only the fields used**.
-- [ ] Indexes added based on **real query patterns**, not speculation.
-- [ ] No optimization added on a guess — a measurement justifies each performance change.
+## Data and performance
 
-## E. Tests
+- Never run a database query inside a loop. Batch, join, or preload.
+- Paginate and batch large datasets.
+- Select only the fields the code uses.
+- Add an index for a real query pattern, never a guessed one.
+- Measure before optimizing. No performance change without a number behind it.
 
-- [ ] Core logic, error paths, and edge cases are tested.
-- [ ] **Every fixed bug has a regression test.** (In this skill: characterization tests pin
-      existing behavior before the refactor.)
-- [ ] The suite is **green** — and was green before the refactor started (behavior preserved).
+## Tests
 
-## F. Cleanliness
+- Test core logic, error paths, and edge cases.
+- Write a regression test for every bug you fix.
+- Keep tests fast, independent, repeatable, and readable.
+- Assert one concept per test.
+- Keep the suite green. Never mark work complete while a test fails.
 
-- [ ] **Dead code, unused imports, and stale comments deleted.**
-- [ ] Comments explain **why**, never restate what the code does. Narration comments removed.
-- [ ] Long files refactored **before** more code is added to them.
-- [ ] Formatting and naming **consistent** across the change.
-- [ ] **Lint, type checks, tests, and any performance check all pass** before completion.
-- [ ] Changes are **small and reviewable** (one refactoring per commit).
-- [ ] Clear code chosen over clever code.
+## Cleanliness
 
-## G. Folder structure
+- Delete dead code, unused imports, and stale comments.
+- Delete commented-out code. Git remembers it.
+- Write comments only for the non-obvious *why* — a rationale, a gotcha, an external constraint,
+  a "looks wrong but is deliberate". Never restate what the code already says.
+- Refactor a long file before adding more code to it.
+- Leave every file you touch cleaner than you found it.
+- Keep changes small and reviewable. One concern per commit.
+- Keep formatting and naming consistent with the surrounding code.
+- Choose clear code over clever code.
+- Run lint, type checks, and tests before calling work done.
 
-- [ ] Structure is **shallow**: folder nesting **≤ 3 levels** where possible; deeper paths flagged.
-- [ ] Folders organized **by feature / business area**, not by file type.
-- [ ] Related code, tests, and schemas live **close together**.
-- [ ] **No folder for a single file.** No placeholder/empty folders.
-- [ ] No `utils` / `common` / `shared` / `misc` / `helpers` folder **without a clear, named scope**.
-- [ ] Every folder has **one clear purpose**; names are short and clear.
-- [ ] **No name repetition across a path** (`users/user_service/user_service.py` → collapse).
-- [ ] Boilerplate folder trees are **not copied across features** unless they add value.
-- [ ] Public modules separated from internal code; **import boundaries defined** (which folders may
-      import which).
-- [ ] **No reach-through imports** across many nested folders; **no parent-directory imports**;
-      **no circular imports** between folders.
+## Folders and imports
 
-## H. AI obligations (must appear in the Phase-5 report)
+- Keep the structure shallow. Three levels of nesting or fewer.
+- Group folders by feature or business area, not by file type.
+- Keep the code, tests, and schemas for one feature together.
+- Never create a folder for a single file. Never create an empty folder.
+- Do not name a folder `utils`, `common`, `shared`, `misc`, or `helpers` without a named scope.
+- Give each folder one purpose and a short, clear name.
+- Do not repeat a name along a path (`users/user_service/user_service.py`).
+- Do not copy a boilerplate folder tree across features.
+- Separate public modules from internal code. State which folders may import which.
+- No parent-directory imports. No reach-through imports. No circular imports.
 
-- [ ] Listed **every file created or changed** (and deleted), each with a reason.
-- [ ] **Justified every new file, class, layer, or design pattern** — the real duplication or
-      concern-separation it bought.
-- [ ] **Flagged every file above 300 lines** with a proposed split.
-- [ ] Did **not** place unrelated functions in one file.
-- [ ] **Searched the codebase before creating** anything similar to existing code.
-- [ ] **Explained why each new folder was needed**, after checking the current structure and
-      reusing a fitting folder where one existed. Flagged any path deeper than 3 folders.
-- [ ] Did **not** mark the work complete while any test failed or any gate was red.
-- [ ] Preferred clear code over clever code throughout.
+## Report back
+
+- List every file you create, change, or delete, and say why.
+- Justify every new file, class, layer, or pattern by the duplication it removes.
+- Flag any file over 300 lines and propose a split.
+- Explain why each new folder is needed, after checking whether an existing one fits.
+- Flag any path deeper than three folders.
+- Say plainly when a test fails or a step is skipped. Never claim done while anything is red.
