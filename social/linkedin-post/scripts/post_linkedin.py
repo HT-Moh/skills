@@ -54,7 +54,8 @@ def resolve_browserless():
     return url, token
 
 
-def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path) -> dict:
+def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
+            document_path=None, document_title=None) -> dict:
     """Default path: drive browserless over CDP/WebSocket via the Node driver.
 
     A WS session with a keepalive is immune to the browserless VIP's 50s idle timeout, so
@@ -68,7 +69,8 @@ def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path) -> dict:
     ws_ep = re.sub(r"^http", "ws", url) + f"?token={token}"
     ws_ctx = dict(ctx)
     ws_ctx.update(wsEndpoint=ws_ep, mediaPaths=(media_paths or []),
-                  mediaPath=(media_paths[0] if media_paths else None), outdir=str(outdir))
+                  mediaPath=(media_paths[0] if media_paths else None),
+                  documentPath=document_path, documentTitle=document_title, outdir=str(outdir))
     proc = subprocess.run([node, str(WS_JS)], input=json.dumps(ws_ctx),
                           capture_output=True, text=True, timeout=300)
     if proc.returncode != 0:
@@ -131,6 +133,11 @@ def main():
     ap.add_argument("--media", action="append",
                     help="path to an image/gif/video to attach (uploaded through the composer). "
                          "Repeat --media for a multi-image post (carousel). WS path only for >1.")
+    ap.add_argument("--document", help="path to a PDF/DOC/DOCX/PPT/PPTX to post as a LinkedIn "
+                    "document (the swipeable card with a download button). One per post, and "
+                    "not combinable with --media. WS path only.")
+    ap.add_argument("--document-title", help="caption shown on the document card. "
+                    "Defaults to the file name.")
     ap.add_argument("--http", action="store_true",
                     help="use the legacy stateless /function HTTP path instead of WS/CDP "
                          "(subject to the browserless proxy's 50s idle timeout). Default is WS.")
@@ -172,13 +179,29 @@ def main():
             sys.exit(f"--media file not found: {mp}")
         media_paths.append(str(mp.resolve()))
 
+    document_path = None
+    if args.document:
+        if media_paths:
+            sys.exit("--document and --media cannot be combined: LinkedIn allows one or the other.")
+        if args.http:
+            sys.exit("--document needs the WS driver; drop --http.")
+        dp = Path(args.document)
+        if not dp.is_file():
+            sys.exit(f"--document file not found: {dp}")
+        if dp.suffix.lower() not in {".pdf", ".doc", ".docx", ".ppt", ".pptx"}:
+            sys.exit(f"LinkedIn accepts .pdf/.doc/.docx/.ppt/.pptx as documents, not {dp.suffix}")
+        document_path = str(dp.resolve())
+    if args.document_title and not args.document:
+        sys.exit("--document-title has no effect without --document.")
+
     if args.http:
         if len(media_paths) > 1:
             print("warning: --http supports one image only; attaching the first. Use the WS path for multi-image.",
                   file=sys.stderr)
         data = _run_http(url, token, ctx, (media_paths[0] if media_paths else None), outdir, bool(args.confirm))
     else:
-        data = _run_ws(url, token, ctx, media_paths, outdir)
+        data = _run_ws(url, token, ctx, media_paths, outdir,
+                       document_path=document_path, document_title=args.document_title)
 
     print(json.dumps(data, indent=2))
     print(f"\nscreenshots -> {outdir}")

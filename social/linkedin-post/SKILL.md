@@ -122,6 +122,22 @@ Trust the returned stage over your expectation:
   check) — the cookies may need re-exporting from a browser that's already past the
   challenge.
 
+## Attachments
+
+Two mutually exclusive kinds — LinkedIn allows one or the other, never both.
+
+| Want | Flag | Notes |
+|---|---|---|
+| Image, GIF, or video | `--media PATH` | Repeat `--media` for a multi-image carousel. One file only on `--http`. |
+| PDF / Word / PowerPoint | `--document PATH` | One per post. `--document-title` sets the card caption; it defaults to the file name. WS driver only. |
+
+A **document post** is LinkedIn's swipeable card with a page count and a download button —
+a different composer flow (More > Add a document) from media. LinkedIn accepts exactly
+`.pdf`, `.doc`, `.docx`, `.ppt`, `.pptx`; the script rejects anything else before uploading.
+
+Both kinds upload from your machine: the bytes are read locally and injected into the page,
+because CDP hands a remote browser a *path*, which a browserless container cannot read.
+
 ## Scheduling notes
 
 - Uses LinkedIn's native scheduler: allowed window is roughly the next 3 months, in the
