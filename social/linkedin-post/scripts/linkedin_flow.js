@@ -68,6 +68,19 @@ export default async function ({ page, context }) {
     }
     return false;
   };
+  // LinkedIn ships "Start a post" as a hashed <div>, and its shape changes without notice:
+  // the Sept 2026 redesign dropped role="button", which silently broke every post at
+  // open-composer. Try the stable aria-label first, then older shapes, so one more
+  // redesign degrades instead of failing outright.
+  const START_POST = [
+    { ariaRe: '^start a post$' },
+    { role: 'button', textRe: 'start a post' },
+    { tag: 'BUTTON', textRe: 'start a post' },
+  ];
+  const clickFirst = async (specs) => {
+    for (const spec of specs) { if (await clickDeep(spec)) return true; }
+    return false;
+  };
 
   try {
     await page.setViewport({ width: 1300, height: 1300 });
@@ -89,7 +102,7 @@ export default async function ({ page, context }) {
     for (let i = 0; i < 3 && !opened; i++) {
       await page.evaluate(() => window.scrollTo(0, 0));
       await sleep(500);
-      const hit = await clickDeep({ role: 'button', textRe: 'start a post' });
+      const hit = await clickFirst(START_POST);
       if (!hit) { await snap('no_start_button'); return done(false, 'open-composer'); }
       for (let w = 0; w < 8 && !opened; w++) { await sleep(600); opened = await editorReady(); }
     }
