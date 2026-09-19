@@ -18,7 +18,7 @@ spec in `scripts/linkedin_flow.js`.
 | Step (stage) | How it's driven | Anchor |
 |---|---|---|
 | auth | load `/feed/`, check for redirect | url matches `/(login\|uas\|checkpoint\|authwall)/` |
-| open-composer | The "Start a post" field is a hashed `div[role="button"]`. Scroll to top first (else the sticky nav intercepts), then **mouse-click its box center** — a trusted event; DOM `.click()` does NOT fire LinkedIn's handler | `role=button` whose innerText matches `start a post` |
+| open-composer | The "Start a post" control is a **hashed `div`** whose tag and role change without notice — the Sept 2026 redesign dropped `role="button"` and broke every post. Match `aria-label` first, keep the older shapes as fallbacks. Scroll to top first (else the sticky nav intercepts), then **mouse-click its box center** — a trusted event; DOM `.click()` does NOT fire LinkedIn's handler | `aria-label="Start a post"`, then `role=button`/`BUTTON` whose innerText matches `start a post` |
 | (open check) | poll for the editor via pierce | `pierce/.ql-editor` appears |
 | type | click `pierce/.ql-editor`, `page.keyboard.type` line-by-line (Enter = newline in Quill) | `.ql-editor` |
 | submit-immediate | click the primary button | `button` innerText exactly `Post`, not disabled |

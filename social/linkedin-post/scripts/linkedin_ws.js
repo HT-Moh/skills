@@ -91,6 +91,19 @@ function readStdin() {
       if (c) { await page.mouse.click(c.x, c.y); return true; }
       return false;
     };
+    // LinkedIn ships "Start a post" as a hashed <div>, and its shape changes without notice:
+    // the Sept 2026 redesign dropped role="button", which silently broke every post at
+    // open-composer. Try the stable aria-label first, then older shapes, so one more
+    // redesign degrades instead of failing outright.
+    const START_POST = [
+      { ariaRe: '^start a post$' },
+      { role: 'button', textRe: 'start a post' },
+      { tag: 'BUTTON', textRe: 'start a post' },
+    ];
+    const clickFirst = async (specs) => {
+      for (const spec of specs) { if (await clickDeep(spec)) return true; }
+      return false;
+    };
     // Navigate with a retry — LinkedIn's first-paint can exceed a single timeout under load,
     // and every op (auth, metrics) depends on a page load landing. Shared so one fix covers all.
     const gotoRetry = async (u, tries = 2) => {
@@ -177,7 +190,7 @@ function readStdin() {
     for (let i = 0; i < 3 && !opened; i++) {
       await page.evaluate(() => window.scrollTo(0, 0));
       await sleep(500);
-      const hit = await clickDeep({ role: 'button', textRe: 'start a post' });
+      const hit = await clickFirst(START_POST);
       if (!hit) { await snap('no_start_button'); return out(false, 'open-composer'); }
       for (let w = 0; w < 8 && !opened; w++) { await sleep(600); opened = await editorReady(); }
     }
