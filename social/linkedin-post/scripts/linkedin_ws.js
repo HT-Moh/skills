@@ -28,7 +28,8 @@ function readStdin() {
 
 (async () => {
   const ctx = JSON.parse(await readStdin());
-  const { cookies, text, schedule, dateStr, dayLabel, monthLabel, timeStr, confirm, mediaPath, mediaPaths, outdir } = ctx;
+  const { cookies, text, schedule, dateStr, dayLabel, monthLabel, timeStr, confirm, mediaPath, mediaPaths,
+          documentPath, documentTitle, outdir } = ctx;
   const mediaList = (Array.isArray(mediaPaths) && mediaPaths.length) ? mediaPaths : (mediaPath ? [mediaPath] : []);
   fs.mkdirSync(outdir, { recursive: true });
   const log = [];
@@ -71,6 +72,7 @@ function readStdin() {
         if (ariaRe && !ariaRe.test(aria)) return false;
         if (textRe && !textRe.test(el.innerText || '')) return false;
         if (s.textExact != null && txt !== s.textExact) return false;
+        if (s.phRe && !new RegExp(s.phRe, 'i').test(el.placeholder || '')) return false;
         return true;
       };
       const walk = (root) => {
@@ -209,6 +211,66 @@ function readStdin() {
     await sleep(600);
     await snap('composed');
     say(`typed ${text.length} chars`);
+
+    // --- Attach a document (PDF / DOC / PPT) -----------------------------
+    // A document post is a different LinkedIn flow from media — More > Add a document —
+    // and it carries its own title, shown as the card's caption. LinkedIn allows one
+    // document per post, and it cannot be combined with images or video.
+    // The byte injection is identical to media's and for the same reason (see that note).
+    if (documentPath) {
+      const DOC_MIME = {
+        '.pdf': 'application/pdf',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.ppt': 'application/vnd.ms-powerpoint',
+        '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      };
+      const ext = path.extname(documentPath).toLowerCase();
+      // LinkedIn's own file input declares accept=".doc,.docx,.pdf,.ppt,.pptx"; anything
+      // else is rejected after the upload round-trip, so fail here instead.
+      if (!DOC_MIME[ext]) return out(false, 'document-type', { detail: ext });
+
+      if (!await clickDeep({ ariaRe: '^more$' })) { await snap('no_more'); return out(false, 'doc-more'); }
+      await sleep(1200);
+      if (!await clickDeep({ ariaRe: '^add a document$' })) { await snap('no_add_document'); return out(false, 'add-document'); }
+      await sleep(1800);
+
+      const docB64 = fs.readFileSync(documentPath).toString('base64');
+      const docInjected = await page.evaluate((b64, fn, mime) => {
+        const walk = (r) => { for (const e of (r.querySelectorAll ? r.querySelectorAll('*') : [])) { if (e.tagName === 'INPUT' && e.type === 'file') return e; if (e.shadowRoot) { const h = walk(e.shadowRoot); if (h) return h; } } return null; };
+        const input = walk(document);
+        if (!input) return 'no-input';
+        const bin = atob(b64); const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        const dt = new DataTransfer(); dt.items.add(new File([arr], fn, { type: mime }));
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files').set.call(input, dt.files);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return 'injected';
+      }, docB64, path.basename(documentPath), DOC_MIME[ext]);
+      if (docInjected !== 'injected') { await snap('doc_inject_fail'); return out(false, 'document-inject', { detail: docInjected }); }
+
+      // The title box only renders once the upload has been accepted, so its appearance
+      // is the readiness signal — there is no separate progress state to poll.
+      let titleBox = null;
+      for (let i = 0; i < 40 && !titleBox; i++) {
+        await sleep(1000);
+        titleBox = await deepCenter({ tag: 'INPUT', phRe: 'descriptive title' });
+      }
+      if (!titleBox) { await snap('no_doc_title'); return out(false, 'document-upload'); }
+
+      await page.mouse.click(titleBox.x, titleBox.y);
+      await sleep(300);
+      // LinkedIn requires a title; fall back to the filename so a caller that omits one
+      // still produces a valid post rather than a blocked Done button.
+      const title = (documentTitle || path.basename(documentPath, ext)).slice(0, 100);
+      await page.keyboard.type(title, { delay: 15 });
+      await sleep(400);
+
+      if (!await clickDeep({ ariaRe: '^done$' })) { await snap('no_doc_done'); return out(false, 'document-done'); }
+      await sleep(2500);
+      say(`document attached (${path.basename(documentPath)} as "${title}")`);
+      await snap('document_in_composer');
+    }
 
     // --- Attach media ---------------------------------------------------
     // NOTE: elementHandle.uploadFile(path) does NOT work against a REMOTE browser — CDP
