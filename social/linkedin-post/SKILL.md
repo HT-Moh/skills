@@ -86,7 +86,7 @@ python3 scripts/post_linkedin.py --file /tmp/li-post.txt
 python3 scripts/post_linkedin.py --file /tmp/li-post.txt --at 2026-08-12T09:00
 ```
 
-It prints a JSON verdict (including `tzLine`, the account timezone LinkedIn showed) and
+It prints a JSON verdict (including `postingAt`, LinkedIn's own "Posting at …" line) and
 writes screenshots to a temp dir. **Read the screenshots** (`composed.jpg`,
 `schedule_filled.jpg`, and especially `schedule_review.jpg`, which shows LinkedIn's own
 "Posting <day> at <time>" confirmation) before going further — they are the proof the
@@ -115,7 +115,7 @@ the account's, convert before passing `--at` and say so.
 Trust the returned stage over your expectation:
 
 - `scheduled` / `posted` + a clean final screenshot → report success with the scheduled
-  time and the account timezone (`tzLine`), and note if you moved a link to the first
+  time LinkedIn confirmed (`postingAt`), and note if you moved a link to the first
   comment.
 - Any other stage → report the failure and the stage plainly; do not claim it posted.
   A checkpoint/`authwall` stage means LinkedIn challenged the session (new IP, security

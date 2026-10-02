@@ -11,12 +11,11 @@
 //   * The composer itself renders inside an OPEN SHADOW ROOT. Normal document queries
 //     see nothing; every element inside is reached with Puppeteer `pierce/` selectors
 //     or a shadow-piercing deep walk.
-//   * The schedule dialog interprets the typed time in the ACCOUNT's own timezone, shown
-//     in its subtitle ("… Pacific Daylight Time, based on your location"). We type the
-//     time verbatim and return that subtitle so the caller can verify the zone.
+//   * The schedule dialog interprets the typed time in the ACCOUNT's own timezone. We type
+//     the time verbatim and check LinkedIn's "Posting at <day>, <time>" echo against it.
 
 export default async function ({ page, context }) {
-  const { cookies, text, schedule, dateStr, dayLabel, monthLabel, timeStr, confirm, media } = context;
+  const { cookies, text, schedule, dateStr, monthLabel, timeStr, confirm, media } = context;
   const shots = {};
   const log = [];
   const say = (m) => log.push(m);
@@ -44,6 +43,7 @@ export default async function ({ page, context }) {
       if (ariaRe && !ariaRe.test(aria)) return false;
       if (textRe && !textRe.test(el.innerText || '')) return false;
       if (s.textExact != null && txt !== s.textExact) return false;
+      if (s.valRe && !new RegExp(s.valRe, 'i').test(el.value || '')) return false;
       return true;
     };
     const walk = (root) => {
@@ -140,7 +140,8 @@ export default async function ({ page, context }) {
     // than a real file path. Then wait out LinkedIn's server-side processing (video) and
     // advance through the Editor's Next step(s) back to the composer.
     if (media && media.b64) {
-      const am = await clickDeep({ tag: 'BUTTON', ariaRe: 'add media' });
+      // The button's label is "Media" since LinkedIn's Oct 2026 composer; it was "Add media".
+      const am = await clickDeep({ tag: 'BUTTON', ariaRe: '^(add )?media$' });
       if (!am) { await snap('no_add_media'); return done(false, 'add-media'); }
       await sleep(1800);
       const injected = await page.evaluate((b64, fn, mime) => {
@@ -187,6 +188,11 @@ export default async function ({ page, context }) {
         if (!clicked) break;   // no Next left → already back in the composer
         await sleep(1500);
       }
+      // With media attached, LinkedIn hides the composer's attachment buttons. A Media button
+      // still showing means the upload did not land, so stop instead of scheduling text only.
+      if (await deepCenter({ tag: 'BUTTON', ariaRe: '^(add )?media$' })) {
+        await snap('media_missing'); return done(false, 'media-missing');
+      }
       say(`media attached (${media.mime})`);
       await snap('media_in_composer');
     }
@@ -202,69 +208,66 @@ export default async function ({ page, context }) {
       return done(true, 'posted');
     }
 
-    // --- Open the schedule dialog ---------------------------------------
-    const openedSched = await clickDeep({ tag: 'BUTTON', ariaRe: 'schedule post' });
-    if (!openedSched) { await snap('no_schedule_button'); return done(false, 'open-schedule'); }
+    // --- Schedule dialog ------------------------------------------------
+    // LinkedIn's Oct 2026 composer: the clock is a link labelled "Scheduled", the dialog's Date
+    // (mm/dd/yyyy) and Time fields accept typed values, and "Confirm" closes it. Escape now
+    // closes the whole dialog, so each field is left with Tab. LinkedIn echoes the result as
+    // "Posting at Tue, Oct 6, 9:00 AM"; that line is checked against the wanted slot before
+    // anything is confirmed, so a value LinkedIn rejected can never schedule the wrong time.
+    const OPEN_SCHEDULE = [{ tag: 'A', ariaRe: '^scheduled$' }, { tag: 'BUTTON', ariaRe: 'schedule post' }];
+    if (!await clickFirst(OPEN_SCHEDULE)) { await snap('no_schedule_button'); return done(false, 'open-schedule'); }
     await sleep(2000);
-
-    // Read the dialog's timezone subtitle so the caller can verify the zone.
-    const tzLine = await page.evaluate(() => {
+    const typeInto = async (spec, value) => {
+      const box = await deepCenter(spec);
+      if (!box) return false;
+      await page.mouse.click(box.x, box.y);
+      await sleep(200);
+      // Select-all, then type over the selection. The time field is masked: pressing Delete
+      // first empties the mask and the next keystrokes lose the hour or the minutes.
+      await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
+      await page.keyboard.type(value, { delay: 60 });
+      await page.keyboard.press('Tab');
+      await sleep(600);
+      return true;
+    };
+    if (!await typeInto({ tag: 'INPUT', phRe: '^mm/dd/yyyy$' }, dateStr)) {
+      await snap('no_date_input'); return done(false, 'schedule-inputs');
+    }
+    if (!await typeInto({ tag: 'INPUT', valRe: '^\\d{1,2}:\\d{2}\\s?[AP]M$' }, timeStr)) {
+      await snap('no_time_input'); return done(false, 'schedule-inputs');
+    }
+    const postingAt = await page.evaluate(() => {
       const walk = (root) => {
         for (const el of (root.querySelectorAll ? root.querySelectorAll('*') : [])) {
-          if (/based on your location/i.test(el.textContent || '') && el.children.length === 0) return el.textContent.trim();
+          if (el.children.length === 0 && /^Posting at /.test((el.textContent || '').trim())) return el.textContent.trim();
           if (el.shadowRoot) { const h = walk(el.shadowRoot); if (h) return h; }
         }
         return null;
       };
       return walk(document);
     });
-    if (tzLine) say(`schedule zone: ${tzLine}`);
-
-    // DATE — pick from the calendar. The artdeco date field ignores typed text (reverts
-    // to its default), so open its calendar and click the day cell, whose aria-label is
-    // e.g. "Thursday, August 14, 2026." Advance months until the target month is present.
-    const dateBox = await deepCenter({ tag: 'INPUT', ariaRe: 'date' });
-    if (!dateBox) { await snap('no_date_input'); return done(false, 'schedule-inputs'); }
-    await page.mouse.click(dateBox.x, dateBox.y);
-    await sleep(1000);
-    // day cell aria-labels carry the "Month D, YYYY" text; match on that substring.
-    const dayEsc = dayLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let dayHit = false;
-    for (let m = 0; m < 5 && !dayHit; m++) {
-      dayHit = await clickDeep({ tag: 'BUTTON', ariaRe: dayEsc + '\\b' });
-      if (!dayHit) { await clickDeep({ tag: 'BUTTON', ariaRe: 'next month' }); await sleep(500); }
+    const wantedDay = `${monthLabel.slice(0, 3)} ${Number(dateStr.split('/')[1])},`;
+    const squash = (s) => String(s || '').replace(/\s+/g, '');
+    if (!postingAt || !postingAt.includes(wantedDay) || !squash(postingAt).includes(squash(timeStr))) {
+      await snap('schedule_mismatch');
+      return done(false, 'schedule-date', { wanted: `${dateStr} ${timeStr}`, got: postingAt });
     }
-    if (!dayHit) { await snap('date_not_found'); return done(false, 'schedule-date', { wanted: dayLabel }); }
-    await sleep(600);
-
-    // TIME — the time field DOES accept typed input: focus, select-all, clear, type.
-    const timeBox = await deepCenter({ tag: 'INPUT', ariaRe: 'time' });
-    if (!timeBox) { await snap('no_time_input'); return done(false, 'schedule-inputs'); }
-    await page.mouse.click(timeBox.x, timeBox.y);
-    await sleep(150);
-    await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
-    await page.keyboard.press('Delete');
-    await sleep(100);
-    await page.keyboard.type(timeStr, { delay: 30 });
-    await page.keyboard.press('Escape');
-    await sleep(400);
+    say(`schedule set: ${postingAt}`);
     await snap('schedule_filled');
-    say(`schedule set to ${dateStr} ${timeStr}`);
-
-    // Confirm the dialog: "Next" returns to the composer with a "Schedule" primary button.
-    const next = await clickDeep({ tag: 'BUTTON', textExact: 'Next' });
-    if (!next) { await snap('no_next'); return done(false, 'schedule-next'); }
+    if (!await clickDeep({ tag: 'BUTTON', textExact: 'Confirm' })) {
+      await snap('no_confirm'); return done(false, 'schedule-confirm');
+    }
     await sleep(1500);
     await snap('schedule_review');
 
-    if (!confirm) return done(true, 'preview', { note: 'dry-run — Schedule NOT clicked; pass confirm=true to schedule for real', dateStr, timeStr, tzLine });
+    if (!confirm) return done(true, 'preview', { note: 'dry-run — Schedule NOT clicked; pass confirm=true to schedule for real', dateStr, timeStr, postingAt });
 
     const scheduled = await clickDeep({ tag: 'BUTTON', textExact: 'Schedule', notDisabled: true });
     if (!scheduled) { await snap('no_final_schedule'); return done(false, 'submit-schedule'); }
     await sleep(800);
     await snap('scheduled');
     for (const k in shots) if (k !== 'scheduled') delete shots[k]; // slim reply so it returns under proxy timeout
-    return done(true, 'scheduled', { dateStr, timeStr, tzLine });
+    return done(true, 'scheduled', { dateStr, timeStr, postingAt });
   } catch (e) {
     await snap('exception');
     return done(false, 'exception', { error: e.message });

@@ -22,22 +22,22 @@ spec in `scripts/linkedin_flow.js`.
 | (open check) | poll for the editor via pierce | `[componentkey="ShareBox_textEditor"]` (Tiptap/ProseMirror, Oct 2026), then `.ProseMirror`, then the old `.ql-editor` |
 | type | click the editor found above, `page.keyboard.type` line-by-line (Enter = new paragraph) | the editor |
 | submit-immediate | click the primary button | `button` innerText exactly `Post`, not disabled |
-| open-schedule | click the clock icon | `button[aria-label="Schedule post"]` |
-| (tz) | read the dialog subtitle to report the account timezone | text contains `based on your location` |
-| schedule-date | **click the date field → calendar opens → click the day cell.** The field ignores typed text (reverts to default); the calendar is the only reliable path. Advance with the `Next month` button until the target month shows | day cell `button` aria-label `"<Weekday>, <Month> <D>, <YYYY>."` e.g. `Thursday, August 20, 2026.` |
-| schedule-time | the time field DOES take keyboard: click, Ctrl+A, Delete, type `9:00 AM`, Escape | `input[aria-label="Time"]` |
-| schedule-next | click Next | `button` innerText exactly `Next` |
+| open-schedule | click the clock icon | `a[aria-label="Scheduled"]` (Oct 2026); older: `button[aria-label="Schedule post"]` |
+| schedule-date | click the date field, Ctrl+A, type `M/D/YYYY`, **Tab**. Since Oct 2026 the field accepts typed text (the old calendar-only path is gone) | `input[placeholder="mm/dd/yyyy"]` |
+| schedule-time | click, Ctrl+A, type `9:00 AM` over the selection, **Tab**. Never press Delete first: the field is masked, and an emptied mask drops the hour or the minutes. Escape closes the whole dialog | the `input` whose value is a time, e.g. `6:30 PM` (it has no label) |
+| schedule-check | read LinkedIn's echo and compare it with the wanted day and time; refuse to confirm on a mismatch | leaf element text starting `Posting at`, e.g. `Posting at Tue, Oct 6, 9:00 AM` |
+| schedule-confirm | click Confirm (it was Next) | `button` innerText exactly `Confirm` |
 | submit-schedule | click the primary button, now labelled Schedule | `button` innerText exactly `Schedule`, not disabled |
 
 ## Formats LinkedIn expects
 
-- **Date:** picked from the calendar by aria-label — the driver sends `dayLabel`
-  (`%B %-d, %Y` → `August 20, 2026`) and `monthLabel` (`%B %Y`).
+- **Date:** typed as `%-m/%-d/%Y` (`dateStr`, e.g. `8/20/2026`). `monthLabel` (`%B %Y`) is
+  used only to check the "Posting at" echo.
 - **Time:** 12-hour `H:MM AM/PM`, e.g. `9:00 AM` (`%-I:%M %p`), typed into the field.
-- **Timezone:** the dialog interprets the time in the ACCOUNT's own timezone, printed in
-  its subtitle (observed: *"… Pacific Daylight Time, based on your location"*). The driver
-  does NOT convert — it types the wall-clock time as given and echoes the subtitle so the
-  caller can confirm the zone. LinkedIn also rejects any time under ~10 minutes out.
+- **Timezone:** the dialog interprets the time in the ACCOUNT's own timezone. Since Oct 2026
+  it no longer prints that zone; it echoes "Posting at <day>, <time>". The driver does NOT
+  convert: it types the wall-clock time as given and checks the echo matches it. LinkedIn
+  also rejects any time under ~10 minutes out.
 
 ## Known fragilities
 
@@ -45,9 +45,9 @@ spec in `scripts/linkedin_flow.js`.
   changes. Match on exact innerText per mode.
 - The editor (Tiptap/ProseMirror since Oct 2026, Quill before) rejects `innerText =` assignment; it needs
   real `page.keyboard` input.
-- The date field ALSO rejects the native value setter and raw typing — both revert to the
-  default. Only clicking a calendar day cell sticks. (Verified: typing/`setter` left the
-  date at "today", which then failed LinkedIn's "at least 10 minutes from now" check.)
+- Before Oct 2026 the date field rejected typed text and only a calendar click stuck; the
+  current field accepts typing. If it ever reverts, the "Posting at" check catches it: the
+  driver refuses to confirm a time that does not match (stage `schedule-date`).
 - First-comment link strategy (to protect reach) is **not** automated — the flow posts
   only the body.
 - The composer sometimes needs a moment to mount; `open-composer` retries the click up to
