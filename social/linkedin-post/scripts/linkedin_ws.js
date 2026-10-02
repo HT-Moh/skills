@@ -187,7 +187,19 @@ function readStdin() {
     if (ctx.op === 'scan_metrics') return await scanMetrics();
 
     // --- Open composer --------------------------------------------------
-    const editorReady = async () => (await page.$('pierce/.ql-editor')) != null;
+    // The post editor. LinkedIn replaced Quill (.ql-editor) with a Tiptap/ProseMirror editor
+    // in Oct 2026; the dialog still opened, but waiting for .ql-editor reported
+    // "composer never opened". Newest shape first, older ones as fallbacks.
+    const EDITOR = [
+      'pierce/[componentkey="ShareBox_textEditor"]',
+      'pierce/.ProseMirror[contenteditable="true"]',
+      'pierce/.ql-editor',
+    ];
+    const findEditor = async () => {
+      for (const selector of EDITOR) { const hit = await page.$(selector); if (hit) return hit; }
+      return null;
+    };
+    const editorReady = async () => (await findEditor()) != null;
     let opened = false;
     for (let i = 0; i < 3 && !opened; i++) {
       await page.evaluate(() => window.scrollTo(0, 0));
@@ -200,7 +212,7 @@ function readStdin() {
     say('composer open');
 
     // --- Type text ------------------------------------------------------
-    const editor = await page.$('pierce/.ql-editor');
+    const editor = await findEditor();
     await editor.click();
     await sleep(400);
     const lines = String(text).split('\n');
@@ -279,7 +291,8 @@ function readStdin() {
     // read the bytes locally in Node and inject them in-page as a real File (the base64
     // rides as a CDP evaluate argument = actual content over the socket).
     if (mediaList.length) {
-      const am = await clickDeep({ tag: 'BUTTON', ariaRe: 'add media' });
+      // The button's label is "Media" since LinkedIn's Oct 2026 composer; it was "Add media".
+      const am = await clickDeep({ tag: 'BUTTON', ariaRe: '^(add )?media$' });
       if (!am) { await snap('no_add_media'); return out(false, 'add-media'); }
       await sleep(1800);
       const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',

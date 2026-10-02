@@ -19,8 +19,8 @@ spec in `scripts/linkedin_flow.js`.
 |---|---|---|
 | auth | load `/feed/`, check for redirect | url matches `/(login\|uas\|checkpoint\|authwall)/` |
 | open-composer | The "Start a post" control is a **hashed `div`** whose tag and role change without notice — the Sept 2026 redesign dropped `role="button"` and broke every post. Match `aria-label` first, keep the older shapes as fallbacks. Scroll to top first (else the sticky nav intercepts), then **mouse-click its box center** — a trusted event; DOM `.click()` does NOT fire LinkedIn's handler | `aria-label="Start a post"`, then `role=button`/`BUTTON` whose innerText matches `start a post` |
-| (open check) | poll for the editor via pierce | `pierce/.ql-editor` appears |
-| type | click `pierce/.ql-editor`, `page.keyboard.type` line-by-line (Enter = newline in Quill) | `.ql-editor` |
+| (open check) | poll for the editor via pierce | `[componentkey="ShareBox_textEditor"]` (Tiptap/ProseMirror, Oct 2026), then `.ProseMirror`, then the old `.ql-editor` |
+| type | click the editor found above, `page.keyboard.type` line-by-line (Enter = new paragraph) | the editor |
 | submit-immediate | click the primary button | `button` innerText exactly `Post`, not disabled |
 | open-schedule | click the clock icon | `button[aria-label="Schedule post"]` |
 | (tz) | read the dialog subtitle to report the account timezone | text contains `based on your location` |
@@ -43,7 +43,7 @@ spec in `scripts/linkedin_flow.js`.
 
 - The primary action button is the **same element** for Post and Schedule; only its label
   changes. Match on exact innerText per mode.
-- The Quill editor rejects `innerText =` assignment and the native value setter; it needs
+- The editor (Tiptap/ProseMirror since Oct 2026, Quill before) rejects `innerText =` assignment; it needs
   real `page.keyboard` input.
 - The date field ALSO rejects the native value setter and raw typing — both revert to the
   default. Only clicking a calendar day cell sticks. (Verified: typing/`setter` left the
@@ -51,4 +51,4 @@ spec in `scripts/linkedin_flow.js`.
 - First-comment link strategy (to protect reach) is **not** automated — the flow posts
   only the body.
 - The composer sometimes needs a moment to mount; `open-composer` retries the click up to
-  3× and polls for `.ql-editor` before giving up.
+  3× and polls for the editor before giving up.

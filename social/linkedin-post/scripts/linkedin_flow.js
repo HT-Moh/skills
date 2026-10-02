@@ -97,7 +97,19 @@ export default async function ({ page, context }) {
 
     // --- Open the composer ----------------------------------------------
     // Click the "Start a post" field (text-anchored) at its box center, below the nav.
-    const editorReady = async () => (await page.$('pierce/.ql-editor')) != null;
+    // The post editor. LinkedIn replaced Quill (.ql-editor) with a Tiptap/ProseMirror editor
+    // in Oct 2026; the dialog still opened, but waiting for .ql-editor reported
+    // "composer never opened". Newest shape first, older ones as fallbacks.
+    const EDITOR = [
+      'pierce/[componentkey="ShareBox_textEditor"]',
+      'pierce/.ProseMirror[contenteditable="true"]',
+      'pierce/.ql-editor',
+    ];
+    const findEditor = async () => {
+      for (const selector of EDITOR) { const hit = await page.$(selector); if (hit) return hit; }
+      return null;
+    };
+    const editorReady = async () => (await findEditor()) != null;
     let opened = false;
     for (let i = 0; i < 3 && !opened; i++) {
       await page.evaluate(() => window.scrollTo(0, 0));
@@ -110,7 +122,7 @@ export default async function ({ page, context }) {
     say('composer open');
 
     // --- Type the post text ---------------------------------------------
-    const editor = await page.$('pierce/.ql-editor');
+    const editor = await findEditor();
     await editor.click();
     await sleep(400);
     const lines = String(text).split('\n');
