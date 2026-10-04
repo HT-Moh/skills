@@ -186,6 +186,9 @@ function readStdin() {
 
     // --- Route read-only scrape ops (no composer/text/media needed) ------
     if (ctx.op === 'scan_metrics') return await scanMetrics();
+    // Only a call with no op may reach the composer. An op this driver does not know (a newer
+    // caller, a typo) must stop here, not fall through and start composing a post.
+    if (ctx.op) return out(false, 'unknown-op', { op: ctx.op });
 
     // --- Open composer --------------------------------------------------
     // The post editor. LinkedIn replaced Quill (.ql-editor) with a Tiptap/ProseMirror editor
