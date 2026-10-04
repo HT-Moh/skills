@@ -48,7 +48,25 @@ spec in `scripts/linkedin_flow.js`.
 - Before Oct 2026 the date field rejected typed text and only a calendar click stuck; the
   current field accepts typing. If it ever reverts, the "Posting at" check catches it: the
   driver refuses to confirm a time that does not match (stage `schedule-date`).
-- First-comment link strategy (to protect reach) is **not** automated — the flow posts
-  only the body.
+- The post flow posts only the body. The link goes in the first comment, through the
+  separate `first_comment` operation below, once the post is live.
 - The composer sometimes needs a moment to mount; `open-composer` retries the click up to
   3× and polls for the editor before giving up.
+
+## The first comment (`op: first_comment`)
+
+Called by the linkedin-pipeline's `track sync` through `linkedin_ws.js` with
+`{ comment, excerpt, urn?, submit }`. Verified live in Oct 2026, preview mode, on a post
+found by urn and on one found by its text.
+
+| Step (stage on failure) | How it's driven | Anchor |
+|---|---|---|
+| find-post | without a urn: `/in/me/recent-activity/all/`, up to 3 scrolls; an own post's text contains `• You`, a repost's `reposted this`; match the first 60 characters of the post, whitespace-collapsed and lowercased | `[data-view-tracking-scope]` whose value holds `urn:li:activity:<id>` |
+| (open) | `/feed/update/<urn>/` | — |
+| already | before typing, look for an own comment that already holds the link: climb from the comment's options button, stop before a box holding a second comment | `button[aria-label="View more options for <name>’s comment."]`; `<name>` from `aria-label="Open control menu for post by <name>"` |
+| comment-editor | visible without clicking anything; **scroll it into view first**, a long post leaves it below the viewport and a mouse click there lands on nothing | `role="textbox"`, `aria-label="Text editor for creating comment"` |
+| comment-typed | read the editor back; refuse anything but the exact comment | the same editor's `innerText` |
+| comment-submit | appears only once text is typed. Not the comment counter, which is `aria-label="Comment"` with the count as its text | `BUTTON` whose innerText is exactly `Comment` |
+| comment-not-seen | poll up to 15 s for the own comment holding the link | the `already` check |
+
+LinkedIn renders a preview card for a URL typed in a comment; the comment text keeps the URL.

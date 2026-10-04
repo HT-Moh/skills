@@ -172,6 +172,113 @@ function readStdin() {
       return out(true, 'scanned', { metrics });
     };
 
+    // --- op: post the first comment on one of the account's own live posts ---------
+    // ctx: { comment, excerpt, urn?, submit }. The post is opened by urn when the caller has
+    // one, else found on /in/me/recent-activity/all/ by the start of its text (own posts
+    // only — a repost reads "reposted this", an own post "• You"). Before typing, the op
+    // looks for a comment of the account's own that already carries the comment's link
+    // ("already"): a retry after a lost reply must not comment twice. submit=false types the
+    // comment, screenshots it, erases it and answers "preview".
+    // Verified Oct 2026: the editor is role=textbox "Text editor for creating comment",
+    // visible without clicking anything; the submit control is a BUTTON whose text is exactly
+    // "Comment" and appears only once text is typed (the aria-label "Comment" button is the
+    // comment counter); each comment has a "View more options for <name>’s comment." button.
+    const firstComment = async () => {
+      const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const linkOf = (comment) => (String(comment).match(/https?:\/\/\S+/) || [comment])[0]
+        .replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const link = linkOf(ctx.comment || '');
+      if (!ctx.comment) return out(false, 'no-comment');
+
+      const findOwnPost = async () => {
+        await gotoRetry('https://www.linkedin.com/in/me/recent-activity/all/');
+        const wanted = norm(ctx.excerpt).slice(0, 60);
+        for (let pass = 0; pass < 3; pass++) {
+          await sleep(pass === 0 ? 5000 : 2500);
+          const urn = await page.evaluate((wanted) => {
+            const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            for (const e of document.querySelectorAll('[data-view-tracking-scope]')) {
+              const m = (e.getAttribute('data-view-tracking-scope') || '').match(/urn:li:activity:\d{15,}/);
+              const text = norm(e.innerText);
+              if (m && text.includes('• you') && !text.includes('reposted this') && text.includes(wanted)) return m[0];
+            }
+            return null;
+          }, wanted);
+          if (urn) return urn;
+          await page.evaluate(() => window.scrollBy(0, 2500));
+        }
+        return null;
+      };
+
+      // True when one of the post author's own comments already contains `link`.
+      const ownCommentHasLink = () => page.evaluate((link) => {
+        const all = [];
+        const walk = (r) => { for (const e of r.querySelectorAll('*')) { all.push(e); if (e.shadowRoot) walk(e.shadowRoot); } };
+        walk(document);
+        const menu = all.find((e) => /^Open control menu for post by /.test(e.getAttribute('aria-label') || ''));
+        if (!menu) return false;
+        const me = menu.getAttribute('aria-label').replace(/^Open control menu for post by /, '');
+        const optionsLabel = /^View more options for .+ comment\.$/;
+        for (const button of all.filter((e) => e.getAttribute('aria-label') === `View more options for ${me}’s comment.`)) {
+          let box = button;
+          for (let i = 0; i < 12 && box.parentElement; i++) {
+            const up = box.parentElement;
+            const others = [...up.querySelectorAll('button')].filter((b) => optionsLabel.test(b.getAttribute('aria-label') || ''));
+            if (others.length > 1) break;   // climbed into a neighbouring comment
+            box = up;
+            const text = (box.innerText || '').toLowerCase();
+            const hrefs = [...box.querySelectorAll('a')].map((a) => (a.getAttribute('href') || '').toLowerCase());
+            if (text.includes(link.toLowerCase()) || hrefs.some((h) => h.includes(encodeURIComponent(link).toLowerCase()) || h.includes(link.toLowerCase()))) return true;
+          }
+        }
+        return false;
+      }, link);
+
+      const urn = ctx.urn || await findOwnPost();
+      if (!urn) { await snap('comment_post_not_found'); return out(false, 'find-post'); }
+      const postUrl = `https://www.linkedin.com/feed/update/${urn}/`;
+      await gotoRetry(postUrl);
+      await sleep(5000);
+      if (await ownCommentHasLink()) return out(true, 'already', { urn, url: postUrl });
+
+      // The editor sits below a long post, outside the viewport, and a mouse click there
+      // lands on nothing. Scroll it to the middle first; read it back after typing.
+      const EDITOR_LABEL = 'Text editor for creating comment';
+      const editorText = () => page.evaluate((label) => {
+        const find = (r) => { for (const e of r.querySelectorAll('*')) { if (e.getAttribute('role') === 'textbox' && e.getAttribute('aria-label') === label) return e; if (e.shadowRoot) { const hit = find(e.shadowRoot); if (hit) return hit; } } return null; };
+        const editor = find(document);
+        if (!editor) return null;
+        editor.scrollIntoView({ block: 'center' });
+        return (editor.innerText || '').trim();
+      }, EDITOR_LABEL);
+      if ((await editorText()) === null) { await snap('comment_no_editor'); return out(false, 'comment-editor', { urn, url: postUrl }); }
+      await sleep(800);
+      await clickDeep({ role: 'textbox', ariaRe: `^${EDITOR_LABEL}$` });
+      await sleep(600);
+      await page.keyboard.type(ctx.comment, { delay: 25 });
+      await sleep(1500);
+      await snap('comment_typed');
+      const typed = await editorText();
+      if (norm(typed) !== norm(ctx.comment)) {
+        return out(false, 'comment-typed', { urn, url: postUrl, typed });
+      }
+      if (!ctx.submit) {
+        await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
+        await page.keyboard.press('Backspace');
+        return out(true, 'preview', { urn, url: postUrl });
+      }
+      if (!(await clickDeep({ tag: 'BUTTON', textExact: 'Comment', notDisabled: true }))) {
+        await snap('comment_no_submit');
+        return out(false, 'comment-submit', { urn, url: postUrl });
+      }
+      for (let i = 0; i < 10; i++) {
+        await sleep(1500);
+        if (await ownCommentHasLink()) { await snap('commented'); return out(true, 'commented', { urn, url: postUrl }); }
+      }
+      await snap('comment_not_seen');
+      return out(false, 'comment-not-seen', { urn, url: postUrl });
+    };
+
     await page.setViewport({ width: 1300, height: 1300 });
     if (!Array.isArray(cookies) || cookies.length === 0) return out(false, 'no-cookies');
     await page.setCookie(...cookies);
@@ -186,6 +293,7 @@ function readStdin() {
 
     // --- Route read-only scrape ops (no composer/text/media needed) ------
     if (ctx.op === 'scan_metrics') return await scanMetrics();
+    if (ctx.op === 'first_comment') return await firstComment();
     // Only a call with no op may reach the composer. An op this driver does not know (a newer
     // caller, a typo) must stop here, not fall through and start composing a post.
     if (ctx.op) return out(false, 'unknown-op', { op: ctx.op });
