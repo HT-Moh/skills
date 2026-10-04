@@ -8,7 +8,7 @@
 // screenshots to local disk instead of stuffing them into one HTTP response.
 //
 // Context arrives as JSON on stdin:
-//   { wsEndpoint, cookies:[...], text, schedule:bool, dateStr, dayLabel, monthLabel,
+//   { wsEndpoint, cookies:[...], text, schedule:bool, dateStr, monthLabel,
 //     timeStr, confirm:bool, mediaPath:string|null, outdir }
 // Result is printed as one JSON object on stdout.
 
@@ -28,7 +28,7 @@ function readStdin() {
 
 (async () => {
   const ctx = JSON.parse(await readStdin());
-  const { cookies, text, schedule, dateStr, dayLabel, monthLabel, timeStr, confirm, mediaPath, mediaPaths,
+  const { cookies, text, schedule, dateStr, monthLabel, timeStr, confirm, mediaPath, mediaPaths,
           documentPath, documentTitle, outdir } = ctx;
   const mediaList = (Array.isArray(mediaPaths) && mediaPaths.length) ? mediaPaths : (mediaPath ? [mediaPath] : []);
   fs.mkdirSync(outdir, { recursive: true });
@@ -72,6 +72,7 @@ function readStdin() {
         if (ariaRe && !ariaRe.test(aria)) return false;
         if (textRe && !textRe.test(el.innerText || '')) return false;
         if (s.textExact != null && txt !== s.textExact) return false;
+        if (s.valRe && !new RegExp(s.valRe, 'i').test(el.value || '')) return false;
         if (s.phRe && !new RegExp(s.phRe, 'i').test(el.placeholder || '')) return false;
         return true;
       };
@@ -171,6 +172,113 @@ function readStdin() {
       return out(true, 'scanned', { metrics });
     };
 
+    // --- op: post the first comment on one of the account's own live posts ---------
+    // ctx: { comment, excerpt, urn?, submit }. The post is opened by urn when the caller has
+    // one, else found on /in/me/recent-activity/all/ by the start of its text (own posts
+    // only — a repost reads "reposted this", an own post "• You"). Before typing, the op
+    // looks for a comment of the account's own that already carries the comment's link
+    // ("already"): a retry after a lost reply must not comment twice. submit=false types the
+    // comment, screenshots it, erases it and answers "preview".
+    // Verified Oct 2026: the editor is role=textbox "Text editor for creating comment",
+    // visible without clicking anything; the submit control is a BUTTON whose text is exactly
+    // "Comment" and appears only once text is typed (the aria-label "Comment" button is the
+    // comment counter); each comment has a "View more options for <name>’s comment." button.
+    const firstComment = async () => {
+      const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const linkOf = (comment) => (String(comment).match(/https?:\/\/\S+/) || [comment])[0]
+        .replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const link = linkOf(ctx.comment || '');
+      if (!ctx.comment) return out(false, 'no-comment');
+
+      const findOwnPost = async () => {
+        await gotoRetry('https://www.linkedin.com/in/me/recent-activity/all/');
+        const wanted = norm(ctx.excerpt).slice(0, 60);
+        for (let pass = 0; pass < 3; pass++) {
+          await sleep(pass === 0 ? 5000 : 2500);
+          const urn = await page.evaluate((wanted) => {
+            const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            for (const e of document.querySelectorAll('[data-view-tracking-scope]')) {
+              const m = (e.getAttribute('data-view-tracking-scope') || '').match(/urn:li:activity:\d{15,}/);
+              const text = norm(e.innerText);
+              if (m && text.includes('• you') && !text.includes('reposted this') && text.includes(wanted)) return m[0];
+            }
+            return null;
+          }, wanted);
+          if (urn) return urn;
+          await page.evaluate(() => window.scrollBy(0, 2500));
+        }
+        return null;
+      };
+
+      // True when one of the post author's own comments already contains `link`.
+      const ownCommentHasLink = () => page.evaluate((link) => {
+        const all = [];
+        const walk = (r) => { for (const e of r.querySelectorAll('*')) { all.push(e); if (e.shadowRoot) walk(e.shadowRoot); } };
+        walk(document);
+        const menu = all.find((e) => /^Open control menu for post by /.test(e.getAttribute('aria-label') || ''));
+        if (!menu) return false;
+        const me = menu.getAttribute('aria-label').replace(/^Open control menu for post by /, '');
+        const optionsLabel = /^View more options for .+ comment\.$/;
+        for (const button of all.filter((e) => e.getAttribute('aria-label') === `View more options for ${me}’s comment.`)) {
+          let box = button;
+          for (let i = 0; i < 12 && box.parentElement; i++) {
+            const up = box.parentElement;
+            const others = [...up.querySelectorAll('button')].filter((b) => optionsLabel.test(b.getAttribute('aria-label') || ''));
+            if (others.length > 1) break;   // climbed into a neighbouring comment
+            box = up;
+            const text = (box.innerText || '').toLowerCase();
+            const hrefs = [...box.querySelectorAll('a')].map((a) => (a.getAttribute('href') || '').toLowerCase());
+            if (text.includes(link.toLowerCase()) || hrefs.some((h) => h.includes(encodeURIComponent(link).toLowerCase()) || h.includes(link.toLowerCase()))) return true;
+          }
+        }
+        return false;
+      }, link);
+
+      const urn = ctx.urn || await findOwnPost();
+      if (!urn) { await snap('comment_post_not_found'); return out(false, 'find-post'); }
+      const postUrl = `https://www.linkedin.com/feed/update/${urn}/`;
+      await gotoRetry(postUrl);
+      await sleep(5000);
+      if (await ownCommentHasLink()) return out(true, 'already', { urn, url: postUrl });
+
+      // The editor sits below a long post, outside the viewport, and a mouse click there
+      // lands on nothing. Scroll it to the middle first; read it back after typing.
+      const EDITOR_LABEL = 'Text editor for creating comment';
+      const editorText = () => page.evaluate((label) => {
+        const find = (r) => { for (const e of r.querySelectorAll('*')) { if (e.getAttribute('role') === 'textbox' && e.getAttribute('aria-label') === label) return e; if (e.shadowRoot) { const hit = find(e.shadowRoot); if (hit) return hit; } } return null; };
+        const editor = find(document);
+        if (!editor) return null;
+        editor.scrollIntoView({ block: 'center' });
+        return (editor.innerText || '').trim();
+      }, EDITOR_LABEL);
+      if ((await editorText()) === null) { await snap('comment_no_editor'); return out(false, 'comment-editor', { urn, url: postUrl }); }
+      await sleep(800);
+      await clickDeep({ role: 'textbox', ariaRe: `^${EDITOR_LABEL}$` });
+      await sleep(600);
+      await page.keyboard.type(ctx.comment, { delay: 25 });
+      await sleep(1500);
+      await snap('comment_typed');
+      const typed = await editorText();
+      if (norm(typed) !== norm(ctx.comment)) {
+        return out(false, 'comment-typed', { urn, url: postUrl, typed });
+      }
+      if (!ctx.submit) {
+        await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
+        await page.keyboard.press('Backspace');
+        return out(true, 'preview', { urn, url: postUrl });
+      }
+      if (!(await clickDeep({ tag: 'BUTTON', textExact: 'Comment', notDisabled: true }))) {
+        await snap('comment_no_submit');
+        return out(false, 'comment-submit', { urn, url: postUrl });
+      }
+      for (let i = 0; i < 10; i++) {
+        await sleep(1500);
+        if (await ownCommentHasLink()) { await snap('commented'); return out(true, 'commented', { urn, url: postUrl }); }
+      }
+      await snap('comment_not_seen');
+      return out(false, 'comment-not-seen', { urn, url: postUrl });
+    };
+
     await page.setViewport({ width: 1300, height: 1300 });
     if (!Array.isArray(cookies) || cookies.length === 0) return out(false, 'no-cookies');
     await page.setCookie(...cookies);
@@ -185,9 +293,25 @@ function readStdin() {
 
     // --- Route read-only scrape ops (no composer/text/media needed) ------
     if (ctx.op === 'scan_metrics') return await scanMetrics();
+    if (ctx.op === 'first_comment') return await firstComment();
+    // Only a call with no op may reach the composer. An op this driver does not know (a newer
+    // caller, a typo) must stop here, not fall through and start composing a post.
+    if (ctx.op) return out(false, 'unknown-op', { op: ctx.op });
 
     // --- Open composer --------------------------------------------------
-    const editorReady = async () => (await page.$('pierce/.ql-editor')) != null;
+    // The post editor. LinkedIn replaced Quill (.ql-editor) with a Tiptap/ProseMirror editor
+    // in Oct 2026; the dialog still opened, but waiting for .ql-editor reported
+    // "composer never opened". Newest shape first, older ones as fallbacks.
+    const EDITOR = [
+      'pierce/[componentkey="ShareBox_textEditor"]',
+      'pierce/.ProseMirror[contenteditable="true"]',
+      'pierce/.ql-editor',
+    ];
+    const findEditor = async () => {
+      for (const selector of EDITOR) { const hit = await page.$(selector); if (hit) return hit; }
+      return null;
+    };
+    const editorReady = async () => (await findEditor()) != null;
     let opened = false;
     for (let i = 0; i < 3 && !opened; i++) {
       await page.evaluate(() => window.scrollTo(0, 0));
@@ -200,7 +324,7 @@ function readStdin() {
     say('composer open');
 
     // --- Type text ------------------------------------------------------
-    const editor = await page.$('pierce/.ql-editor');
+    const editor = await findEditor();
     await editor.click();
     await sleep(400);
     const lines = String(text).split('\n');
@@ -230,7 +354,8 @@ function readStdin() {
       // else is rejected after the upload round-trip, so fail here instead.
       if (!DOC_MIME[ext]) return out(false, 'document-type', { detail: ext });
 
-      if (!await clickDeep({ ariaRe: '^more$' })) { await snap('no_more'); return out(false, 'doc-more'); }
+      // "More" became "Expand content types" in LinkedIn's Oct 2026 composer.
+      if (!await clickDeep({ ariaRe: '^(more|expand content types)$' })) { await snap('no_more'); return out(false, 'doc-more'); }
       await sleep(1200);
       if (!await clickDeep({ ariaRe: '^add a document$' })) { await snap('no_add_document'); return out(false, 'add-document'); }
       await sleep(1800);
@@ -279,7 +404,8 @@ function readStdin() {
     // read the bytes locally in Node and inject them in-page as a real File (the base64
     // rides as a CDP evaluate argument = actual content over the socket).
     if (mediaList.length) {
-      const am = await clickDeep({ tag: 'BUTTON', ariaRe: 'add media' });
+      // The button's label is "Media" since LinkedIn's Oct 2026 composer; it was "Add media".
+      const am = await clickDeep({ tag: 'BUTTON', ariaRe: '^(add )?media$' });
       if (!am) { await snap('no_add_media'); return out(false, 'add-media'); }
       await sleep(1800);
       const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
@@ -330,6 +456,11 @@ function readStdin() {
         if (!clicked) break;
         await sleep(1500);
       }
+      // With media attached, LinkedIn hides the composer's attachment buttons. A Media button
+      // still showing means the upload did not land, so stop instead of scheduling text only.
+      if (await deepCenter({ tag: 'BUTTON', ariaRe: '^(add )?media$' })) {
+        await snap('media_missing'); return out(false, 'media-missing');
+      }
       say(`media attached (${mediaList.length} file(s))`);
       await snap('media_in_composer');
     }
@@ -345,59 +476,64 @@ function readStdin() {
     }
 
     // --- Schedule dialog ------------------------------------------------
-    const openedSched = await clickDeep({ tag: 'BUTTON', ariaRe: 'schedule post' });
-    if (!openedSched) { await snap('no_schedule_button'); return out(false, 'open-schedule'); }
+    // LinkedIn's Oct 2026 composer: the clock is a link labelled "Scheduled", the dialog's Date
+    // (mm/dd/yyyy) and Time fields accept typed values, and "Confirm" closes it. Escape now
+    // closes the whole dialog, so each field is left with Tab. LinkedIn echoes the result as
+    // "Posting at Tue, Oct 6, 9:00 AM"; that line is checked against the wanted slot before
+    // anything is confirmed, so a value LinkedIn rejected can never schedule the wrong time.
+    const OPEN_SCHEDULE = [{ tag: 'A', ariaRe: '^scheduled$' }, { tag: 'BUTTON', ariaRe: 'schedule post' }];
+    if (!await clickFirst(OPEN_SCHEDULE)) { await snap('no_schedule_button'); return out(false, 'open-schedule'); }
     await sleep(2000);
-    const tzLine = await page.evaluate(() => {
+    const typeInto = async (spec, value) => {
+      const box = await deepCenter(spec);
+      if (!box) return false;
+      await page.mouse.click(box.x, box.y);
+      await sleep(200);
+      // Select-all, then type over the selection. The time field is masked: pressing Delete
+      // first empties the mask and the next keystrokes lose the hour or the minutes.
+      await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
+      await page.keyboard.type(value, { delay: 60 });
+      await page.keyboard.press('Tab');
+      await sleep(600);
+      return true;
+    };
+    if (!await typeInto({ tag: 'INPUT', phRe: '^mm/dd/yyyy$' }, dateStr)) {
+      await snap('no_date_input'); return out(false, 'schedule-inputs');
+    }
+    if (!await typeInto({ tag: 'INPUT', valRe: '^\\d{1,2}:\\d{2}\\s?[AP]M$' }, timeStr)) {
+      await snap('no_time_input'); return out(false, 'schedule-inputs');
+    }
+    const postingAt = await page.evaluate(() => {
       const walk = (root) => {
         for (const el of (root.querySelectorAll ? root.querySelectorAll('*') : [])) {
-          if (/based on your location/i.test(el.textContent || '') && el.children.length === 0) return el.textContent.trim();
+          if (el.children.length === 0 && /^Posting at /.test((el.textContent || '').trim())) return el.textContent.trim();
           if (el.shadowRoot) { const h = walk(el.shadowRoot); if (h) return h; }
         }
         return null;
       };
       return walk(document);
     });
-    if (tzLine) say(`schedule zone: ${tzLine}`);
-
-    const dateBox = await deepCenter({ tag: 'INPUT', ariaRe: 'date' });
-    if (!dateBox) { await snap('no_date_input'); return out(false, 'schedule-inputs'); }
-    await page.mouse.click(dateBox.x, dateBox.y);
-    await sleep(1000);
-    const dayEsc = dayLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let dayHit = false;
-    for (let m = 0; m < 5 && !dayHit; m++) {
-      dayHit = await clickDeep({ tag: 'BUTTON', ariaRe: dayEsc + '\\b' });
-      if (!dayHit) { await clickDeep({ tag: 'BUTTON', ariaRe: 'next month' }); await sleep(500); }
+    const wantedDay = `${monthLabel.slice(0, 3)} ${Number(dateStr.split('/')[1])},`;
+    const squash = (s) => String(s || '').replace(/\s+/g, '');
+    if (!postingAt || !postingAt.includes(wantedDay) || !squash(postingAt).includes(squash(timeStr))) {
+      await snap('schedule_mismatch');
+      return out(false, 'schedule-date', { wanted: `${dateStr} ${timeStr}`, got: postingAt });
     }
-    if (!dayHit) { await snap('date_not_found'); return out(false, 'schedule-date', { wanted: dayLabel }); }
-    await sleep(600);
-
-    const timeBox = await deepCenter({ tag: 'INPUT', ariaRe: 'time' });
-    if (!timeBox) { await snap('no_time_input'); return out(false, 'schedule-inputs'); }
-    await page.mouse.click(timeBox.x, timeBox.y);
-    await sleep(150);
-    await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
-    await page.keyboard.press('Delete');
-    await sleep(100);
-    await page.keyboard.type(timeStr, { delay: 30 });
-    await page.keyboard.press('Escape');
-    await sleep(400);
+    say(`schedule set: ${postingAt}`);
     await snap('schedule_filled');
-    say(`schedule set to ${dateStr} ${timeStr}`);
-
-    const next = await clickDeep({ tag: 'BUTTON', textExact: 'Next' });
-    if (!next) { await snap('no_next'); return out(false, 'schedule-next'); }
+    if (!await clickDeep({ tag: 'BUTTON', textExact: 'Confirm' })) {
+      await snap('no_confirm'); return out(false, 'schedule-confirm');
+    }
     await sleep(1500);
     await snap('schedule_review');
 
-    if (!confirm) return out(true, 'preview', { note: 'dry-run — not scheduled', dateStr, timeStr, tzLine });
+    if (!confirm) return out(true, 'preview', { note: 'dry-run — not scheduled', dateStr, timeStr, postingAt });
 
     const scheduled = await clickDeep({ tag: 'BUTTON', textExact: 'Schedule', notDisabled: true });
     if (!scheduled) { await snap('no_final_schedule'); return out(false, 'submit-schedule'); }
     await sleep(2500);
     await snap('scheduled');
-    return out(true, 'scheduled', { dateStr, timeStr, tzLine });
+    return out(true, 'scheduled', { dateStr, timeStr, postingAt });
   } catch (e) {
     return out(false, 'exception', { error: e.message });
   } finally {

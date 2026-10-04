@@ -19,36 +19,54 @@ spec in `scripts/linkedin_flow.js`.
 |---|---|---|
 | auth | load `/feed/`, check for redirect | url matches `/(login\|uas\|checkpoint\|authwall)/` |
 | open-composer | The "Start a post" control is a **hashed `div`** whose tag and role change without notice — the Sept 2026 redesign dropped `role="button"` and broke every post. Match `aria-label` first, keep the older shapes as fallbacks. Scroll to top first (else the sticky nav intercepts), then **mouse-click its box center** — a trusted event; DOM `.click()` does NOT fire LinkedIn's handler | `aria-label="Start a post"`, then `role=button`/`BUTTON` whose innerText matches `start a post` |
-| (open check) | poll for the editor via pierce | `pierce/.ql-editor` appears |
-| type | click `pierce/.ql-editor`, `page.keyboard.type` line-by-line (Enter = newline in Quill) | `.ql-editor` |
+| (open check) | poll for the editor via pierce | `[componentkey="ShareBox_textEditor"]` (Tiptap/ProseMirror, Oct 2026), then `.ProseMirror`, then the old `.ql-editor` |
+| type | click the editor found above, `page.keyboard.type` line-by-line (Enter = new paragraph) | the editor |
 | submit-immediate | click the primary button | `button` innerText exactly `Post`, not disabled |
-| open-schedule | click the clock icon | `button[aria-label="Schedule post"]` |
-| (tz) | read the dialog subtitle to report the account timezone | text contains `based on your location` |
-| schedule-date | **click the date field → calendar opens → click the day cell.** The field ignores typed text (reverts to default); the calendar is the only reliable path. Advance with the `Next month` button until the target month shows | day cell `button` aria-label `"<Weekday>, <Month> <D>, <YYYY>."` e.g. `Thursday, August 20, 2026.` |
-| schedule-time | the time field DOES take keyboard: click, Ctrl+A, Delete, type `9:00 AM`, Escape | `input[aria-label="Time"]` |
-| schedule-next | click Next | `button` innerText exactly `Next` |
+| open-schedule | click the clock icon | `a[aria-label="Scheduled"]` (Oct 2026); older: `button[aria-label="Schedule post"]` |
+| schedule-date | click the date field, Ctrl+A, type `M/D/YYYY`, **Tab**. Since Oct 2026 the field accepts typed text (the old calendar-only path is gone) | `input[placeholder="mm/dd/yyyy"]` |
+| schedule-time | click, Ctrl+A, type `9:00 AM` over the selection, **Tab**. Never press Delete first: the field is masked, and an emptied mask drops the hour or the minutes. Escape closes the whole dialog | the `input` whose value is a time, e.g. `6:30 PM` (it has no label) |
+| schedule-check | read LinkedIn's echo and compare it with the wanted day and time; refuse to confirm on a mismatch | leaf element text starting `Posting at`, e.g. `Posting at Tue, Oct 6, 9:00 AM` |
+| schedule-confirm | click Confirm (it was Next) | `button` innerText exactly `Confirm` |
 | submit-schedule | click the primary button, now labelled Schedule | `button` innerText exactly `Schedule`, not disabled |
 
 ## Formats LinkedIn expects
 
-- **Date:** picked from the calendar by aria-label — the driver sends `dayLabel`
-  (`%B %-d, %Y` → `August 20, 2026`) and `monthLabel` (`%B %Y`).
+- **Date:** typed as `%-m/%-d/%Y` (`dateStr`, e.g. `8/20/2026`). `monthLabel` (`%B %Y`) is
+  used only to check the "Posting at" echo.
 - **Time:** 12-hour `H:MM AM/PM`, e.g. `9:00 AM` (`%-I:%M %p`), typed into the field.
-- **Timezone:** the dialog interprets the time in the ACCOUNT's own timezone, printed in
-  its subtitle (observed: *"… Pacific Daylight Time, based on your location"*). The driver
-  does NOT convert — it types the wall-clock time as given and echoes the subtitle so the
-  caller can confirm the zone. LinkedIn also rejects any time under ~10 minutes out.
+- **Timezone:** the dialog interprets the time in the ACCOUNT's own timezone. Since Oct 2026
+  it no longer prints that zone; it echoes "Posting at <day>, <time>". The driver does NOT
+  convert: it types the wall-clock time as given and checks the echo matches it. LinkedIn
+  also rejects any time under ~10 minutes out.
 
 ## Known fragilities
 
 - The primary action button is the **same element** for Post and Schedule; only its label
   changes. Match on exact innerText per mode.
-- The Quill editor rejects `innerText =` assignment and the native value setter; it needs
+- The editor (Tiptap/ProseMirror since Oct 2026, Quill before) rejects `innerText =` assignment; it needs
   real `page.keyboard` input.
-- The date field ALSO rejects the native value setter and raw typing — both revert to the
-  default. Only clicking a calendar day cell sticks. (Verified: typing/`setter` left the
-  date at "today", which then failed LinkedIn's "at least 10 minutes from now" check.)
-- First-comment link strategy (to protect reach) is **not** automated — the flow posts
-  only the body.
+- Before Oct 2026 the date field rejected typed text and only a calendar click stuck; the
+  current field accepts typing. If it ever reverts, the "Posting at" check catches it: the
+  driver refuses to confirm a time that does not match (stage `schedule-date`).
+- The post flow posts only the body. The link goes in the first comment, through the
+  separate `first_comment` operation below, once the post is live.
 - The composer sometimes needs a moment to mount; `open-composer` retries the click up to
-  3× and polls for `.ql-editor` before giving up.
+  3× and polls for the editor before giving up.
+
+## The first comment (`op: first_comment`)
+
+Called by the linkedin-pipeline's `track sync` through `linkedin_ws.js` with
+`{ comment, excerpt, urn?, submit }`. Verified live in Oct 2026, preview mode, on a post
+found by urn and on one found by its text.
+
+| Step (stage on failure) | How it's driven | Anchor |
+|---|---|---|
+| find-post | without a urn: `/in/me/recent-activity/all/`, up to 3 scrolls; an own post's text contains `• You`, a repost's `reposted this`; match the first 60 characters of the post, whitespace-collapsed and lowercased | `[data-view-tracking-scope]` whose value holds `urn:li:activity:<id>` |
+| (open) | `/feed/update/<urn>/` | — |
+| already | before typing, look for an own comment that already holds the link: climb from the comment's options button, stop before a box holding a second comment | `button[aria-label="View more options for <name>’s comment."]`; `<name>` from `aria-label="Open control menu for post by <name>"` |
+| comment-editor | visible without clicking anything; **scroll it into view first**, a long post leaves it below the viewport and a mouse click there lands on nothing | `role="textbox"`, `aria-label="Text editor for creating comment"` |
+| comment-typed | read the editor back; refuse anything but the exact comment | the same editor's `innerText` |
+| comment-submit | appears only once text is typed. Not the comment counter, which is `aria-label="Comment"` with the count as its text | `BUTTON` whose innerText is exactly `Comment` |
+| comment-not-seen | poll up to 15 s for the own comment holding the link | the `already` check |
+
+LinkedIn renders a preview card for a URL typed in a comment; the comment text keeps the URL.

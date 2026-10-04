@@ -162,14 +162,13 @@ def main():
            "schedule": False, "dateStr": None, "timeStr": None}
     if args.at:
         # The LinkedIn schedule dialog interprets the typed time in the ACCOUNT's own
-        # timezone (shown in its subtitle), NOT the host's. We do NOT convert: we type the
-        # wall-clock time exactly as given and echo back the dialog's timezone line so the
-        # caller can confirm the zone. Converting here would silently shift the hour.
+        # timezone, NOT the host's. We do NOT convert: we type the wall-clock time exactly
+        # as given, and the driver checks LinkedIn's "Posting at ..." echo against it.
+        # Converting here would silently shift the hour.
         dt = datetime.fromisoformat(args.at)
         ctx["schedule"] = True
-        ctx["dateStr"] = dt.strftime("%-m/%-d/%Y")       # for the summary/echo only
-        ctx["dayLabel"] = dt.strftime("%B %-d, %Y")       # calendar cell aria-label, e.g. "August 14, 2026"
-        ctx["monthLabel"] = dt.strftime("%B %Y")          # e.g. "August 2026" (for month navigation)
+        ctx["dateStr"] = dt.strftime("%-m/%-d/%Y")       # typed into the Date field, e.g. "8/14/2026"
+        ctx["monthLabel"] = dt.strftime("%B %Y")          # e.g. "August 2026"; checks the "Posting at" echo
         ctx["timeStr"] = dt.strftime("%-I:%M %p")         # e.g. "9:00 AM"
 
     media_paths = []
@@ -205,8 +204,8 @@ def main():
 
     print(json.dumps(data, indent=2))
     print(f"\nscreenshots -> {outdir}")
-    if data.get("tzLine"):
-        print(f"LinkedIn timezone: {data['tzLine']}  (the --at time was typed in THIS zone)")
+    if data.get("postingAt"):
+        print(f"LinkedIn shows: {data['postingAt']}  (in the account's own timezone)")
     stage = data.get("stage")
     ok = data.get("ok")
     if ok and stage == "preview":
