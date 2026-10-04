@@ -172,6 +172,42 @@ function readStdin() {
       return out(true, 'scanned', { metrics });
     };
 
+    // --- op: read the account's own recent posts (read-only) ----------------------
+    // ctx: { limit }. Opens /in/me/recent-activity/all/, expands each own post's "...more",
+    // and returns { urn, raw } per post, where raw is the post card's whole innerText
+    // (header, body, social counts). The caller extracts the body: the card layout is
+    // LinkedIn's and changes, so parsing stays in the pipeline where it is tested.
+    // Reposts ("reposted this") are skipped; an own post's header reads "• You".
+    const ownPosts = async () => {
+      const limit = Math.max(1, Math.min(Number(ctx.limit) || 20, 50));
+      await gotoRetry('https://www.linkedin.com/in/me/recent-activity/all/');
+      await sleep(5000);
+      const found = new Map();
+      for (let pass = 0; pass < 12 && found.size < limit; pass++) {
+        await page.evaluate(() => {
+          for (const b of document.querySelectorAll('button')) {
+            if (/^…?\s*more$|see more/i.test((b.innerText || '').trim())) { try { b.click(); } catch (_) {} }
+          }
+        });
+        await sleep(1200);
+        const batch = await page.evaluate(() => {
+          const out = [];
+          for (const e of document.querySelectorAll('[data-view-tracking-scope]')) {
+            const m = (e.getAttribute('data-view-tracking-scope') || '').match(/urn:li:activity:\d{15,}/);
+            const raw = (e.innerText || '').trim();
+            const low = raw.toLowerCase();
+            if (m && low.includes('• you') && !low.includes('reposted this')) out.push({ urn: m[0], raw });
+          }
+          return out;
+        });
+        for (const p of batch) if (!found.has(p.urn)) found.set(p.urn, p);
+        await page.evaluate(() => window.scrollBy(0, 2500));
+        await sleep(2500);
+      }
+      await snap('own_posts');
+      return out(true, 'read', { posts: [...found.values()].slice(0, limit) });
+    };
+
     // --- op: post the first comment on one of the account's own live posts ---------
     // ctx: { comment, excerpt, urn?, submit }. The post is opened by urn when the caller has
     // one, else found on /in/me/recent-activity/all/ by the start of its text (own posts
@@ -294,6 +330,7 @@ function readStdin() {
     // --- Route read-only scrape ops (no composer/text/media needed) ------
     if (ctx.op === 'scan_metrics') return await scanMetrics();
     if (ctx.op === 'first_comment') return await firstComment();
+    if (ctx.op === 'own_posts') return await ownPosts();
     // Only a call with no op may reach the composer. An op this driver does not know (a newer
     // caller, a typo) must stop here, not fall through and start composing a post.
     if (ctx.op) return out(false, 'unknown-op', { op: ctx.op });
