@@ -351,6 +351,9 @@ function readStdin() {
     const editorReady = async () => (await findEditor()) != null;
     let opened = false;
     for (let i = 0; i < 3 && !opened; i++) {
+      // LinkedIn sometimes opens the feed with a promo modal ("are you hiring?") that sits over
+      // "Start a post" and swallows the click. Escape closes it without choosing anything.
+      await page.keyboard.press('Escape');
       await page.evaluate(() => window.scrollTo(0, 0));
       await sleep(500);
       const hit = await clickFirst(START_POST);
