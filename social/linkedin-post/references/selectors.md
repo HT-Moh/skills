@@ -55,7 +55,7 @@ spec in `scripts/linkedin_flow.js`.
 
 ## The first comment (`op: first_comment`)
 
-Called by the linkedin-pipeline's `track sync` through `linkedin_ws.js` with
+Called by StoryProof's (HT-Moh/storyproof) `track sync` through `linkedin_ws.js` with
 `{ comment, excerpt, urn?, submit }`. Verified live in Oct 2026, preview mode, on a post
 found by urn and on one found by its text.
 
