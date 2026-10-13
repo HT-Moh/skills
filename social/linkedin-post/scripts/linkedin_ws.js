@@ -380,8 +380,11 @@ function readStdin() {
 
     await page.setViewport({ width: 1300, height: 1300 });
     await applyIdentity(page, ctx.identity);
-    if (!Array.isArray(cookies) || cookies.length === 0) return out(false, 'no-cookies');
-    await page.setCookie(...cookies);
+    // keptLogin: the browser profile holds the poster's own LinkedIn login (local_chrome.py).
+    if (!ctx.keptLogin) {
+      if (!Array.isArray(cookies) || cookies.length === 0) return out(false, 'no-cookies');
+      await page.setCookie(...cookies);
+    }
 
     // --- Authenticate ---------------------------------------------------
     at('auth');
@@ -389,7 +392,9 @@ function readStdin() {
     await sleep(3000);
     if (/\/(login|uas|checkpoint|authwall)/.test(page.url())) {
       await snap('auth_fail');
-      return out(false, 'auth', { hint: 'cookies rejected — refresh linkedin.json' });
+      return out(false, 'auth', { hint: ctx.keptLogin
+        ? 'the poster profile is logged out — run: python3 local_chrome.py login'
+        : 'cookies rejected — refresh linkedin.json' });
     }
 
     // --- Route read-only scrape ops (no composer/text/media needed) ------

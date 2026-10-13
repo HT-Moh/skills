@@ -80,6 +80,10 @@ def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
                   documentPath=document_path, documentTitle=document_title, outdir=str(outdir))
     chrome = local_chrome.configured_chrome()
     if chrome:
+        if local_chrome.kept_profile():
+            # The profile holds the poster's own login: loading exported cookies or another
+            # browser's identity over it is what made LinkedIn end the user's login.
+            ws_ctx.update(cookies=[], identity=None, keptLogin=True)
         with local_chrome.devtools_endpoint(chrome) as ws_ep:
             proc = _drive(node, {**ws_ctx, "wsEndpoint": ws_ep, "localBrowser": True})
     else:
@@ -166,8 +170,8 @@ def main():
     if not text.strip():
         sys.exit("empty post body")
 
-    cookies = to_puppeteer(json.loads(Path(args.cookies).read_text()))
-    if not any(c["name"] == "li_at" for c in cookies):
+    cookies = [] if local_chrome.kept_profile() else to_puppeteer(json.loads(Path(args.cookies).read_text()))
+    if not local_chrome.kept_profile() and not any(c["name"] == "li_at" for c in cookies):
         sys.exit(f"{args.cookies} has no li_at cookie — not a LinkedIn session export")
 
     outdir = Path(args.outdir)
