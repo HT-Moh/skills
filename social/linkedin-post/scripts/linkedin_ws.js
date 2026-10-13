@@ -15,6 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
+const { applyIdentity } = require('./browser_identity');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // The pipeline kills the poster at 240 s, and a killed parent leaves this driver running with
@@ -376,6 +377,7 @@ function readStdin() {
     };
 
     await page.setViewport({ width: 1300, height: 1300 });
+    await applyIdentity(page, ctx.identity);
     if (!Array.isArray(cookies) || cookies.length === 0) return out(false, 'no-cookies');
     await page.setCookie(...cookies);
 

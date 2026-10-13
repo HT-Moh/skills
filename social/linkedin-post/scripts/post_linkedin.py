@@ -128,6 +128,9 @@ def main():
     src.add_argument("--file", help="file whose contents are the post body")
     ap.add_argument("--cookies", default=os.environ.get("LINKEDIN_COOKIES",
                     "/media/bicatalyst/79c246d3-d109-43c4-89f7-33feaac39dee2/src/cookies/linkedin.json"))
+    ap.add_argument("--identity", default=os.environ.get("LINKEDIN_BROWSER_IDENTITY"),
+                    help="browser identity JSON from browser_identity.py, so the poster presents "
+                         "the browser the cookies were exported from (default $LINKEDIN_BROWSER_IDENTITY)")
     ap.add_argument("--at", help="schedule time as ISO 'YYYY-MM-DDTHH:MM', typed VERBATIM "
                     "into LinkedIn (interpreted in the account's own timezone). Omit = post now.")
     ap.add_argument("--media", action="append",
@@ -160,6 +163,8 @@ def main():
     outdir.mkdir(parents=True, exist_ok=True)
     ctx = {"cookies": cookies, "text": text, "confirm": bool(args.confirm),
            "schedule": False, "dateStr": None, "timeStr": None}
+    if args.identity:
+        ctx["identity"] = json.loads(Path(args.identity).read_text())
     if args.at:
         # The LinkedIn schedule dialog interprets the typed time in the ACCOUNT's own
         # timezone, NOT the host's. We do NOT convert: we type the wall-clock time exactly
