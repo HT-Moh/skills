@@ -17,6 +17,11 @@ const path = require('path');
 const puppeteer = require('puppeteer-core');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// The pipeline kills the poster at 240 s, and a killed parent leaves this driver running with
+// the LinkedIn session open. The watchdog ends the run first, with a screenshot of the step
+// that hung; one CDP call may take PROTOCOL_TIMEOUT_MS, so a stalled call fails well inside it.
+const WATCHDOG_MS = 200000;
+const PROTOCOL_TIMEOUT_MS = 90000;
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -34,11 +39,14 @@ function readStdin() {
   fs.mkdirSync(outdir, { recursive: true });
   const log = [];
   const say = (m) => log.push(m);
-  let browser, keepalive, exited = false;
+  let browser, keepalive, watchdog, exited = false;
+  let step = 'connect';
+  const at = (name) => { step = name; log.push(`step ${name}`); };
   const out = (ok, stage, extra = {}) => {
     if (exited) return;
     exited = true;
     if (keepalive) clearInterval(keepalive);
+    if (watchdog) clearTimeout(watchdog);
     const url = (globalThis.__page && globalThis.__page.url && globalThis.__page.url()) || null;
     const payload = JSON.stringify({ ok, stage, url, log, ...extra });
     // Force-exit after the write flushes. A live puppeteer WS connection (and a
@@ -50,9 +58,15 @@ function readStdin() {
   };
 
   try {
-    browser = await puppeteer.connect({ browserWSEndpoint: ctx.wsEndpoint, protocolTimeout: 180000 });
+    browser = await puppeteer.connect({ browserWSEndpoint: ctx.wsEndpoint, protocolTimeout: PROTOCOL_TIMEOUT_MS });
     const page = await browser.newPage();
     globalThis.__page = page;
+    // A browser dialog ("Leave site?", "Discard post?") blocks every later page call until it
+    // is answered. Dismiss it, which keeps the page and the draft, and record what it said.
+    page.on('dialog', async (dialog) => {
+      say(`dialog dismissed (${dialog.type()}): ${dialog.message().slice(0, 120)}`);
+      try { await dialog.dismiss(); } catch (_) {}
+    });
     // Keepalive: a trivial CDP round-trip every 20s so the socket never goes idle >50s.
     keepalive = setInterval(() => { page.evaluate(() => 0).catch(() => {}); }, 20000);
 
@@ -60,6 +74,10 @@ function readStdin() {
       try { await page.screenshot({ path: path.join(outdir, `${name}.jpg`), type: 'jpeg', quality: 50 }); }
       catch (e) { say(`screenshot ${name} failed: ${e.message}`); }
     };
+    watchdog = setTimeout(async () => {
+      await Promise.race([snap(`hang_${step}`), sleep(10000)]);
+      out(false, 'hang', { at: step, url: page.url() });
+    }, WATCHDOG_MS);
     const deepCenter = (spec) => page.evaluate((s) => {
       const ariaRe = s.ariaRe ? new RegExp(s.ariaRe, 'i') : null;
       const textRe = s.textRe ? new RegExp(s.textRe, 'i') : null;
@@ -83,7 +101,10 @@ function readStdin() {
         }
         return null;
       };
-      const el = walk(document);
+      // inDialog: search only the open modal (the post composer), never the page behind it.
+      const dialogs = s.inDialog ? [...document.querySelectorAll('[role="dialog"]')]
+        .filter((d) => d.getBoundingClientRect().height > 0) : [];
+      const el = walk(dialogs.length ? dialogs[dialogs.length - 1] : document);
       if (!el) return null;
       const r = el.getBoundingClientRect();
       if (r.width === 0 && r.height === 0) return null;
@@ -320,6 +341,7 @@ function readStdin() {
     await page.setCookie(...cookies);
 
     // --- Authenticate ---------------------------------------------------
+    at('auth');
     await gotoRetry('https://www.linkedin.com/feed/');
     await sleep(3000);
     if (/\/(login|uas|checkpoint|authwall)/.test(page.url())) {
@@ -336,6 +358,7 @@ function readStdin() {
     if (ctx.op) return out(false, 'unknown-op', { op: ctx.op });
 
     // --- Open composer --------------------------------------------------
+    at('open-composer');
     // The post editor. LinkedIn replaced Quill (.ql-editor) with a Tiptap/ProseMirror editor
     // in Oct 2026; the dialog still opened, but waiting for .ql-editor reported
     // "composer never opened". Newest shape first, older ones as fallbacks.
@@ -364,6 +387,7 @@ function readStdin() {
     say('composer open');
 
     // --- Type text ------------------------------------------------------
+    at('type-text');
     const editor = await findEditor();
     await editor.click();
     await sleep(400);
@@ -444,6 +468,7 @@ function readStdin() {
     // read the bytes locally in Node and inject them in-page as a real File (the base64
     // rides as a CDP evaluate argument = actual content over the socket).
     if (mediaList.length) {
+      at('add-media');
       // The button's label is "Media" since LinkedIn's Oct 2026 composer; it was "Add media".
       const am = await clickDeep({ tag: 'BUTTON', ariaRe: '^(add )?media$' });
       if (!am) { await snap('no_add_media'); return out(false, 'add-media'); }
@@ -521,7 +546,11 @@ function readStdin() {
     // closes the whole dialog, so each field is left with Tab. LinkedIn echoes the result as
     // "Posting at Tue, Oct 6, 9:00 AM"; that line is checked against the wanted slot before
     // anything is confirmed, so a value LinkedIn rejected can never schedule the wrong time.
-    const OPEN_SCHEDULE = [{ tag: 'A', ariaRe: '^scheduled$' }, { tag: 'BUTTON', ariaRe: 'schedule post' }];
+    // inDialog: the page behind the composer can hold its own "Scheduled" link; clicking it
+    // would leave the composer.
+    const OPEN_SCHEDULE = [{ tag: 'A', ariaRe: '^scheduled$', inDialog: true },
+                           { tag: 'BUTTON', ariaRe: 'schedule post', inDialog: true }];
+    at('open-schedule');
     if (!await clickFirst(OPEN_SCHEDULE)) { await snap('no_schedule_button'); return out(false, 'open-schedule'); }
     await sleep(2000);
     const typeInto = async (spec, value) => {
@@ -537,6 +566,7 @@ function readStdin() {
       await sleep(600);
       return true;
     };
+    at('schedule-inputs');
     if (!await typeInto({ tag: 'INPUT', phRe: '^mm/dd/yyyy$' }, dateStr)) {
       await snap('no_date_input'); return out(false, 'schedule-inputs');
     }
@@ -560,6 +590,7 @@ function readStdin() {
       return out(false, 'schedule-date', { wanted: `${dateStr} ${timeStr}`, got: postingAt });
     }
     say(`schedule set: ${postingAt}`);
+    at('schedule-confirm');
     await snap('schedule_filled');
     if (!await clickDeep({ tag: 'BUTTON', textExact: 'Confirm' })) {
       await snap('no_confirm'); return out(false, 'schedule-confirm');
@@ -569,6 +600,7 @@ function readStdin() {
 
     if (!confirm) return out(true, 'preview', { note: 'dry-run — not scheduled', dateStr, timeStr, postingAt });
 
+    at('submit-schedule');
     const scheduled = await clickDeep({ tag: 'BUTTON', textExact: 'Schedule', notDisabled: true });
     if (!scheduled) { await snap('no_final_schedule'); return out(false, 'submit-schedule'); }
     await sleep(2500);
