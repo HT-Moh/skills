@@ -25,6 +25,7 @@ const WATCHDOG_MS = 200000;
 const PROTOCOL_TIMEOUT_MS = 90000;
 const EDITOR_WAIT_MS = 15000;
 const SCHEDULE_WAIT_MS = 15000;
+const SUBMIT_WAIT_MS = 20000;
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -513,6 +514,16 @@ function readStdin() {
     // rides as a CDP evaluate argument = actual content over the socket).
     if (mediaList.length) {
       at('add-media');
+      const uploadLocal = async (paths) => {
+        const handle = await page.evaluateHandle(() => {
+          const walk = (r) => { for (const e of (r.querySelectorAll ? r.querySelectorAll('*') : [])) { if (e.tagName === 'INPUT' && e.type === 'file') return e; if (e.shadowRoot) { const h = walk(e.shadowRoot); if (h) return h; } } return null; };
+          return walk(document);
+        });
+        const input = handle.asElement();
+        if (!input) return 'no-input';
+        await input.uploadFile(...paths.map((p) => path.resolve(p)));
+        return 'injected';
+      };
       // The button's label is "Media" since LinkedIn's Oct 2026 composer; it was "Add media".
       const am = await clickDeep({ tag: 'BUTTON', ariaRe: '^(add )?media$' });
       if (!am) { await snap('no_add_media'); return out(false, 'add-media'); }
@@ -525,7 +536,9 @@ function readStdin() {
         fn: path.basename(p),
         mime: MIME[path.extname(p).toLowerCase()] || 'application/octet-stream',
       }));
-      const injected = await page.evaluate((files) => {
+      // A local browser reads the files from disk itself, which is how a person's upload
+      // arrives; browserless runs elsewhere and gets them injected as in-page File objects.
+      const injected = ctx.localBrowser ? await uploadLocal(mediaList) : await page.evaluate((files) => {
         const walk = (r) => { for (const e of (r.querySelectorAll ? r.querySelectorAll('*') : [])) { if (e.tagName === 'INPUT' && e.type === 'file') return e; if (e.shadowRoot) { const h = walk(e.shadowRoot); if (h) return h; } } return null; };
         const input = walk(document);
         if (!input) return 'no-input';
@@ -574,13 +587,28 @@ function readStdin() {
       await snap('media_in_composer');
     }
 
+    // LinkedIn uploads the media only after Post or Schedule is clicked. A failed upload shows
+    // a toast ("We encountered a problem uploading your image. Return to draft.") and keeps
+    // the post as a draft, so a clicked button alone is no proof. Watch for that toast.
+    const SUBMIT_ERROR = /problem uploading|return to draft|something went wrong|couldn.t (post|schedule)/i;
+    const submitError = async () => {
+      for (let waited = 0; waited < SUBMIT_WAIT_MS; waited += 1000) {
+        await sleep(1000);
+        const text = await page.evaluate(() => document.body.innerText || '');
+        const hit = text.split('\n').find((line) => SUBMIT_ERROR.test(line));
+        if (hit) return hit.trim().slice(0, 200);
+      }
+      return null;
+    };
+
     // --- Immediate post -------------------------------------------------
     if (!schedule) {
       if (!confirm) { await snap('preview'); return out(true, 'preview', { note: 'dry-run — not published' }); }
       const posted = await clickDeep({ tag: 'BUTTON', textExact: 'Post', notDisabled: true });
       if (!posted) { await snap('no_post_button'); return out(false, 'submit-immediate'); }
-      await sleep(2500);
+      const postError = await submitError();
       await snap('posted');
+      if (postError) return out(false, 'submit-rejected', { detail: postError });
       return out(true, 'posted');
     }
 
@@ -654,8 +682,9 @@ function readStdin() {
     at('submit-schedule');
     const scheduled = await clickDeep({ tag: 'BUTTON', textExact: 'Schedule', notDisabled: true });
     if (!scheduled) { await snap('no_final_schedule'); return out(false, 'submit-schedule'); }
-    await sleep(2500);
+    const scheduleError = await submitError();
     await snap('scheduled');
+    if (scheduleError) return out(false, 'submit-rejected', { detail: scheduleError });
     return out(true, 'scheduled', { dateStr, timeStr, postingAt });
   } catch (e) {
     const page = globalThis.__page;

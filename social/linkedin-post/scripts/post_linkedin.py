@@ -81,7 +81,7 @@ def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
     chrome = local_chrome.configured_chrome()
     if chrome:
         with local_chrome.devtools_endpoint(chrome) as ws_ep:
-            proc = _drive(node, {**ws_ctx, "wsEndpoint": ws_ep})
+            proc = _drive(node, {**ws_ctx, "wsEndpoint": ws_ep, "localBrowser": True})
     else:
         proc = _drive(node, {**ws_ctx, "wsEndpoint": re.sub(r"^http", "ws", url) + f"?token={token}"})
     if proc.returncode != 0:
