@@ -24,6 +24,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const WATCHDOG_MS = 200000;
 const PROTOCOL_TIMEOUT_MS = 90000;
 const EDITOR_WAIT_MS = 15000;
+const SCHEDULE_WAIT_MS = 15000;
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -599,7 +600,10 @@ function readStdin() {
       await saveControls('no_schedule_button');
       return out(false, 'open-schedule');
     }
-    await sleep(2000);
+    // The schedule screen shows a spinner first, sometimes for several seconds; a fixed pause
+    // found no date field. Wait until the field is there.
+    const DATE_INPUT = { tag: 'INPUT', phRe: '^mm/dd/yyyy$' };
+    for (let w = 0; w * 500 < SCHEDULE_WAIT_MS && !await deepCenter(DATE_INPUT); w++) await sleep(500);
     const typeInto = async (spec, value) => {
       const box = await deepCenter(spec);
       if (!box) return false;
@@ -614,7 +618,7 @@ function readStdin() {
       return true;
     };
     at('schedule-inputs');
-    if (!await typeInto({ tag: 'INPUT', phRe: '^mm/dd/yyyy$' }, dateStr)) {
+    if (!await typeInto(DATE_INPUT, dateStr)) {
       await snap('no_date_input'); return out(false, 'schedule-inputs');
     }
     if (!await typeInto({ tag: 'INPUT', valRe: '^\\d{1,2}:\\d{2}\\s?[AP]M$' }, timeStr)) {
