@@ -22,6 +22,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // that hung; one CDP call may take PROTOCOL_TIMEOUT_MS, so a stalled call fails well inside it.
 const WATCHDOG_MS = 200000;
 const PROTOCOL_TIMEOUT_MS = 90000;
+const EDITOR_WAIT_MS = 15000;
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -74,6 +75,35 @@ function readStdin() {
       try { await page.screenshot({ path: path.join(outdir, `${name}.jpg`), type: 'jpeg', quality: 50 }); }
       catch (e) { say(`screenshot ${name} failed: ${e.message}`); }
     };
+    // When a control is not found, the screenshot shows what a person sees but not the labels
+    // the search matches on. Save every link and button whose label or text names scheduling
+    // or posting, shadow roots included, with the ancestor tags that locate it.
+    const saveControls = async (name) => {
+      try {
+        const controls = await page.evaluate(() => {
+          const found = [];
+          const named = /schedul|^post$/i;
+          const walk = (root) => {
+            for (const el of (root.querySelectorAll ? root.querySelectorAll('*') : [])) {
+              const aria = (el.getAttribute && el.getAttribute('aria-label')) || '';
+              const text = (el.innerText || '').trim().slice(0, 40);
+              if (/^(A|BUTTON)$/.test(el.tagName) && (named.test(aria) || named.test(text))) {
+                const r = el.getBoundingClientRect();
+                const path = [];
+                for (let n = el.parentElement; n && path.length < 8; n = n.parentElement) {
+                  path.push(`${n.tagName}${n.getAttribute('role') ? `[role=${n.getAttribute('role')}]` : ''}`);
+                }
+                found.push({ tag: el.tagName, aria, text, visible: r.width > 0 && r.height > 0, path: path.join(' < ') });
+              }
+              if (el.shadowRoot) walk(el.shadowRoot);
+            }
+          };
+          walk(document);
+          return found;
+        });
+        fs.writeFileSync(path.join(outdir, `${name}.controls.json`), JSON.stringify(controls, null, 1));
+      } catch (e) { say(`controls ${name} failed: ${e.message}`); }
+    };
     watchdog = setTimeout(async () => {
       await Promise.race([snap(`hang_${step}`), sleep(10000)]);
       out(false, 'hang', { at: step, url: page.url() });
@@ -94,17 +124,26 @@ function readStdin() {
         if (s.phRe && !new RegExp(s.phRe, 'i').test(el.placeholder || '')) return false;
         return true;
       };
-      const walk = (root) => {
+      const walk = (root, test = match) => {
         for (const el of (root.querySelectorAll ? root.querySelectorAll('*') : [])) {
-          if (match(el)) return el;
-          if (el.shadowRoot) { const hit = walk(el.shadowRoot); if (hit) return hit; }
+          if (test(el)) return el;
+          if (el.shadowRoot) { const hit = walk(el.shadowRoot, test); if (hit) return hit; }
         }
         return null;
       };
-      // inDialog: search only the open modal (the post composer), never the page behind it.
-      const dialogs = s.inDialog ? [...document.querySelectorAll('[role="dialog"]')]
-        .filter((d) => d.getBoundingClientRect().height > 0) : [];
-      const el = walk(dialogs.length ? dialogs[dialogs.length - 1] : document);
+      // inComposer: search only the post composer, never the page behind it. The Oct 2026
+      // composer is not a role="dialog" element (an empty 46px role="dialog" bar was the only
+      // visible one), so the composer is found as the smallest ancestor of the post editor
+      // that also holds the "Post" button. Climbing crosses shadow roots through their host.
+      const composer = () => {
+        const editor = walk(document, (el) => el.getAttribute && el.getAttribute('contenteditable') === 'true');
+        for (let node = editor; node; node = node.parentElement || (node.getRootNode && node.getRootNode().host)) {
+          if (walk(node, (el) => el.tagName === 'BUTTON' && (el.innerText || '').trim() === 'Post')) return node;
+        }
+        return null;
+      };
+      const scope = s.inComposer ? composer() : document;
+      const el = scope ? walk(scope) : null;
       if (!el) return null;
       const r = el.getBoundingClientRect();
       if (r.width === 0 && r.height === 0) return null;
@@ -381,7 +420,9 @@ function readStdin() {
       await sleep(500);
       const hit = await clickFirst(START_POST);
       if (!hit) { await snap('no_start_button'); return out(false, 'open-composer'); }
-      for (let w = 0; w < 8 && !opened; w++) { await sleep(600); opened = await editorReady(); }
+      // The composer can show loading placeholders for several seconds. The next attempt
+      // starts with Escape, which closes a half-loaded composer, so wait long enough first.
+      for (let w = 0; w * 600 < EDITOR_WAIT_MS && !opened; w++) { await sleep(600); opened = await editorReady(); }
     }
     if (!opened) { await snap('composer_never_opened'); return out(false, 'open-composer'); }
     say('composer open');
@@ -546,12 +587,16 @@ function readStdin() {
     // closes the whole dialog, so each field is left with Tab. LinkedIn echoes the result as
     // "Posting at Tue, Oct 6, 9:00 AM"; that line is checked against the wanted slot before
     // anything is confirmed, so a value LinkedIn rejected can never schedule the wrong time.
-    // inDialog: the page behind the composer can hold its own "Scheduled" link; clicking it
+    // inComposer: the page behind the composer can hold its own "Scheduled" link; clicking it
     // would leave the composer.
-    const OPEN_SCHEDULE = [{ tag: 'A', ariaRe: '^scheduled$', inDialog: true },
-                           { tag: 'BUTTON', ariaRe: 'schedule post', inDialog: true }];
+    const OPEN_SCHEDULE = [{ tag: 'A', ariaRe: '^scheduled$', inComposer: true },
+                           { tag: 'BUTTON', ariaRe: 'schedule post', inComposer: true }];
     at('open-schedule');
-    if (!await clickFirst(OPEN_SCHEDULE)) { await snap('no_schedule_button'); return out(false, 'open-schedule'); }
+    if (!await clickFirst(OPEN_SCHEDULE)) {
+      await snap('no_schedule_button');
+      await saveControls('no_schedule_button');
+      return out(false, 'open-schedule');
+    }
     await sleep(2000);
     const typeInto = async (spec, value) => {
       const box = await deepCenter(spec);
