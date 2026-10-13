@@ -208,6 +208,8 @@ def main():
                        document_path=document_path, document_title=args.document_title)
 
     print(json.dumps(data, indent=2))
+    # Callers keep only the last lines of stdout; the full result, error included, stays here.
+    (outdir / "result.json").write_text(json.dumps(data, indent=2))
     print(f"\nscreenshots -> {outdir}")
     if data.get("postingAt"):
         print(f"LinkedIn shows: {data['postingAt']}  (in the account's own timezone)")

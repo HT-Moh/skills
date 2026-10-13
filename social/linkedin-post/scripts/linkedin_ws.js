@@ -658,7 +658,12 @@ function readStdin() {
     await snap('scheduled');
     return out(true, 'scheduled', { dateStr, timeStr, postingAt });
   } catch (e) {
-    return out(false, 'exception', { error: e.message });
+    const page = globalThis.__page;
+    if (page) {
+      await Promise.race([page.screenshot({ path: path.join(outdir, `exception_${step}.jpg`), type: 'jpeg', quality: 50 })
+        .catch(() => {}), sleep(10000)]);
+    }
+    return out(false, 'exception', { error: e.message, at: step });
   } finally {
     if (browser) { try { await browser.disconnect(); } catch (_) {} }
   }
