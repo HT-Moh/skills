@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Post (or natively schedule) to LinkedIn through a self-hosted browserless instance,
+"""Post (or natively schedule) to LinkedIn through a self-hosted browserless instance, or
+through a local Chrome when $LINKEDIN_LOCAL_CHROME names one (see local_chrome.py),
 authenticating with an exported-cookie JSON file.
 
 Deterministic glue only — no judgement lives here:
@@ -19,6 +20,8 @@ Usage:
 import argparse, base64, json, os, re, subprocess, sys, tempfile, time
 from datetime import datetime
 from pathlib import Path
+
+import local_chrome
 
 HERE = Path(__file__).resolve().parent
 FLOW_JS = HERE / "linkedin_flow.js"
@@ -54,6 +57,11 @@ def resolve_browserless():
     return url, token
 
 
+def _drive(node: str, ws_ctx: dict) -> subprocess.CompletedProcess:
+    return subprocess.run([node, str(WS_JS)], input=json.dumps(ws_ctx),
+                          capture_output=True, text=True, timeout=300)
+
+
 def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
             document_path=None, document_title=None) -> dict:
     """Default path: drive browserless over CDP/WebSocket via the Node driver.
@@ -66,13 +74,16 @@ def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
     node = shutil.which("node")
     if not node:
         sys.exit("node not found on PATH — the WS driver needs Node. Install Node or pass --http.")
-    ws_ep = re.sub(r"^http", "ws", url) + f"?token={token}"
     ws_ctx = dict(ctx)
-    ws_ctx.update(wsEndpoint=ws_ep, mediaPaths=(media_paths or []),
+    ws_ctx.update(mediaPaths=(media_paths or []),
                   mediaPath=(media_paths[0] if media_paths else None),
                   documentPath=document_path, documentTitle=document_title, outdir=str(outdir))
-    proc = subprocess.run([node, str(WS_JS)], input=json.dumps(ws_ctx),
-                          capture_output=True, text=True, timeout=300)
+    chrome = local_chrome.configured_chrome()
+    if chrome:
+        with local_chrome.devtools_endpoint(chrome) as ws_ep:
+            proc = _drive(node, {**ws_ctx, "wsEndpoint": ws_ep})
+    else:
+        proc = _drive(node, {**ws_ctx, "wsEndpoint": re.sub(r"^http", "ws", url) + f"?token={token}"})
     if proc.returncode != 0:
         sys.exit(f"WS driver failed (rc={proc.returncode}): {proc.stderr.strip()[-400:]}")
     try:
