@@ -235,15 +235,53 @@ function readStdin() {
       return out(true, 'scanned', { metrics });
     };
 
+    // --- the account's own activity page, shared by own_posts and first_comment -------
+    // /in/me/recent-activity/all/ answers "Nothing to see for now" since Oct 2026; the same
+    // page under the profile's own name lists the posts. /in/me/ still redirects to that name.
+    const openOwnActivity = async () => {
+      await gotoRetry('https://www.linkedin.com/in/me/');
+      await sleep(3000);
+      const profile = page.url().replace(/[?#].*/, '').replace(/\/$/, '');
+      if (!/\/in\/[^/]+$/.test(profile) || /\/in\/me$/.test(profile)) {
+        throw new Error(`/in/me/ did not lead to a profile page: ${profile}`);
+      }
+      await gotoRetry(`${profile}/recent-activity/all/`);
+    };
+
+    // The own post cards on the page, as { urn, raw }: raw is the card's whole innerText. LinkedIn
+    // serves two layouts. The older marks a card with data-view-tracking-scope; the newer (Oct
+    // 2026) carries the urn only in the card's links, so there a card is the largest element
+    // around a link to one activity that links to no other. An own post reads "• You"; a
+    // repost reads "reposted this" and is skipped.
+    const ownPostCards = () => page.evaluate(() => {
+      const URN = /urn:li:activity:\d{15,}/;
+      const LINK = 'a[href*="urn:li:activity:"]';
+      const cards = new Map();
+      for (const e of document.querySelectorAll('[data-view-tracking-scope]')) {
+        const m = (e.getAttribute('data-view-tracking-scope') || '').match(URN);
+        if (m && !cards.has(m[0])) cards.set(m[0], e.innerText);
+      }
+      const linked = (e) => new Set([...e.querySelectorAll(LINK)].map((a) => a.href.match(URN)[0]));
+      for (const a of document.querySelectorAll(LINK)) {
+        const urn = a.href.match(URN)[0];
+        if (cards.has(urn)) continue;
+        let card = a;
+        while (card.parentElement && linked(card.parentElement).size === 1) card = card.parentElement;
+        cards.set(urn, card.innerText);
+      }
+      return [...cards].map(([urn, raw]) => ({ urn, raw: (raw || '').trim() }))
+        .filter(({ raw }) => /• you/i.test(raw) && !/reposted this/i.test(raw));
+    });
+
     // --- op: read the account's own recent posts (read-only) ----------------------
-    // ctx: { limit }. Opens /in/me/recent-activity/all/, expands each own post's "...more",
+    // ctx: { limit }. Opens the account's activity page, expands each own post's "...more",
     // and returns { urn, raw } per post, where raw is the post card's whole innerText
     // (header, body, social counts). The caller extracts the body: the card layout is
     // LinkedIn's and changes, so parsing stays in the pipeline where it is tested.
     // Reposts ("reposted this") are skipped; an own post's header reads "• You".
     const ownPosts = async () => {
       const limit = Math.max(1, Math.min(Number(ctx.limit) || 20, 50));
-      await gotoRetry('https://www.linkedin.com/in/me/recent-activity/all/');
+      await openOwnActivity();
       await sleep(5000);
       const found = new Map();
       for (let pass = 0; pass < 12 && found.size < limit; pass++) {
@@ -253,16 +291,7 @@ function readStdin() {
           }
         });
         await sleep(1200);
-        const batch = await page.evaluate(() => {
-          const out = [];
-          for (const e of document.querySelectorAll('[data-view-tracking-scope]')) {
-            const m = (e.getAttribute('data-view-tracking-scope') || '').match(/urn:li:activity:\d{15,}/);
-            const raw = (e.innerText || '').trim();
-            const low = raw.toLowerCase();
-            if (m && low.includes('• you') && !low.includes('reposted this')) out.push({ urn: m[0], raw });
-          }
-          return out;
-        });
+        const batch = await ownPostCards();
         for (const p of batch) if (!found.has(p.urn)) found.set(p.urn, p);
         await page.evaluate(() => window.scrollBy(0, 2500));
         await sleep(2500);
@@ -273,7 +302,7 @@ function readStdin() {
 
     // --- op: post the first comment on one of the account's own live posts ---------
     // ctx: { comment, excerpt, urn?, submit }. The post is opened by urn when the caller has
-    // one, else found on /in/me/recent-activity/all/ by the start of its text (own posts
+    // one, else found on the account's activity page by the start of its text (own posts
     // only — a repost reads "reposted this", an own post "• You"). Before typing, the op
     // looks for a comment of the account's own that already carries the comment's link
     // ("already"): a retry after a lost reply must not comment twice. submit=false types the
@@ -290,20 +319,12 @@ function readStdin() {
       if (!ctx.comment) return out(false, 'no-comment');
 
       const findOwnPost = async () => {
-        await gotoRetry('https://www.linkedin.com/in/me/recent-activity/all/');
+        await openOwnActivity();
         const wanted = norm(ctx.excerpt).slice(0, 60);
         for (let pass = 0; pass < 3; pass++) {
           await sleep(pass === 0 ? 5000 : 2500);
-          const urn = await page.evaluate((wanted) => {
-            const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
-            for (const e of document.querySelectorAll('[data-view-tracking-scope]')) {
-              const m = (e.getAttribute('data-view-tracking-scope') || '').match(/urn:li:activity:\d{15,}/);
-              const text = norm(e.innerText);
-              if (m && text.includes('• you') && !text.includes('reposted this') && text.includes(wanted)) return m[0];
-            }
-            return null;
-          }, wanted);
-          if (urn) return urn;
+          const card = (await ownPostCards()).find(({ raw }) => norm(raw).includes(wanted));
+          if (card) return card.urn;
           await page.evaluate(() => window.scrollBy(0, 2500));
         }
         return null;
