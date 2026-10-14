@@ -10,7 +10,8 @@ LinkedIn then knows two devices with a login each. Every run starts Chrome on th
 with the login LinkedIn itself keeps up to date, and loads no exported cookies.
 
 LINKEDIN_LOCAL_CHROME names the Chrome executable; LINKEDIN_CHROME_PROFILE names the kept
-profile folder. With no profile set, each run gets a temporary profile and the exported
+profile folder. LINKEDIN_XVFB names Xvfb: each run's window then opens on a private virtual
+display, not on the user's desktop, and a run needs no desktop session at all. With no profile set, each run gets a temporary profile and the exported
 cookies, as before.
 """
 import contextlib
@@ -25,6 +26,9 @@ from pathlib import Path
 
 CHROME_ENV = "LINKEDIN_LOCAL_CHROME"
 PROFILE_ENV = "LINKEDIN_CHROME_PROFILE"
+XVFB_ENV = "LINKEDIN_XVFB"
+# The size of the desktop the user logs in on, so a run's page sees the screen it saw then.
+XVFB_SCREEN = "2560x1440x24"
 # The pipeline converts each slot to this zone (--account-tz) before the poster types it, and
 # browserless ran in it. Keep the same zone so a typed time means the same instant.
 TIMEZONE_ENV = "LINKEDIN_BROWSER_TZ"
@@ -39,9 +43,9 @@ RUN_MARKER = "--remote-debugging-port=0"
 # read the way it was written: "basic" keeps the encryption key out of the desktop keyring,
 # which a run started without a desktop session cannot reach.
 COMMON_SWITCHES = ["--no-first-run", "--no-default-browser-check", "--password-store=basic"]
-# A run uses a real (not headless) window, placed off screen: a headless browser differs from
-# the one the user logged in with. Hidden windows must keep rendering at full speed.
-RUN_SWITCHES = ["--window-position=-3000,-3000", "--window-size=1300,1300",
+# A run uses a real (not headless) window: a headless browser differs from the one the user
+# logged in with. A window nobody looks at must keep rendering at full speed.
+RUN_SWITCHES = ["--window-size=1300,1300",
                 "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
                 "--disable-background-timer-throttling",
                 # A DevTools connection sets navigator.webdriver=true, which a person's browser
@@ -68,20 +72,21 @@ def devtools_endpoint(executable: str):
     profile = kept or Path(tempfile.mkdtemp(prefix="li-chrome-"))
     end_leftover_run(profile)
     (profile / "DevToolsActivePort").unlink(missing_ok=True)
-    browser = _start(executable, profile, [*RUN_SWITCHES, RUN_MARKER, "about:blank"])
-    try:
-        yield _endpoint(profile, browser)
-    finally:
-        _stop(browser)
-        if kept is None:
-            shutil.rmtree(profile, ignore_errors=True)
+    with _run_display() as display:
+        browser = _start(executable, profile, [*RUN_SWITCHES, RUN_MARKER, "about:blank"], display)
+        try:
+            yield _endpoint(profile, browser)
+        finally:
+            _stop(browser)
+            if kept is None:
+                shutil.rmtree(profile, ignore_errors=True)
 
 
 def login(executable: str, profile: Path) -> None:
     """Open a visible Chrome on `profile` at LinkedIn's login page; return once it is closed."""
     profile.mkdir(parents=True, exist_ok=True)
     print(f"Log in to LinkedIn in the Chrome window, then close the window. Profile: {profile}")
-    _start(executable, profile, ["--window-size=1300,1000", LOGIN_URL]).wait()
+    _start(executable, profile, ["--window-size=1300,1000", LOGIN_URL], {}).wait()
 
 
 def end_leftover_run(profile: Path) -> None:
@@ -97,11 +102,35 @@ def end_leftover_run(profile: Path) -> None:
         _end_group(pid)
 
 
-def _start(executable: str, profile: Path, switches: list[str]) -> subprocess.Popen:
+@contextlib.contextmanager
+def _run_display():
+    """The environment that places a run's window: a private Xvfb display while $LINKEDIN_XVFB
+    names Xvfb, else none, and the window opens on the user's desktop. Xvfb picks a free
+    display number and writes it to the -displayfd pipe once it accepts connections."""
+    xvfb = os.environ.get(XVFB_ENV)
+    if not xvfb:
+        yield {}
+        return
+    read_end, write_end = os.pipe()
+    server = subprocess.Popen([xvfb, "-displayfd", str(write_end), "-screen", "0", XVFB_SCREEN,
+                               "-nolisten", "tcp"], pass_fds=(write_end,), stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL, start_new_session=True)
+    os.close(write_end)
+    try:
+        with os.fdopen(read_end) as reported:
+            number = reported.readline().strip()
+        if not number:
+            raise RuntimeError(f"Xvfb exited with code {server.wait()} before it reported a display")
+        yield {"DISPLAY": f":{number}"}
+    finally:
+        _stop(server)
+
+
+def _start(executable: str, profile: Path, switches: list[str], display: dict) -> subprocess.Popen:
     timezone = os.environ.get(TIMEZONE_ENV, DEFAULT_TIMEZONE)
     return subprocess.Popen([executable, f"--user-data-dir={profile}", *COMMON_SWITCHES, *switches],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
-                            env={**os.environ, "TZ": timezone})
+                            env={**os.environ, "TZ": timezone, **display})
 
 
 def _endpoint(profile: Path, browser: subprocess.Popen) -> str:
