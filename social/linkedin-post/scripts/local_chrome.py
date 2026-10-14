@@ -32,6 +32,9 @@ DEFAULT_TIMEZONE = "America/Los_Angeles"
 LOGIN_URL = "https://www.linkedin.com/login"
 STARTUP_S = 30
 STOP_S = 10
+# Only a run starts Chrome with this switch. A Chrome on the kept profile that has it is a run
+# whose poster was killed before it closed Chrome; one without it is the user's login window.
+RUN_MARKER = "--remote-debugging-port=0"
 # The login window and every run use the same switches, so the profile's cookie store is
 # read the way it was written: "basic" keeps the encryption key out of the desktop keyring,
 # which a run started without a desktop session cannot reach.
@@ -63,8 +66,9 @@ def devtools_endpoint(executable: str):
     URL. Raises RuntimeError when Chrome does not report one within STARTUP_S seconds."""
     kept = kept_profile()
     profile = kept or Path(tempfile.mkdtemp(prefix="li-chrome-"))
+    end_leftover_run(profile)
     (profile / "DevToolsActivePort").unlink(missing_ok=True)
-    browser = _start(executable, profile, [*RUN_SWITCHES, "--remote-debugging-port=0", "about:blank"])
+    browser = _start(executable, profile, [*RUN_SWITCHES, RUN_MARKER, "about:blank"])
     try:
         yield _endpoint(profile, browser)
     finally:
@@ -78,6 +82,19 @@ def login(executable: str, profile: Path) -> None:
     profile.mkdir(parents=True, exist_ok=True)
     print(f"Log in to LinkedIn in the Chrome window, then close the window. Profile: {profile}")
     _start(executable, profile, ["--window-size=1300,1000", LOGIN_URL]).wait()
+
+
+def end_leftover_run(profile: Path) -> None:
+    """End a run's Chrome still open on `profile`. It holds the profile, so the next run's
+    Chrome would exit at once. Chrome names its pid in the SingletonLock link: "<host>-<pid>".
+    A login window, or a lock whose process is gone, is left alone."""
+    try:
+        pid = int(os.readlink(profile / "SingletonLock").rsplit("-", 1)[1])
+        switches = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+    except (OSError, ValueError, IndexError):
+        return
+    if f"--user-data-dir={profile}".encode() in switches and RUN_MARKER.encode() in switches:
+        _end_group(pid)
 
 
 def _start(executable: str, profile: Path, switches: list[str]) -> subprocess.Popen:
@@ -112,6 +129,25 @@ def _stop(browser: subprocess.Popen) -> None:
         with contextlib.suppress(ProcessLookupError):
             os.killpg(browser.pid, signal.SIGKILL)
         browser.wait()
+
+
+def _end_group(pid: int) -> None:
+    """_stop for a Chrome this process did not start, so cannot wait on: poll until it is gone."""
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(pid, signal.SIGTERM)
+    deadline = time.monotonic() + STOP_S
+    while _alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.2)
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(pid, signal.SIGKILL)
+
+
+def _alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
 
 
 if __name__ == "__main__":

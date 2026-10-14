@@ -18,8 +18,8 @@ const puppeteer = require('puppeteer-core');
 const { applyIdentity } = require('./browser_identity');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-// The pipeline kills the poster at 240 s, and a killed parent leaves this driver running with
-// the LinkedIn session open. The watchdog ends the run first, with a screenshot of the step
+// post_linkedin.py kills this driver at 240 s (DRIVER_TIMEOUT_S), which loses the step it
+// hung on. The watchdog ends the run first, with a screenshot of the step
 // that hung; one CDP call may take PROTOCOL_TIMEOUT_MS, so a stalled call fails well inside it.
 const WATCHDOG_MS = 200000;
 const PROTOCOL_TIMEOUT_MS = 90000;

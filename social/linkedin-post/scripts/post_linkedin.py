@@ -17,7 +17,7 @@ Usage:
   post_linkedin.py --text "…" --at 2026-08-12T09:00 --tz Europe/Zurich   # dry-run schedule
   post_linkedin.py --text "…" --at 2026-08-12T09:00 --confirm            # really schedule
 """
-import argparse, base64, json, os, re, subprocess, sys, tempfile, time
+import argparse, base64, json, os, re, signal, subprocess, sys, tempfile, time
 from datetime import datetime
 from pathlib import Path
 
@@ -26,6 +26,9 @@ import local_chrome
 HERE = Path(__file__).resolve().parent
 FLOW_JS = HERE / "linkedin_flow.js"
 WS_JS = HERE / "linkedin_ws.js"
+# The driver's watchdog ends a stuck run at 200 s; this is the backstop behind it. The
+# pipeline allows the whole poster 300 s: this, plus up to 30 s Chrome startup and 10 s stop.
+DRIVER_TIMEOUT_S = 240
 _SAMESITE = {"no_restriction": "None", "unspecified": None, "lax": "Lax",
              "strict": "Strict", "none": "None", None: None}
 
@@ -59,7 +62,7 @@ def resolve_browserless():
 
 def _drive(node: str, ws_ctx: dict) -> subprocess.CompletedProcess:
     return subprocess.run([node, str(WS_JS)], input=json.dumps(ws_ctx),
-                          capture_output=True, text=True, timeout=300)
+                          capture_output=True, text=True, timeout=DRIVER_TIMEOUT_S)
 
 
 def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
@@ -136,7 +139,14 @@ def _run_http(url: str, token: str, ctx: dict, media_path, outdir: Path, confirm
     return data
 
 
+def _exit_on_sigterm(signum, frame):
+    """A caller that gives up sends SIGTERM. Exiting through Python, not dying at once, runs
+    the cleanup that kills the driver and closes the local Chrome holding the kept profile."""
+    sys.exit("poster stopped by SIGTERM")
+
+
 def main():
+    signal.signal(signal.SIGTERM, _exit_on_sigterm)
     ap = argparse.ArgumentParser()
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--text", help="post body")
