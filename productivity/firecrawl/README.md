@@ -10,7 +10,7 @@ CAPTCHA wall, and carries no cookies.
 ## Why the probe step exists
 
 A self-hosted instance is not the hosted service. Deployments disable routes (`/v2/research/*`
-returning `403`), ship without a model provider, return empty results from an endpoint that
+returning `403` or `404`), ship without a model provider, return empty results from an endpoint that
 answers `success: true`, and restrict egress DNS so some hostnames simply do not resolve. The
 upstream docs describe what Firecrawl *can* do, never what *your* instance does.
 
