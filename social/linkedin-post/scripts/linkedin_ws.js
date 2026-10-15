@@ -15,7 +15,6 @@
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
-const { applyIdentity } = require('./browser_identity');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // post_linkedin.py kills this driver at 240 s (DRIVER_TIMEOUT_S), which loses the step it
@@ -400,7 +399,6 @@ function readStdin() {
     };
 
     await page.setViewport({ width: 1300, height: 1300 });
-    await applyIdentity(page, ctx.identity);
     // keptLogin: the browser profile holds the poster's own LinkedIn login (local_chrome.py).
     if (!ctx.keptLogin) {
       if (!Array.isArray(cookies) || cookies.length === 0) return out(false, 'no-cookies');
