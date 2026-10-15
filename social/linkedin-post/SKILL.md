@@ -27,7 +27,10 @@ browserless, never printed, never sent anywhere else.
 
 The mechanics — cookie-format conversion, timezone-correct schedule strings, the
 browserless request, screenshot capture — are deterministic and live in
-`scripts/post_linkedin.py` + `scripts/linkedin_flow.js`. Do not reinvent them inline.
+`scripts/post_linkedin.py` and its drivers: `scripts/linkedin_ws.js` (the default WS path,
+with its steps in `scripts/ws_composer.js`, `scripts/ws_publish.js` and
+`scripts/ws_activity.js`) and `scripts/linkedin_flow.js` (the `--http` path). Do not
+reinvent them inline.
 
 Your job is the judgement around them:
 
@@ -151,7 +154,8 @@ because CDP hands a remote browser a *path*, which a browserless container canno
 
 LinkedIn changes its DOM without notice; a break shows up as a failed `stage` with a
 screenshot of an unexpected screen. The selectors are centralized — update
-`references/selectors.md` and the matching arrays in `scripts/linkedin_flow.js` together.
+`references/selectors.md` and the matching arrays in `scripts/ws_composer.js`,
+`scripts/ws_publish.js` and `scripts/linkedin_flow.js` together.
 Each step already tries several selectors; add the current one to the front of that
 step's array. Do not paper over a drift by pretending the post went out.
 
