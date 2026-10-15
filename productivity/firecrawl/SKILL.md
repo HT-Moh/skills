@@ -59,14 +59,16 @@ Route by what you want back:
 | Want | Endpoint | Shape |
 |---|---|---|
 | Web results for a query | `POST /v2/search` | synchronous |
-| Research papers by topic | `POST /v2/search` + `categories: ["research"]` | synchronous |
+| Research papers by topic | `GET /v2/search/research/papers?query=…&k=…` | synchronous |
+| GitHub code, issues, PRs | `GET /v2/search/developer?query=…&k=…` | synchronous |
 | One page as markdown | `POST /v2/scrape` | synchronous |
+| A site's URL list | `POST /v2/map` | synchronous |
 | A whole site | `POST /v2/crawl` | async — poll the job |
 | A known list of URLs | `POST /v2/batch/scrape` | async — poll the job |
 
 An endpoint the probe marked `forbidden` or `missing` is not coming back on a retry. Say so
-and use the closest working route — for papers, that is `search` with `categories:
-["research"]`, which searches pages rather than abstracts.
+and use the closest working route — for papers, that is `/v2/search` with `categories:
+["research"]`, which searches web pages rather than a paper index.
 
 **Done when:** every call you made was against an endpoint the probe marked `works`, and you
 checked `success` on every response.
