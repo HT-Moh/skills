@@ -62,6 +62,18 @@ def resolve_browserless():
     return url, token
 
 
+def resolve_browser():
+    """(url, token) of browserless, or (None, None) when $LINKEDIN_LOCAL_CHROME runs the WS
+    driver on a local Chrome, which needs neither."""
+    return (None, None) if local_chrome.configured_chrome() else resolve_browserless()
+
+
+def needs_cookies() -> bool:
+    """False when the kept profile holds the poster's own login: exported cookies are then
+    never loaded."""
+    return local_chrome.kept_profile() is None
+
+
 def _drive(node: str, ws_ctx: dict) -> subprocess.CompletedProcess:
     return subprocess.run([node, str(WS_JS)], input=json.dumps(ws_ctx),
                           capture_output=True, text=True, timeout=DRIVER_TIMEOUT_S)
@@ -174,19 +186,18 @@ def main():
     ap.add_argument("--outdir", default=tempfile.mkdtemp(prefix="li-post-"))
     args = ap.parse_args()
 
-    # A local Chrome needs no browserless; --http always does.
-    local = local_chrome.configured_chrome() and not args.http
-    url, token = (None, None) if local else resolve_browserless()
+    # --http always runs on browserless.
+    url, token = resolve_browserless() if args.http else resolve_browser()
 
     text = args.text if args.text is not None else Path(args.file).read_text()
     if not text.strip():
         sys.exit("empty post body")
 
-    if not local_chrome.kept_profile() and not args.cookies:
+    if needs_cookies() and not args.cookies:
         sys.exit(f"set LINKEDIN_COOKIES or pass --cookies, or log in once on a kept profile "
                  f"(${local_chrome.PROFILE_ENV}, see local_chrome.py)")
-    cookies = [] if local_chrome.kept_profile() else to_puppeteer(json.loads(Path(args.cookies).read_text()))
-    if not local_chrome.kept_profile() and not any(c["name"] == "li_at" for c in cookies):
+    cookies = to_puppeteer(json.loads(Path(args.cookies).read_text())) if needs_cookies() else []
+    if needs_cookies() and not any(c["name"] == "li_at" for c in cookies):
         sys.exit(f"{args.cookies} has no li_at cookie — not a LinkedIn session export")
 
     outdir = Path(args.outdir)
