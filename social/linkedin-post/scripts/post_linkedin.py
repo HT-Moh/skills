@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
-"""Post (or natively schedule) to LinkedIn through a self-hosted browserless instance, or
-through a local Chrome when $LINKEDIN_LOCAL_CHROME names one (see local_chrome.py),
-authenticating with an exported-cookie JSON file.
+"""Post (or natively schedule) to LinkedIn through a local Chrome when $LINKEDIN_LOCAL_CHROME
+names one (see local_chrome.py), else through a self-hosted browserless instance.
 
 Deterministic glue only — no judgement lives here:
-  1. convert Chrome-extension cookies -> Puppeteer setCookie shape
-  2. render the schedule time as LinkedIn's LOCAL date/time strings
-  3. POST scripts/linkedin_flow.js to $BROWSERLESS_URL/function with a context payload
-  4. save every returned screenshot and print a one-line verdict
+  1. start the browser: a local Chrome, on the kept profile's own login when
+     $LINKEDIN_CHROME_PROFILE is set; or browserless with the exported cookies from
+     --cookies / $LINKEDIN_COOKIES, converted to Puppeteer setCookie shape
+  2. render the schedule time as LinkedIn's date/time strings, in the account's timezone
+  3. run linkedin_ws.js over CDP/WebSocket (or, with --http, POST linkedin_flow.js to
+     $BROWSERLESS_URL/function)
+  4. save every screenshot and print the verdict
 
 Never prints cookie values. Defaults to a DRY RUN — nothing is published unless --confirm.
 
 Usage:
   post_linkedin.py --text "…"            # dry-run preview, post-now composer
   post_linkedin.py --file post.md --confirm
-  post_linkedin.py --text "…" --at 2026-08-12T09:00 --tz Europe/Zurich   # dry-run schedule
-  post_linkedin.py --text "…" --at 2026-08-12T09:00 --confirm            # really schedule
+  post_linkedin.py --text "…" --at 2026-08-12T09:00              # dry-run schedule
+  post_linkedin.py --text "…" --at 2026-08-12T09:00 --confirm    # really schedule
 """
 import argparse, base64, json, os, re, signal, subprocess, sys, tempfile, time
 from datetime import datetime
