@@ -151,8 +151,9 @@ def main():
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--text", help="post body")
     src.add_argument("--file", help="file whose contents are the post body")
-    ap.add_argument("--cookies", default=os.environ.get("LINKEDIN_COOKIES",
-                    "/media/bicatalyst/79c246d3-d109-43c4-89f7-33feaac39dee2/src/cookies/linkedin.json"))
+    ap.add_argument("--cookies", default=os.environ.get("LINKEDIN_COOKIES"),
+                    help="exported linkedin.json, for a run without a kept profile "
+                         "(default $LINKEDIN_COOKIES)")
     ap.add_argument("--at", help="schedule time as ISO 'YYYY-MM-DDTHH:MM', typed VERBATIM "
                     "into LinkedIn (interpreted in the account's own timezone). Omit = post now.")
     ap.add_argument("--media", action="append",
@@ -171,12 +172,17 @@ def main():
     ap.add_argument("--outdir", default=tempfile.mkdtemp(prefix="li-post-"))
     args = ap.parse_args()
 
-    url, token = resolve_browserless()
+    # A local Chrome needs no browserless; --http always does.
+    local = local_chrome.configured_chrome() and not args.http
+    url, token = (None, None) if local else resolve_browserless()
 
     text = args.text if args.text is not None else Path(args.file).read_text()
     if not text.strip():
         sys.exit("empty post body")
 
+    if not local_chrome.kept_profile() and not args.cookies:
+        sys.exit(f"set LINKEDIN_COOKIES or pass --cookies, or log in once on a kept profile "
+                 f"(${local_chrome.PROFILE_ENV}, see local_chrome.py)")
     cookies = [] if local_chrome.kept_profile() else to_puppeteer(json.loads(Path(args.cookies).read_text()))
     if not local_chrome.kept_profile() and not any(c["name"] == "li_at" for c in cookies):
         sys.exit(f"{args.cookies} has no li_at cookie — not a LinkedIn session export")
