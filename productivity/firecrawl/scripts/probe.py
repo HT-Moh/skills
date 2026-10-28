@@ -32,9 +32,17 @@ PROBES = [
      {"query": "open source web crawler", "categories": ["research"], "limit": 5}),
     ("search:github", "POST", "/v2/search",
      {"query": "open source web crawler", "categories": ["github"], "limit": 5}),
+    ("search:developer", "POST", "/v2/search",
+     {"query": "open source web crawler", "categories": ["developer"], "limit": 5}),
+    ("search:gov", "POST", "/v2/search",
+     {"query": "data protection", "categories": ["gov"], "limit": 5}),
     ("scrape", "POST", "/v2/scrape", {"url": "{probe_url}", "formats": ["markdown"]}),
+    # The json format needs a model provider; without one the scrape fails.
+    ("scrape:json", "POST", "/v2/scrape",
+     {"url": "{probe_url}", "formats": [{"type": "json", "prompt": "the page title"}]}),
     ("map", "POST", "/v2/map", {"url": "{probe_url}", "limit": 5}),
-    ("research", "POST", "/v2/research/search-papers", {"query": "firecrawl"}),
+    ("papers", "GET", "/v2/search/research/papers?query=web%20crawler&k=3", None),
+    ("developer", "GET", "/v2/search/developer?query=web%20crawler&k=3", None),
 ]
 
 JOB_PROBES = [
@@ -90,10 +98,11 @@ def has_payload(body):
     """True when the response carries actual results rather than an empty envelope."""
     data = body.get("data")
     if isinstance(data, dict):
-        return any(data.get(key) for key in ("web", "markdown", "html", "developer"))
+        return any(data.get(key) for key in ("web", "markdown", "html", "json", "developer"))
     if isinstance(data, list):
         return bool(data)
-    return bool(body.get("links"))
+    # map answers with top-level `links`; research and developer search with `results`.
+    return bool(body.get("links") or body.get("results"))
 
 
 def attempt(base, token, method, path, body):
@@ -133,7 +142,7 @@ def probe(base, token, probe_url):
     for name, method, path, template in PROBES:
         body = json.loads(json.dumps(template).replace("{probe_url}", probe_url))
         state, status = attempt(base, token, method, path, body)
-        results[name] = {"path": path, "state": state, "status": status}
+        results[name] = {"path": path.split("?")[0], "state": state, "status": status}
         print(f"  {name:20} {state}")
     for name, path, template in JOB_PROBES:
         body = json.loads(json.dumps(template).replace("{probe_url}", probe_url))
@@ -166,8 +175,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", help="write the raw probe result here")
     parser.add_argument("--markdown", help="write the developer guide here")
-    parser.add_argument("--probe-url", default="https://arxiv.org",
-                        help="third-party URL used to test scrape/crawl (default: arxiv.org)")
+    # The site needs a sitemap or links on its front page, or map is empty for the site's
+    # sake rather than the instance's: arxiv.org maps to zero links.
+    parser.add_argument("--probe-url", default="https://docs.firecrawl.dev",
+                        help="third-party URL used to test scrape/map/crawl "
+                             "(default: docs.firecrawl.dev)")
     args = parser.parse_args()
 
     base = first_env("FIRECRAWL_API_URL", "FIRECRAWL_URL").rstrip("/")
