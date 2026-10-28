@@ -1,11 +1,11 @@
 ---
 name: linkedin-post
 description: >-
-  Publishes or natively schedules a LinkedIn post from an exported-cookie session, driving
-  the real LinkedIn web UI through a self-hosted browserless instance. Use when the user
-  wants to post to LinkedIn, schedule a LinkedIn post for later, draft-and-queue LinkedIn
-  content, or "put this on LinkedIn". Reads the session cookie file and browserless config
-  from known locations / env — never asks for a password, never hardcodes secrets. Defaults
+  Publishes or natively schedules a LinkedIn post by driving the real LinkedIn web UI, in a
+  local Chrome with its own kept login or in a self-hosted browserless instance. Use when
+  the user wants to post to LinkedIn, schedule a LinkedIn post for later, draft-and-queue
+  LinkedIn content, or "put this on LinkedIn". Reads the login and browser config from env —
+  never asks for a password, never hardcodes secrets. Defaults
   to a dry-run preview; only publishes on explicit confirmation. For X/Twitter or other
   networks, this is not the skill.
 metadata:
@@ -14,20 +14,31 @@ metadata:
 
 # linkedin-post
 
-Posts to LinkedIn as the logged-in user by injecting an exported browser session
-(`linkedin.json`) into a headless Chrome run **inside browserless**, then driving
-LinkedIn's own composer — including its native **Schedule** button, so a scheduled post
-fires from LinkedIn's servers whether or not this machine is on.
+Posts to LinkedIn as the logged-in user by driving LinkedIn's own composer — including
+its native **Schedule** button, so a scheduled post fires from LinkedIn's servers whether
+or not this machine is on. The browser is one of two:
 
-There is no official write API here; this is your own account, your own cookies, your own
-infra. Treat the cookies as credentials: they are read and streamed straight to *your*
-browserless, never printed, never sent anywhere else.
+- **Local Chrome on a kept profile** (preferred). `$LINKEDIN_LOCAL_CHROME` names Chrome and
+  `$LINKEDIN_CHROME_PROFILE` a profile folder in which the user logged in once
+  (`python3 scripts/local_chrome.py login`). LinkedIn then sees the poster as a second
+  device with its own login. With `$LINKEDIN_XVFB` set, the window opens on a private Xvfb
+  display instead of the desktop.
+- **Browserless**, with an exported session (`linkedin.json`) injected as cookies. Loading
+  the user's own cookies into a second browser can make LinkedIn end that login
+  everywhere, so use this only without a kept profile.
+
+There is no official write API here; this is your own account and your own machine. Treat
+the cookies and the profile folder as credentials: never print them, never send them
+anywhere else.
 
 ## What this skill owns vs. what the script owns
 
-The mechanics — cookie-format conversion, timezone-correct schedule strings, the
-browserless request, screenshot capture — are deterministic and live in
-`scripts/post_linkedin.py` + `scripts/linkedin_flow.js`. Do not reinvent them inline.
+The mechanics — starting the browser, cookie-format conversion, timezone-correct
+schedule strings, screenshot capture — are deterministic and live in
+`scripts/post_linkedin.py` and its drivers: `scripts/linkedin_ws.js` (the default WS path,
+with its steps in `scripts/ws_composer.js`, `scripts/ws_publish.js` and
+`scripts/ws_activity.js`) and `scripts/linkedin_flow.js` (the `--http` path). Do not
+reinvent them inline.
 
 Your job is the judgement around them:
 
@@ -39,15 +50,20 @@ Your job is the judgement around them:
 
 ## Step 1 — Preflight
 
-Browserless config comes from the environment (same vars as the `browserless` skill):
+**Local Chrome on a kept profile:** confirm `$LINKEDIN_LOCAL_CHROME` and
+`$LINKEDIN_CHROME_PROFILE` are set and the profile folder exists. A run that stops at stage
+`auth` with the hint `the poster profile is logged out` needs the user to log in again
+with `python3 scripts/local_chrome.py login`; you cannot do that for them. Close that login
+window before a run: a Chrome already open on the profile stops the run's Chrome.
+
+**Browserless:** config comes from the environment (same vars as the `browserless` skill):
 
 ```bash
 : "${BROWSERLESS_URL:?set BROWSERLESS_URL}" "${BROWSERLESS_TOKEN:?set BROWSERLESS_TOKEN}"
 ```
 
-Cookies default to `/media/bicatalyst/.../src/cookies/linkedin.json` (override with
-`--cookies` or `$LINKEDIN_COOKIES`). Confirm the file exists and still carries a live
-session — check the `li_at` expiry without printing any value:
+Cookies come from `--cookies` or `$LINKEDIN_COOKIES`. Confirm the file exists and still
+carries a live session — check the `li_at` expiry without printing any value:
 
 ```bash
 python3 -c "import json,time; d=json.load(open('$LINKEDIN_COOKIES')); \
@@ -135,8 +151,9 @@ A **document post** is LinkedIn's swipeable card with a page count and a downloa
 a different composer flow (More > Add a document) from media. LinkedIn accepts exactly
 `.pdf`, `.doc`, `.docx`, `.ppt`, `.pptx`; the script rejects anything else before uploading.
 
-Both kinds upload from your machine: the bytes are read locally and injected into the page,
-because CDP hands a remote browser a *path*, which a browserless container cannot read.
+A local Chrome uploads the files from disk, as a person's upload arrives. For browserless
+the bytes are read locally and injected into the page, because CDP hands a remote browser a
+*path*, which a browserless container cannot read.
 
 ## Scheduling notes
 
@@ -151,13 +168,13 @@ because CDP hands a remote browser a *path*, which a browserless container canno
 
 LinkedIn changes its DOM without notice; a break shows up as a failed `stage` with a
 screenshot of an unexpected screen. The selectors are centralized — update
-`references/selectors.md` and the matching arrays in `scripts/linkedin_flow.js` together.
+`references/selectors.md` and the matching arrays in `scripts/ws_composer.js`,
+`scripts/ws_publish.js` and `scripts/linkedin_flow.js` together.
 Each step already tries several selectors; add the current one to the front of that
 step's array. Do not paper over a drift by pretending the post went out.
 
 ## Scope
 
-LinkedIn only. The `cookies/` folder also holds `x.json`, `reddit.json`, `youtube.json`
-in the same export format — a sibling skill can reuse `to_puppeteer()` and this same
-browserless pattern, but each network's composer flow differs, so they are separate
-skills, not flags on this one.
+LinkedIn only. Other networks' cookie exports use the same format — a sibling skill can
+reuse `to_puppeteer()` and `local_chrome.py`, but each network's composer flow differs, so
+they are separate skills, not flags on this one.

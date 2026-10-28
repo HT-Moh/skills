@@ -1,28 +1,36 @@
 #!/usr/bin/env python3
-"""Post (or natively schedule) to LinkedIn through a self-hosted browserless instance,
-authenticating with an exported-cookie JSON file.
+"""Post (or natively schedule) to LinkedIn through a local Chrome when $LINKEDIN_LOCAL_CHROME
+names one (see local_chrome.py), else through a self-hosted browserless instance.
 
 Deterministic glue only — no judgement lives here:
-  1. convert Chrome-extension cookies -> Puppeteer setCookie shape
-  2. render the schedule time as LinkedIn's LOCAL date/time strings
-  3. POST scripts/linkedin_flow.js to $BROWSERLESS_URL/function with a context payload
-  4. save every returned screenshot and print a one-line verdict
+  1. start the browser: a local Chrome, on the kept profile's own login when
+     $LINKEDIN_CHROME_PROFILE is set; or browserless with the exported cookies from
+     --cookies / $LINKEDIN_COOKIES, converted to Puppeteer setCookie shape
+  2. render the schedule time as LinkedIn's date/time strings, in the account's timezone
+  3. run linkedin_ws.js over CDP/WebSocket (or, with --http, POST linkedin_flow.js to
+     $BROWSERLESS_URL/function)
+  4. save every screenshot and print the verdict
 
 Never prints cookie values. Defaults to a DRY RUN — nothing is published unless --confirm.
 
 Usage:
   post_linkedin.py --text "…"            # dry-run preview, post-now composer
   post_linkedin.py --file post.md --confirm
-  post_linkedin.py --text "…" --at 2026-08-12T09:00 --tz Europe/Zurich   # dry-run schedule
-  post_linkedin.py --text "…" --at 2026-08-12T09:00 --confirm            # really schedule
+  post_linkedin.py --text "…" --at 2026-08-12T09:00              # dry-run schedule
+  post_linkedin.py --text "…" --at 2026-08-12T09:00 --confirm    # really schedule
 """
-import argparse, base64, json, os, re, subprocess, sys, tempfile, time
+import argparse, base64, json, os, re, signal, subprocess, sys, tempfile, time
 from datetime import datetime
 from pathlib import Path
+
+import local_chrome
 
 HERE = Path(__file__).resolve().parent
 FLOW_JS = HERE / "linkedin_flow.js"
 WS_JS = HERE / "linkedin_ws.js"
+# The driver's watchdog ends a stuck run at 200 s; this is the backstop behind it. The
+# pipeline allows the whole poster 300 s: this, plus up to 30 s Chrome startup and 10 s stop.
+DRIVER_TIMEOUT_S = 240
 _SAMESITE = {"no_restriction": "None", "unspecified": None, "lax": "Lax",
              "strict": "Strict", "none": "None", None: None}
 
@@ -54,6 +62,23 @@ def resolve_browserless():
     return url, token
 
 
+def resolve_browser():
+    """(url, token) of browserless, or (None, None) when $LINKEDIN_LOCAL_CHROME runs the WS
+    driver on a local Chrome, which needs neither."""
+    return (None, None) if local_chrome.configured_chrome() else resolve_browserless()
+
+
+def needs_cookies() -> bool:
+    """False when the kept profile holds the poster's own login: exported cookies are then
+    never loaded."""
+    return local_chrome.kept_profile() is None
+
+
+def _drive(node: str, ws_ctx: dict) -> subprocess.CompletedProcess:
+    return subprocess.run([node, str(WS_JS)], input=json.dumps(ws_ctx),
+                          capture_output=True, text=True, timeout=DRIVER_TIMEOUT_S)
+
+
 def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
             document_path=None, document_title=None) -> dict:
     """Default path: drive browserless over CDP/WebSocket via the Node driver.
@@ -66,13 +91,20 @@ def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
     node = shutil.which("node")
     if not node:
         sys.exit("node not found on PATH — the WS driver needs Node. Install Node or pass --http.")
-    ws_ep = re.sub(r"^http", "ws", url) + f"?token={token}"
     ws_ctx = dict(ctx)
-    ws_ctx.update(wsEndpoint=ws_ep, mediaPaths=(media_paths or []),
+    ws_ctx.update(mediaPaths=(media_paths or []),
                   mediaPath=(media_paths[0] if media_paths else None),
                   documentPath=document_path, documentTitle=document_title, outdir=str(outdir))
-    proc = subprocess.run([node, str(WS_JS)], input=json.dumps(ws_ctx),
-                          capture_output=True, text=True, timeout=300)
+    chrome = local_chrome.configured_chrome()
+    if chrome:
+        if local_chrome.kept_profile():
+            # The profile holds the poster's own login: loading exported cookies over it is
+            # what made LinkedIn end the user's login.
+            ws_ctx.update(cookies=[], keptLogin=True)
+        with local_chrome.devtools_endpoint(chrome) as ws_ep:
+            proc = _drive(node, {**ws_ctx, "wsEndpoint": ws_ep, "localBrowser": True})
+    else:
+        proc = _drive(node, {**ws_ctx, "wsEndpoint": re.sub(r"^http", "ws", url) + f"?token={token}"})
     if proc.returncode != 0:
         sys.exit(f"WS driver failed (rc={proc.returncode}): {proc.stderr.strip()[-400:]}")
     try:
@@ -121,13 +153,21 @@ def _run_http(url: str, token: str, ctx: dict, media_path, outdir: Path, confirm
     return data
 
 
+def _exit_on_sigterm(signum, frame):
+    """A caller that gives up sends SIGTERM. Exiting through Python, not dying at once, runs
+    the cleanup that kills the driver and closes the local Chrome holding the kept profile."""
+    sys.exit("poster stopped by SIGTERM")
+
+
 def main():
+    signal.signal(signal.SIGTERM, _exit_on_sigterm)
     ap = argparse.ArgumentParser()
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--text", help="post body")
     src.add_argument("--file", help="file whose contents are the post body")
-    ap.add_argument("--cookies", default=os.environ.get("LINKEDIN_COOKIES",
-                    "/media/bicatalyst/79c246d3-d109-43c4-89f7-33feaac39dee2/src/cookies/linkedin.json"))
+    ap.add_argument("--cookies", default=os.environ.get("LINKEDIN_COOKIES"),
+                    help="exported linkedin.json, for a run without a kept profile "
+                         "(default $LINKEDIN_COOKIES)")
     ap.add_argument("--at", help="schedule time as ISO 'YYYY-MM-DDTHH:MM', typed VERBATIM "
                     "into LinkedIn (interpreted in the account's own timezone). Omit = post now.")
     ap.add_argument("--media", action="append",
@@ -146,14 +186,18 @@ def main():
     ap.add_argument("--outdir", default=tempfile.mkdtemp(prefix="li-post-"))
     args = ap.parse_args()
 
-    url, token = resolve_browserless()
+    # --http always runs on browserless.
+    url, token = resolve_browserless() if args.http else resolve_browser()
 
     text = args.text if args.text is not None else Path(args.file).read_text()
     if not text.strip():
         sys.exit("empty post body")
 
-    cookies = to_puppeteer(json.loads(Path(args.cookies).read_text()))
-    if not any(c["name"] == "li_at" for c in cookies):
+    if needs_cookies() and not args.cookies:
+        sys.exit(f"set LINKEDIN_COOKIES or pass --cookies, or log in once on a kept profile "
+                 f"(${local_chrome.PROFILE_ENV}, see local_chrome.py)")
+    cookies = to_puppeteer(json.loads(Path(args.cookies).read_text())) if needs_cookies() else []
+    if needs_cookies() and not any(c["name"] == "li_at" for c in cookies):
         sys.exit(f"{args.cookies} has no li_at cookie — not a LinkedIn session export")
 
     outdir = Path(args.outdir)
@@ -203,6 +247,8 @@ def main():
                        document_path=document_path, document_title=args.document_title)
 
     print(json.dumps(data, indent=2))
+    # Callers keep only the last lines of stdout; the full result, error included, stays here.
+    (outdir / "result.json").write_text(json.dumps(data, indent=2))
     print(f"\nscreenshots -> {outdir}")
     if data.get("postingAt"):
         print(f"LinkedIn shows: {data['postingAt']}  (in the account's own timezone)")
