@@ -46,8 +46,19 @@ async function schedulePost(s) {
   if (!await s.clickDeep({ tag: 'BUTTON', textExact: 'Confirm' })) {
     await s.snap('no_confirm'); return outcome(false, 'schedule-confirm');
   }
-  await sleep(1500);
+  // Confirm returns through a loading skeleton. Wait for the actual composer control.
+  const finalSchedule = { tag: 'BUTTON', textExact: 'Schedule', notDisabled: true };
+  for (let waited = 0; waited < SCHEDULE_WAIT_MS && !await s.deepCenter(finalSchedule); waited += 500) {
+    await sleep(500);
+  }
   await s.snap('schedule_review');
+  if (!await s.deepCenter(finalSchedule)) {
+    return outcome(false, 'schedule-confirm', { detail: 'Confirm did not return to the composer' });
+  }
+  const reviewedAt = await readPostingAt(s.page);
+  if (reviewedAt !== postingAt) {
+    return outcome(false, 'schedule-date', { wanted: postingAt, got: reviewedAt });
+  }
 
   if (!confirm) return outcome(true, 'preview', { note: 'dry-run — not scheduled', dateStr, timeStr, postingAt });
 
@@ -100,8 +111,17 @@ async function typeInto(s, spec, value) {
   // Select-all, then type over the selection. The time field is masked: pressing Delete
   // first empties the mask and the next keystrokes lose the hour or the minutes.
   await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
-  await page.keyboard.type(value, { delay: 60 });
-  await page.keyboard.press('Tab');
+  // The time mask can display PM while retaining AM internally when fed partial values.
+  // Insert the complete time in one input event, then verify LinkedIn's own echo below.
+  if (spec === TIME_INPUT) {
+    await page.keyboard.sendCharacter(value);
+    await sleep(600);
+    // Commit the filtered suggestion from the focused input. Text lookup can find an
+    // off-screen duplicate in the unfiltered menu and click outside the picker instead.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+  } else await page.keyboard.type(value, { delay: 60 });
+  if (spec !== TIME_INPUT) await page.keyboard.press('Tab');
   await sleep(600);
   return true;
 }

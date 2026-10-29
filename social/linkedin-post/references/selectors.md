@@ -24,7 +24,7 @@ spec in `scripts/linkedin_flow.js`.
 | submit-immediate | click the primary button | `button` innerText exactly `Post`, not disabled |
 | open-schedule | click the clock icon | `a[aria-label="Scheduled"]` (Oct 2026); older: `button[aria-label="Schedule post"]` |
 | schedule-date | click the date field, Ctrl+A, type `M/D/YYYY`, **Tab**. Since Oct 2026 the field accepts typed text (the old calendar-only path is gone) | `input[placeholder="mm/dd/yyyy"]` |
-| schedule-time | click, Ctrl+A, type `9:00 AM` over the selection, **Tab**. Never press Delete first: the field is masked, and an emptied mask drops the hour or the minutes. Escape closes the whole dialog | the `input` whose value is a time, e.g. `6:30 PM` (it has no label) |
+| schedule-time | click, Ctrl+A, insert complete `9:00 AM` with Puppeteer's `keyboard.sendCharacter`, then **ArrowDown, Enter** to commit the filtered suggestion. Do not Tab afterward: it can reopen the picker. Incremental typing can display PM while the echo retains AM. Text-based suggestion lookup can hit an off-screen duplicate. Never press Delete first: an emptied mask drops the hour or minutes. Escape closes the whole dialog | the `input` whose value is a time, e.g. `6:30 PM` (it has no label) |
 | schedule-check | read LinkedIn's echo and compare it with the wanted day and time; refuse to confirm on a mismatch | leaf element text starting `Posting at`, e.g. `Posting at Tue, Oct 6, 9:00 AM` |
 | schedule-confirm | click Confirm (it was Next) | `button` innerText exactly `Confirm` |
 | submit-schedule | click the primary button, now labelled Schedule | `button` innerText exactly `Schedule`, not disabled |
