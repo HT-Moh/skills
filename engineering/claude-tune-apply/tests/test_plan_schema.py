@@ -191,3 +191,15 @@ def test_validate_rejects_var_reference_with_default():
     op = {"kind": "json_set", "file": SETTINGS, "path": ["env", "X_TOKEN"], "value": "${X:-abc}"}
     errs = plan_schema.validate(plan(item(risk="review", ops=[op])))
     assert any("credential key" in e for e in errs)
+
+
+@pytest.mark.parametrize("mode", [0o777, 0o666, 0o4755, "700"])
+def test_validate_rejects_unsafe_or_non_int_mode(mode):
+    op = {"kind": "file_create", "file": "~/.claude/hooks/x.sh", "content": "x", "mode": mode}
+    errs = plan_schema.validate(plan(item(risk="review", ops=[op])))
+    assert any("mode" in e for e in errs)
+
+
+def test_validate_accepts_owner_only_mode():
+    op = {"kind": "file_create", "file": "~/.claude/hooks/x.sh", "content": "x", "mode": 0o700}
+    assert plan_schema.validate(plan(item(risk="review", ops=[op]))) == []

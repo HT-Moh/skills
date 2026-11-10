@@ -195,6 +195,9 @@ def _validate_op(op, tag: str) -> list[str]:
         errs.append(f"{tag}: values must be a list")
     if kind == "json_upsert" and not isinstance(op.get("match"), dict):
         errs.append(f"{tag}: match must be an object of key: value")
+    mode = op.get("mode")
+    if mode is not None and (isinstance(mode, bool) or not isinstance(mode, int) or mode & ~0o755 or mode & 0o022):
+        errs.append(f"{tag}: mode must be an int with no group/other write and no special bits (e.g. 448 for 0700)")
     target = str(op.get("file", ""))
     if target.endswith("/.claude.json") or target == "~/.claude.json":
         errs.append(f"{tag}: ~/.claude.json may not be edited by a plan; use a manual op with the `claude mcp` command")
