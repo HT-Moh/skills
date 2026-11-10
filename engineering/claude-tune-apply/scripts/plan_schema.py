@@ -55,7 +55,8 @@ def validate(plan: dict) -> list[str]:
     for it in dict_items:
         errors += _validate_item(it, set(ids))
     errors += _duplicate_ids(ids) + _validate_dependencies(dict_items)
-    if any(has_secret(text) for text in _strings(plan)):
+    import json
+    if has_secret(json.dumps(plan, ensure_ascii=False)) or any(has_secret(text) for text in _strings(plan)):
         errors.append("plan text matches a secret pattern; remove the value, keep the key name")
     for it in dict_items:
         errors += _literal_credentials(it)
@@ -74,17 +75,32 @@ def _strings(node):
             yield from _strings(v)
 
 
+VAR_REF_RE = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*(?::-[^}]*)?\}")
+
+
 def _literal_credentials(it: dict) -> list[str]:
-    """A json_set/json_upsert under a credential-named key must carry a ${VAR} reference, not a value."""
+    """Any value written under a credential-named key must be exactly one ${VAR} reference."""
     errs = []
     for op in it.get("ops") or []:
-        if not isinstance(op, dict) or op.get("kind") not in ("json_set", "json_upsert"):
+        if not isinstance(op, dict) or not str(op.get("kind", "")).startswith("json_"):
             continue
         path = op.get("path") or []
-        value = op.get("value")
-        if path and key_is_sensitive(str(path[-1])) and isinstance(value, str) and value and not value.startswith("${"):
-            errs.append(f"item {it.get('id', '?')}: op sets a literal under credential key {path[-1]}; use ${{VAR}}")
+        root_key = str(path[-1]) if path else ""
+        for key, value in _credential_leaves(root_key, op.get("value", op.get("values"))):
+            errs.append(f"item {it.get('id', '?')}: op sets a literal under credential key {key}; use ${{VAR}}")
     return errs
+
+
+def _credential_leaves(key: str, node):
+    """(key, value) pairs where a non-reference string sits under a credential-named key, at any depth."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            yield from _credential_leaves(str(k), v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _credential_leaves(key, v)
+    elif isinstance(node, str) and node and key_is_sensitive(key) and not VAR_REF_RE.fullmatch(node):
+        yield key, node
 
 
 def _duplicate_ids(ids: list[str]) -> list[str]:

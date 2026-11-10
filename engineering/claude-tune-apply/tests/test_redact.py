@@ -90,3 +90,7 @@ def test_keys_without_separators_redacted():
 def test_bearer_any_case_with_token_shape():
     for text in ("bearer abc.def123", "BEARER x9y8z7w6", "Authorization: bearer eyJhbGci.eyJz.sig1"):
         assert "<redacted>" in redact.redact(text), text
+
+
+def test_canonical_bearer_letter_only_token_redacted():
+    assert "<redacted>" in redact.redact("Authorization: Bearer abcdefghij")

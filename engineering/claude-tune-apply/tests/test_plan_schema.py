@@ -154,3 +154,22 @@ def test_validate_rejects_literal_under_credential_key():
 def test_validate_allows_var_reference_under_credential_key():
     op = {"kind": "json_set", "file": SETTINGS, "path": ["env", "X_TOKEN"], "value": "${X_TOKEN}"}
     assert plan_schema.validate(plan(item(risk="review", ops=[op]))) == []
+
+
+def test_validate_rejects_nested_literal_under_credential_key():
+    op = {"kind": "json_set", "file": SETTINGS, "path": ["mcpServers", "x"],
+          "value": {"env": {"API_KEY": "abc"}}}
+    errs = plan_schema.validate(plan(item(risk="review", ops=[op])))
+    assert any("credential key" in e for e in errs)
+
+
+def test_validate_rejects_partial_var_reference():
+    op = {"kind": "json_set", "file": SETTINGS, "path": ["env", "X_TOKEN"], "value": "${X}abc"}
+    errs = plan_schema.validate(plan(item(risk="review", ops=[op])))
+    assert any("credential key" in e for e in errs)
+
+
+def test_validate_rejects_secret_in_json_append_values():
+    op = {"kind": "json_append", "file": SETTINGS, "path": ["permissions", "allow"], "values": ["sk_live_abcdef0123"]}
+    errs = plan_schema.validate(plan(item(risk="review", ops=[op], consumers=["x"])))
+    assert any("secret" in e for e in errs)

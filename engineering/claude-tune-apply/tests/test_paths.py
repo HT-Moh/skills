@@ -90,3 +90,29 @@ def test_preview_turns_read_error_into_op_error(tmp_home):
     op = {"kind": "file_append", "file": str(tmp_home / ".claude"), "content": "x"}
     r = tune_ops.preview(op)
     assert r.errors and not r.changed
+
+
+def test_check_path_refuses_home_itself_as_worktree(tmp_home):
+    (tmp_home / ".git").mkdir()
+    with pytest.raises(PlanError):
+        tune_ops.check_path(str(tmp_home / "notes.txt"))
+
+
+def test_check_path_refuses_dot_dir_repo_under_home(tmp_home):
+    (tmp_home / ".cache" / "repo" / ".git").mkdir(parents=True)
+    with pytest.raises(PlanError):
+        tune_ops.check_path(str(tmp_home / ".cache" / "repo" / "x.md"))
+
+
+def test_check_path_refuses_git_dir_any_case(tmp_home):
+    (tmp_home / "src" / "repo" / ".git").mkdir(parents=True)
+    with pytest.raises(PlanError):
+        tune_ops.check_path(str(tmp_home / "src" / "repo" / ".GIT" / "config"))
+
+
+def test_check_path_refuses_system_repo(tmp_home, monkeypatch):
+    monkeypatch.setattr(tune_ops, "_in_git_worktree", lambda real: True, raising=False)
+    import ops_base
+    monkeypatch.setattr(ops_base, "_in_git_worktree", lambda real: True)
+    with pytest.raises(PlanError):
+        tune_ops.check_path("/usr/share/repo/CLAUDE.md")

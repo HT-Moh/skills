@@ -28,7 +28,9 @@ SECRET_VALUE_RES = (
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"\bfc-[A-Za-z0-9]+"),
     re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_.-]*"),
-    # any case, but the token must hold a non-letter so prose like "bearer headers" stays
+    # canonical "Bearer <token>" always; other casings only when the token holds a non-letter,
+    # so prose such as "bearer headers" stays readable
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{6,}"),
     re.compile(r"(?i)\bbearer\s+(?=[A-Za-z0-9._~+/=-]*[0-9._~+/=-])[A-Za-z0-9._~+/=-]{6,}"),
     re.compile(r"(?<=://)[^\s/@]*:[^\s@]*@"),
     re.compile(r"(?<![A-Za-z0-9])[0-9a-fA-F]{32,}(?![A-Za-z0-9])"),
