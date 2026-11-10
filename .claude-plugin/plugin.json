@@ -8,15 +8,17 @@
     "url": "https://github.com/HT-Moh"
   },
   "skills": [
+    "./engineering/claude-tune",
+    "./engineering/claude-tune-apply",
     "./engineering/dead-code-sweep",
     "./engineering/refactor-to-quality",
+    "./marketing/viral-audit",
     "./productivity/browserless",
     "./productivity/essentialism",
     "./productivity/firecrawl",
     "./productivity/google-power-search",
     "./productivity/retrospective",
     "./productivity/stop-slop",
-    "./marketing/viral-audit",
     "./social/linkedin-post"
   ]
 }

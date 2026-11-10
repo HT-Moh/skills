@@ -1,0 +1,202 @@
+<title>Claude Tune Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column of phase groups; each item is a row that opens inline; sticky footer builds the three commands. */
+:root {
+  --bg: #f4f6f9; --surface: #ffffff; --fg: #1a1f2b; --muted: #5b6676; --line: #d9dee7;
+  --accent: #245fd2; --accent-fg: #ffffff; --safe: #1d7f4a; --review: #a86a12; --manual: #5f6b7d; --warn: #b3261e;
+  --chip-bg: #eef1f6; --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11141a; --surface: #191d25; --fg: #e5e8ef; --muted: #98a2b3; --line: #2a3140;
+  --accent: #7ea4ff; --accent-fg: #0c1322; --safe: #4fc17f; --review: #e0a94a; --manual: #9aa5b8; --warn: #ff8a80; --chip-bg: #232934; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #11141a; --surface: #191d25; --fg: #e5e8ef; --muted: #98a2b3; --line: #2a3140;
+  --accent: #7ea4ff; --accent-fg: #0c1322; --safe: #4fc17f; --review: #e0a94a; --manual: #9aa5b8; --warn: #ff8a80; --chip-bg: #232934; color-scheme: dark; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font); margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 190px; }
+main { max-width: 920px; margin: 0 auto; display: grid; gap: 28px; }
+h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; text-wrap: balance; }
+h2 { font-size: 15px; font-weight: 600; margin: 0; display: flex; gap: 10px; align-items: baseline; }
+h2 small { color: var(--muted); font-weight: 400; }
+p { margin: 0; max-width: 68ch; }
+.lead { color: var(--muted); }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+.stats b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.legend, .stale { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.legend .chip { margin-right: 4px; }
+.phase { display: grid; gap: 10px; }
+.phase-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.phase-head button { font: 500 12px var(--font); color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; }
+.item { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.row { display: grid; grid-template-columns: 24px 60px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; cursor: pointer; }
+.row input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.id { font: 500 13px var(--mono); color: var(--muted); }
+.title { min-width: 0; font-weight: 500; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.chip { font: 500 11px var(--font); letter-spacing: 0.03em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--chip-bg); color: var(--muted); }
+.chip.safe { color: var(--safe); } .chip.review { color: var(--review); } .chip.manual { color: var(--manual); }
+.chip.applied, .chip.done { background: var(--safe); color: var(--surface); }
+.chip.blocked { color: var(--warn); text-transform: none; letter-spacing: 0; }
+.detail { display: grid; gap: 10px; padding: 4px 14px 14px 50px; border-top: 1px solid var(--line); font-size: 14px; }
+.detail dl { display: grid; grid-template-columns: 90px 1fr; gap: 4px 12px; margin: 0; }
+.detail dt { color: var(--muted); } .detail dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.detail a { color: var(--accent); }
+.ops { display: grid; gap: 6px; }
+.op { font: 12.5px/1.5 var(--mono); background: var(--chip-bg); border-radius: 6px; padding: 6px 10px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.item.disabled .row { opacity: 0.6; }
+.hint { font-size: 13px; color: var(--muted); }
+footer { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.bar { max-width: 920px; margin: 0 auto; display: grid; gap: 6px; }
+.cmdrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.cmdrow[hidden] { display: none; }
+.cmd { font: 12.5px var(--mono); background: var(--chip-bg); border-radius: 6px; padding: 7px 10px; min-width: 0; overflow-x: auto; white-space: nowrap; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button.primary { font: 600 12px var(--font); background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 6px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+button.ghost { font: 500 12px var(--font); background: none; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.count { font-size: 13px; color: var(--muted); }
+.count b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.warnline { font-size: 13px; color: var(--warn); }
+@media (max-width: 560px) { .row { grid-template-columns: 24px 1fr; } .id { order: 3; } .chips { order: 4; grid-column: 2; justify-content: flex-start; } .detail { padding-left: 14px; } .cmdrow { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: no-preference) { .detail { animation: open .12s ease-out; } @keyframes open { from { opacity: 0 } } }
+</style>
+
+<main>
+  <header>
+    <h1>Claude Tune Plan</h1>
+    <p class="lead" id="summary"></p>
+    <div class="stats" id="stats"></div>
+    <p class="legend" id="legend"></p>
+    <p class="hint" style="margin-top:10px">Tick the changes you want. Preview first, then apply with the digest the preview prints; every file is backed up and each item rolls back on its own. Manual items are yours to do, then record them with the third command.</p>
+    <p class="stale" id="stale"></p>
+  </header>
+  <div id="phases"></div>
+</main>
+<footer>
+  <div class="bar">
+    <div class="cmdrow"><div class="cmd" id="cmdDry">/claude-tune-apply --dry-run</div><button class="primary" type="button" data-copy="cmdDry">Copy preview</button></div>
+    <div class="cmdrow"><div class="cmd" id="cmdApply">/claude-tune-apply</div><button class="ghost" type="button" data-copy="cmdApply">Copy apply</button></div>
+    <div class="cmdrow" id="rowDone" hidden><div class="cmd" id="cmdDone">/claude-tune-apply --done</div><button class="ghost" type="button" data-copy="cmdDone">Copy done</button></div>
+    <div class="actions">
+      <button class="ghost" id="selSafe" type="button">Select all safe</button>
+      <button class="ghost" id="clear" type="button">Clear</button>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="warnline" id="warn"></div>
+  </div>
+</footer>
+
+<script id="plan" type="application/json" data-rendered-at="{{RENDERED_AT}}" data-plan-mtime="{{PLAN_MTIME}}">{{PLAN_JSON}}</script>
+<script>
+(function () {
+  var planEl = document.getElementById("plan");
+  var plan = JSON.parse(planEl.textContent);
+  var PHASES = { 0: "Security", 1: "Global config", 2: "Instruction files", 3: "Skills, rules, scripts", 4: "Pipelines", 5: "Habits", 6: "Later" };
+  var CLOSED = { applied: 1, done: 1, "applied-purged": 1 };
+  var STORE = "claude-tune-selection-" + (plan.generated || "");
+  var selected = {};
+  try { selected = JSON.parse(localStorage.getItem(STORE) || "{}"); } catch (e) { selected = {}; }
+  var byId = {}; plan.items.forEach(function (it) { byId[it.id] = it; });
+  var closed = function (it) { return !!CLOSED[it.status]; };
+  var riskOf = function (it) { return it.risk_effective || it.risk; };
+
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function stat(label, value) { var s = el("span"); s.appendChild(el("b", null, String(value))); s.appendChild(document.createTextNode(" " + label)); return s; }
+  function blockers(it) {
+    return (it.depends_on || []).filter(function (d) { var dep = byId[d]; return !dep || !(dep.status === "applied" || dep.status === "done"); })
+      .map(function (d) { var dep = byId[d] || {}; return d + (dep.risk === "manual" ? " (manual, not done)" : " (" + (dep.status || "proposed") + ")"); });
+  }
+  function opLine(op) {
+    if (op.kind === "manual") return "manual: " + (op.text || "");
+    if (op.kind === "symlink") return "symlink " + op.link + " -> " + op.target;
+    var p = op.path ? " " + op.path.join(".") : "";
+    var v = op.value !== undefined ? " = " + JSON.stringify(op.value) : (op.values ? " += " + JSON.stringify(op.values) : "");
+    return op.kind + " " + op.file + p + v;
+  }
+  function checkLines(it) { return (it.checks || []).map(function (c) { return c.phase + ": " + c.kind + " " + (c.text || c.file || (c.argv || []).join(" ")); }).join("\n"); }
+  function detail(it) {
+    var d = el("div", "detail"); var dl = el("dl");
+    var rows = [["Why", it.why], ["Evidence", it.evidence], ["Impact", it.impact],
+      ["Consumers", (it.consumers || []).join(", ")], ["Blocked by", blockers(it).join(", ")],
+      ["Depends on", (it.depends_on || []).join(", ")], ["Reversible", it.reversible + "; takes effect " + it.takes_effect],
+      ["Checks", checkLines(it)]];
+    if (it.risk !== "manual") rows.push(["Rollback", "/claude-tune-apply --rollback " + it.id]);
+    else rows.push(["When done", "/claude-tune-apply --done " + it.id]);
+    rows.forEach(function (pair) { if (!pair[1]) return; dl.appendChild(el("dt", null, pair[0])); var dd = el("dd", null, pair[1]); dd.style.whiteSpace = "pre-wrap"; dl.appendChild(dd); });
+    if (it.docs) { dl.appendChild(el("dt", null, "Docs")); var dd = el("dd"); var a = el("a", null, it.docs); a.href = it.docs; a.target = "_blank"; a.rel = "noopener"; dd.appendChild(a); dl.appendChild(dd); }
+    d.appendChild(dl);
+    var ops = el("div", "ops"); (it.ops || []).forEach(function (op) { ops.appendChild(el("div", "op", opLine(op))); }); d.appendChild(ops);
+    return d;
+  }
+  function chipsFor(it) {
+    var chips = el("span", "chips"); chips.appendChild(el("span", "chip " + riskOf(it), riskOf(it) + (riskOf(it) !== it.risk ? " (declared " + it.risk + ")" : "")));
+    if (it.status && it.status !== "proposed") chips.appendChild(el("span", "chip " + it.status, it.status.replace("_", " ")));
+    var b = blockers(it); if (b.length && !closed(it)) chips.appendChild(el("span", "chip blocked", "needs " + b.join(", ")));
+    return chips;
+  }
+  function renderItem(it, sec) {
+    var item = el("article", "item" + (closed(it) ? " disabled" : "")); item.id = "item-" + it.id;
+    var row = el("label", "row"); var cb = el("input"); cb.type = "checkbox"; cb.id = "cb-" + it.id; cb.checked = !!selected[it.id] && !closed(it); cb.disabled = closed(it);
+    cb.onchange = function () { selected[it.id] = cb.checked; update(); };
+    row.appendChild(cb); row.appendChild(el("span", "id", it.id)); row.appendChild(el("span", "title", it.title));
+    var chips = chipsFor(it);
+    var toggle = el("button", "ghost", "Details"); toggle.type = "button"; toggle.style.cssText = "padding:4px 8px;font-size:12px";
+    toggle.onclick = function (ev) { ev.preventDefault(); var open = item.classList.toggle("open"); if (open) item.appendChild(detail(it)); else item.removeChild(item.lastChild); toggle.textContent = open ? "Hide" : "Details"; };
+    chips.appendChild(toggle); row.appendChild(chips); item.appendChild(row); sec.appendChild(item);
+  }
+  function render() {
+    var root = document.getElementById("phases"); root.textContent = "";
+    var byPhase = {}; plan.items.forEach(function (it) { (byPhase[it.phase] = byPhase[it.phase] || []).push(it); });
+    Object.keys(byPhase).sort().forEach(function (ph) {
+      var sec = el("section", "phase"); var head = el("div", "phase-head");
+      var h = el("h2", null, "Phase " + ph + " · " + (PHASES[ph] || "")); h.appendChild(el("small", null, byPhase[ph].length + " items")); head.appendChild(h);
+      var b = el("button", null, "Select phase (not manual)"); b.type = "button";
+      b.onclick = function () { byPhase[ph].forEach(function (it) { if (!closed(it) && it.risk !== "manual") selected[it.id] = true; }); render(); }; head.appendChild(b);
+      sec.appendChild(head);
+      byPhase[ph].forEach(function (it) { renderItem(it, sec); });
+      root.appendChild(sec);
+    });
+    update();
+  }
+  function update() {
+    var ids = plan.items.filter(function (it) { return selected[it.id] && !closed(it); }).map(function (it) { return it.id; });
+    var manual = ids.filter(function (id) { return byId[id].risk === "manual"; });
+    var toApply = ids.filter(function (id) { return byId[id].risk !== "manual"; });
+    document.getElementById("cmdDry").textContent = "/claude-tune-apply --dry-run" + (toApply.length ? " " + toApply.join(" ") : "");
+    document.getElementById("cmdApply").textContent = "/claude-tune-apply" + (toApply.length ? " " + toApply.join(" ") : "") + " --expect <digest from the preview>";
+    document.getElementById("cmdDone").textContent = "/claude-tune-apply --done " + manual.join(" ");
+    document.getElementById("rowDone").hidden = !manual.length;
+    var count = document.getElementById("count"); count.textContent = "";
+    count.appendChild(el("b", null, String(ids.length))); count.appendChild(document.createTextNode(" selected" + (manual.length ? ", " : "")));
+    if (manual.length) { count.appendChild(el("b", null, String(manual.length))); count.appendChild(document.createTextNode(" manual: do them yourself, then copy the done command")); }
+    var blocked = toApply.filter(function (id) { return blockers(byId[id]).length; });
+    document.getElementById("warn").textContent = blocked.length ? "Blocked until their prerequisites are done: " + blocked.map(function (id) { return id + " needs " + blockers(byId[id]).join(", "); }).join("; ") : "";
+    try { localStorage.setItem(STORE, JSON.stringify(selected)); } catch (e) {}
+  }
+  function copyFrom(id, btn) {
+    var text = document.getElementById(id).textContent; var label = btn.textContent;
+    function done(ok) { btn.textContent = ok ? "Copied" : "Select the text and copy"; setTimeout(function () { btn.textContent = label; }, 1800); }
+    function fallback() { var r = document.createRange(); r.selectNodeContents(document.getElementById(id)); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); done(false); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, fallback); else fallback();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-copy]"), function (btn) { btn.onclick = function () { copyFrom(btn.getAttribute("data-copy"), btn); }; });
+  document.getElementById("selSafe").onclick = function () { plan.items.forEach(function (it) { if (riskOf(it) === "safe" && !closed(it)) selected[it.id] = true; }); render(); };
+  document.getElementById("clear").onclick = function () { selected = {}; render(); };
+  document.getElementById("summary").textContent = plan.summary || "";
+  var counts = { safe: 0, review: 0, manual: 0, closed: 0 };
+  plan.items.forEach(function (it) { counts[riskOf(it)] = (counts[riskOf(it)] || 0) + 1; if (closed(it)) counts.closed++; });
+  var stats = document.getElementById("stats");
+  [["changes", plan.items.length], ["safe", counts.safe], ["review", counts.review], ["manual", counts.manual], ["applied or done", counts.closed], ["days in window", plan.window_days || "?"]]
+    .forEach(function (pair) { stats.appendChild(stat(pair[0], pair[1])); });
+  var legend = document.getElementById("legend");
+  [["safe", "reversible, no judgement needed"], ["review", "read the diff: deletes, env, permissions, hooks, instruction files"], ["manual", "only you can do it; record it with --done"]]
+    .forEach(function (pair) { legend.appendChild(el("span", "chip " + pair[0], pair[0])); legend.appendChild(document.createTextNode(pair[1] + "  ")); });
+  document.getElementById("stale").textContent = "Rendered " + (planEl.getAttribute("data-rendered-at") || "?") + " from the plan saved " + (planEl.getAttribute("data-plan-mtime") || "?") + ". Statuses here do not refresh: after applying, run /claude-tune-apply --list or --render.";
+  render();
+})();
+</script>

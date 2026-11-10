@@ -1,0 +1,65 @@
+# Where the data is and how to read it
+
+## Paths
+
+| What | Path |
+|---|---|
+| Session transcripts | `~/.claude/projects/<project-dir>/<session-id>.jsonl` |
+| Subagent transcripts | `~/.claude/projects/<project-dir>/<session-id>/subagents/agent-<id>.jsonl` + `agent-<id>.meta.json` (`agentType`) |
+| Auto memory | `~/.claude/projects/<project-dir>/memory/` (never deleted by `cleanupPeriodDays`) |
+| Global config | `~/.claude/settings.json`, `~/.claude/settings.local.json` |
+| MCP servers and per-project state | `~/.claude.json` (user `mcpServers`, `projects.<path>.mcpServers`, `history`) |
+| Instructions | `~/.claude/CLAUDE.md` + `@imports`, `~/.claude/rules/*.md`; per project `CLAUDE.md`, `AGENTS.md`, `RULES.md`, `.claude/rules/*.md` |
+| Skills, agents, commands | `~/.claude/skills/<name>/SKILL.md` (often symlinks), `~/.claude/agents/*.md`, `~/.claude/commands/*.md`; project `.claude/skills`, `.claude/agents` |
+| Plugins | `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` with `hooks/hooks.json`, `agents/`, `skills/`, `.mcp.json`; `enabledPlugins` in settings |
+| Project permissions | `<repo>/.claude/settings.json`, `<repo>/.claude/settings.local.json` (allow lists grow here) |
+| Secret-bearing copies | `~/.claude/settings.json.*`, `~/.claude/backups/`, `~/.claude/history.jsonl`, `~/.claude/file-history/` |
+
+`<project-dir>` is the working directory with `/` replaced by `-`. Scratchpad sessions
+(`-tmp-claude-...`) and worktree sessions (`...--claude-worktrees-...`) are separate dirs.
+
+## Transcript events (one JSON object per line)
+
+- First lines are `last-prompt`, `mode`, `permission-mode` and carry no `entrypoint`.
+  The `entrypoint` field sits in the first `user` event, 4-7 KB into the file:
+  `cli` = interactive terminal session; `sdk-cli` / `sdk-py` = headless (`claude -p`,
+  Agent SDK). Read the first 40 KB to classify a file.
+- `isSidechain: true` marks subagent lines inside a parent file (older layout); the
+  current layout keeps subagents in the `subagents/` directory.
+- `type`: `user`, `assistant`, `system` (`subtype: compact_boundary` with
+  `compactMetadata.preTokens`/`postTokens`), `summary`.
+- `message.usage`: `input_tokens`, `cache_creation_input_tokens`,
+  `cache_read_input_tokens`, `output_tokens`. Dedupe by `message.id` (one message can
+  appear on several lines). Fresh tokens = input + cache_creation + output;
+  cache_read is context re-read and is reported separately.
+- `message.content` blocks: `text`, `tool_use` (`id`, `name`, `input`), `tool_result`
+  (`tool_use_id`, `content`, `is_error`). Duration of a tool call = `tool_result`
+  timestamp minus `tool_use` timestamp; it includes permission-prompt wait.
+- Agent spawns: `tool_use.name == "Agent"` with `input.subagent_type`. Skill calls:
+  `name == "Skill"` with `input.skill`.
+- Plugin names: agent and skill names are namespaced `plugin:thing` (e.g.
+  `oh-my-claudecode:code-reviewer`), so plugin usage = count by prefix.
+
+## Signal strings (grep them raw, before JSON parsing)
+
+| Signal | String |
+|---|---|
+| User interrupt | `[Request interrupted by user` |
+| Auto-mode denial | `denied by the Claude Code auto mode classifier` then `Reason: [<reason>]` |
+| Hook block | `hook_blocking_error` (hook path follows in `"command"`) |
+| Edit before read | `File has not been read yet` |
+| MCP bad request | `Invalid request body` |
+| Secrets written into the log | `sk_live_`, `rk_live_`, `Authorization: Bearer `, `BEGIN ... PRIVATE KEY` |
+| Polling | Bash `input.command` matching `sleep \d`, `until [`, `until $(`, `watch ` |
+
+## Populations: always report separately
+
+1. **Interactive** (`cli`): the user's own work. Repeated prompts here are habits.
+2. **Headless** (`sdk-*`): pipelines, plugin hooks, cron. Repeated prompts here are
+   automation; the lever is fixed overhead per run and batching, not habits.
+3. **Subagents**: launched by the parent or by Workflow scripts. Measure per
+   `agentType` from `.meta.json`. The parent rarely edits, so "did the parent edit after
+   the review" says nothing; look at the fixer agents instead.
+4. **One-shot plugin sessions** (for example a security-review hook that starts a new
+   `claude -p` per change) may carry `entrypoint: cli` or none. Detect them by their
+   identical first prompt across many sessions and treat them as headless.

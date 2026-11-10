@@ -6,14 +6,16 @@ instructions) that Claude loads on demand when its description matches the task.
 
 ## Skills
 
-Skills are grouped into bucket folders. All current skills are model-invoked (they
-auto-fire when their description matches; you can also type their name). See
+Skills are grouped into bucket folders. Most skills are model-invoked (they auto-fire when their description matches; you can also
+type their name); `claude-tune` and `claude-tune-apply` are user-invoked only. See
 [CLAUDE.md](./CLAUDE.md) for repo conventions.
 
 ### [engineering/](./engineering) — codebase audit & hygiene tools
 
 | Skill | What it does |
 |-------|--------------|
+| [**claude-tune**](./engineering/claude-tune) | Audits your own Claude Code usage over the last N days (transcripts, settings, hooks, skills, instruction files) against the official docs and produces an evidence-backed, ranked `plan.json`, a report and a checklist page. Every proposed change carries why, evidence, impact, consumers, dependencies and structured checks. User-invoked: `/claude-tune 30`. |
+| [**claude-tune-apply**](./engineering/claude-tune-apply) | Applies chosen items of a claude-tune plan: dry-run with a digest first, per-item confirmation for review items, backups, structured pre/post checks, one-item rollback, manual-step tracking (`--done`). Refuses stale targets, blocked dependencies and credential paths; never prints a secret. User-invoked: `/claude-tune-apply --dry-run safe`. |
 | [**dead-code-sweep**](./engineering/dead-code-sweep) | Finds dead code, stale comments/docs that contradict the tree, and config/env gaps. Mechanical detectors (knip, vulture, ruff) accuse; a six-class reference search convicts or acquits; every finding ships with a DELETE/REWRITE/KEEP verdict and its evidence line — blocking gaps reported first, acquitted false positives recorded so the next sweep doesn't re-litigate them. |
 | [**refactor-to-quality**](./engineering/refactor-to-quality) | Turns spaghetti/legacy code into high-quality, maintainable code — behavior-preserving, behind a green test suite. Isolates on a branch, builds a safety net (writes characterization tests where none exist), applies named refactorings and (only to remove real duplication) design patterns, commits one small step at a time, and iterates until an explicit charter (file <300 lines, function <30, args ≤4, DRY/KISS/YAGNI, layering, folder structure, tests, lint, types) fully passes. Distilled from refactoring.guru + Clean Code / Refactoring / Pragmatic Programmer / Code Complete / DDIA. Raises structure and resists over-engineering with equal force. |
 
