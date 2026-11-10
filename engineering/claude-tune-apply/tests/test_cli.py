@@ -147,3 +147,20 @@ def test_no_sys_exit_outside_main():
     source = open(APPLY, encoding="utf-8").read()
     assert source.count("sys.exit(") == 1 and "sys.exit(main(" in source
     assert len(source.splitlines()) < 300
+
+
+def test_migrate_rewrites_schema_and_reports_risk_changes(tmp_home, plan_file):
+    path = settings(tmp_home, {})
+    v1 = mkplan(mkitem("P1-02", [{"kind": "json_set", "file": path, "path": ["statusLine", "command"], "value": "x"}]),
+                mkitem("P6-01", [{"kind": "json_set", "file": path, "path": ["cleanupPeriodDays"], "value": 90}], status="applied"))
+    v1["schema"] = 1
+    for it in v1["items"]:
+        for k in ("consumers", "reversible", "blast_radius", "takes_effect", "contains_secret", "checks"):
+            it.pop(k)
+        it["verify"] = "look"
+    pf = plan_file(v1, "v1.json")
+    r = run("--migrate", "--plan", str(pf))
+    assert r.returncode == 0 and "schema 2" in r.stdout and "P1-02" in r.stdout
+    saved = json.loads(pf.read_text())
+    assert saved["schema"] == 2 and saved["items"][1]["status"] == "applied"
+    assert saved["items"][0]["checks"][0]["kind"] == "note"
