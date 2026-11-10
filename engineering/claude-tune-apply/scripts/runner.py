@@ -11,6 +11,7 @@ import json
 from dataclasses import dataclass, field
 
 import backup
+import checks
 import plan_store
 import selection
 import tune_ops
@@ -83,22 +84,37 @@ def _apply_one(item: dict, preview: Preview, succeeded: set) -> list:
     if all(r.kind == "manual" for r in results):
         item["status"] = "needs_user"
         return [f"{item['id']}: manual step; record it with --done {item['id']}"]
+    pre = checks.failures(item, "pre")
+    if pre:
+        item.update(status="failed", error="; ".join(pre))
+        return [f"{item['id']}: refused: {item['error']}"]
     if not any(r.changed for r in results):
         _finalize(item, results, None)
         succeeded.add(item["id"])
         return [f"{item['id']}: already in place, marked applied"]
     bdir = backup.make_backup(item["id"], results)
+    error = _write_all(results) or _post_failure(item)
+    if error:
+        backup.restore_from(bdir)
+        item.update(status="failed", error=error)
+        return [f"{item['id']}: failed and restored: {error}"]
+    backup.record_after_hashes(bdir)
+    _finalize(item, results, bdir)
+    succeeded.add(item["id"])
+    return _lines_for(item, bdir) + [f"   note: {c.detail}" for c in checks.run_checks(item, "deferred")]
+
+
+def _write_all(results: list) -> str:
     try:
         for r in results:
             tune_ops.write_result(r)
     except (OSError, PlanError) as exc:
-        backup.restore_from(bdir)
-        item.update(status="failed", error=str(exc))
-        return [f"{item['id']}: failed and restored: {exc}"]
-    backup.record_after_hashes(bdir)
-    _finalize(item, results, bdir)
-    succeeded.add(item["id"])
-    return _lines_for(item, bdir)
+        return str(exc)
+    return ""
+
+
+def _post_failure(item: dict) -> str:
+    return "; ".join(checks.failures(item, "post"))
 
 
 def _finalize(item: dict, results: list, bdir) -> None:
