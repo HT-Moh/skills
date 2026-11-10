@@ -7,14 +7,17 @@ shell, from a short allowlist, with a timeout.
 import hashlib
 import json
 import os
+import shutil
 import stat
 import subprocess
 from dataclasses import dataclass
 
-from plan_schema import CHECK_KINDS, PlanError
+from ops_base import check_path
+from plan_schema import CHECK_KINDS, MAX_TIMEOUT_S, PlanError, cmd_form_error
 
-CMD_ALLOWLIST = ("claude", "test", "stat", "grep", "ls", "readlink")
 DEFAULT_TIMEOUT_S = 10
+MAX_READ_BYTES = 2_000_000
+PLAN_WRITABLE_ROOTS = (".claude", ".agents", ".config/claude")
 
 
 @dataclass
@@ -25,14 +28,25 @@ class CheckResult:
 
 
 def _path(check: dict) -> str:
-    return os.path.abspath(os.path.expanduser(str(check.get("file", ""))))
+    """The checked file, under the same path policy as the ops; raises PlanError when refused."""
+    return check_path(str(check.get("file", "")))
+
+
+def _read(path: str, mode: str = "r"):
+    """Read a regular file of bounded size; anything else raises OSError."""
+    st = os.stat(path)
+    if not stat.S_ISREG(st.st_mode):
+        raise OSError(f"{path} is not a regular file")
+    if st.st_size > MAX_READ_BYTES:
+        raise OSError(f"{path} is larger than {MAX_READ_BYTES} bytes")
+    with open(path, mode, **({} if "b" in mode else {"encoding": "utf-8", "errors": "replace"})) as fh:
+        return fh.read()
 
 
 def _json_value(check: dict):
-    """The value at check.path, or a sentinel string when the file or key is missing."""
+    """The value at check.path, or a sentinel when the file or key is missing."""
     try:
-        with open(_path(check), encoding="utf-8") as fh:
-            node = json.load(fh)
+        node = json.loads(_read(_path(check)))
         for k in check.get("path") or []:
             node = node[k]
         return node
@@ -56,7 +70,7 @@ def _json_absent(check):
 
 def _file_contains(check):
     try:
-        ok = str(check.get("text", "")) in open(_path(check), encoding="utf-8", errors="replace").read()
+        ok = str(check.get("text", "")) in _read(_path(check))
     except OSError:
         ok = False
     return CheckResult("file_contains", ok, f"{_path(check)} {'contains' if ok else 'lacks'} the text")
@@ -69,7 +83,7 @@ def _file_absent(check):
 
 def _file_sha256(check):
     try:
-        digest = hashlib.sha256(open(_path(check), "rb").read()).hexdigest()
+        digest = hashlib.sha256(_read(_path(check), "rb")).hexdigest()
     except OSError:
         digest = ""
     ok = digest == check.get("sha256")
@@ -85,16 +99,38 @@ def _file_mode(check):
     return CheckResult("file_mode", ok, f"{_path(check)} mode {oct(mode)}")
 
 
+def timeout_for(check: dict) -> float:
+    t = check.get("timeout_s", DEFAULT_TIMEOUT_S)
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or t <= 0:
+        return DEFAULT_TIMEOUT_S
+    return min(t, MAX_TIMEOUT_S)
+
+
+def _trusted_executable(name: str) -> str:
+    """Resolve a bare allowlisted name on PATH; refuse binaries under plan-writable roots."""
+    resolved = shutil.which(name)
+    if not resolved:
+        raise PlanError(f"{name} not found on PATH")
+    home = os.path.realpath(os.path.expanduser("~"))
+    real = os.path.realpath(resolved)
+    if any(real.startswith(os.path.join(home, root) + "/") for root in PLAN_WRITABLE_ROOTS):
+        raise PlanError(f"{real} lives under a directory plans may write; not trusted")
+    return real
+
+
 def _cmd_exit(check):
-    argv = [str(a) for a in check.get("argv") or []]
-    if not argv or os.path.basename(argv[0]) not in CMD_ALLOWLIST:
-        return CheckResult("cmd_exit", False, f"{argv[:1]} not in the allowlist {CMD_ALLOWLIST}")
+    argv = check.get("argv")
+    err = cmd_form_error(argv)
+    if err:
+        return CheckResult("cmd_exit", False, err.replace("argv[0] must be a bare name", "argv[0] must be a bare allowlist name"))
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=check.get("timeout_s", DEFAULT_TIMEOUT_S))
+        exe = _trusted_executable(argv[0])
+        proc = subprocess.run([exe, *argv[1:]], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL, timeout=timeout_for(check))
     except subprocess.TimeoutExpired:
         return CheckResult("cmd_exit", False, f"{' '.join(argv)} timed out")
-    except OSError as exc:
-        return CheckResult("cmd_exit", False, f"{' '.join(argv)} failed to start: {exc}")
+    except (OSError, PlanError) as exc:
+        return CheckResult("cmd_exit", False, f"{' '.join(argv)} refused or failed to start: {exc}")
     return CheckResult("cmd_exit", proc.returncode == 0, f"{' '.join(argv)} exited {proc.returncode}")
 
 
@@ -114,9 +150,24 @@ def run_checks(item: dict, phase: str) -> list[CheckResult]:
     for check in item.get("checks") or []:
         if check.get("phase") != phase:
             continue
-        runner = RUNNERS.get(check.get("kind"))
-        out.append(runner(check) if runner else CheckResult(str(check.get("kind")), False, "unknown check kind"))
+        out.append(_run_one(check, phase))
     return out
+
+
+def _run_one(check: dict, phase: str) -> CheckResult:
+    kind = str(check.get("kind"))
+    if kind == "cmd_exit" and phase == "deferred":
+        return CheckResult(kind, True, f"not run (deferred): {' '.join(map(str, check.get('argv') or []))}")
+    runner = RUNNERS.get(kind)
+    if runner is None:
+        return CheckResult(kind, False, "unknown check kind")
+    try:
+        result = runner(check)
+    except PlanError as exc:
+        return CheckResult(kind, False, f"refused: {exc}")
+    except Exception as exc:  # a broken check must never pass silently
+        return CheckResult(kind, False, f"check raised {type(exc).__name__}: {exc}")
+    return result
 
 
 def failures(item: dict, phase: str) -> list[str]:

@@ -20,6 +20,9 @@ TAKES_EFFECT = ("immediate", "next-session", "restart")
 CHECK_PHASES = ("pre", "post", "deferred")
 CHECK_KINDS = ("json_equals", "json_absent", "file_contains", "file_absent", "file_sha256",
                "file_mode", "cmd_exit", "note")
+CHECK_CMD_ALLOWLIST = ("test", "stat", "grep", "ls", "readlink", "claude")
+CLAUDE_FORMS = (("--version",), ("--help",), ("mcp", "list"), ("mcp", "get"), ("plugin", "list"))
+MAX_TIMEOUT_S = 60
 SENSITIVE_JSON_ROOTS = ("env", "permissions", "hooks", "statusLine", "mcpServers", "apiKeyHelper")
 SENSITIVE_BASENAMES = ("CLAUDE.md", "AGENTS.md", "RULES.md")
 REVIEW_OP_KINDS = ("json_delete", "file_remove", "file_replace", "symlink")
@@ -212,8 +215,30 @@ def _validate_check(check, tag: str) -> list[str]:
         errs.append(f"{tag}: check phase must be one of {CHECK_PHASES}")
     if check.get("kind") not in CHECK_KINDS:
         errs.append(f"{tag}: check kind must be one of {CHECK_KINDS}")
-    if check.get("kind") == "cmd_exit" and not isinstance(check.get("argv"), list):
-        errs.append(f"{tag}: cmd_exit needs argv as a list")
+    if check.get("kind") == "cmd_exit":
+        errs += _validate_cmd_exit(check, tag)
+    return errs
+
+
+def cmd_form_error(argv) -> str:
+    """Why an argv may not run as a check, or an empty string when it may."""
+    if not isinstance(argv, list) or not argv or not all(isinstance(a, str) and "\0" not in a for a in argv):
+        return "argv must be a non-empty list of strings"
+    if "/" in argv[0] or argv[0] not in CHECK_CMD_ALLOWLIST:
+        return f"argv[0] must be a bare name from {CHECK_CMD_ALLOWLIST}"
+    if argv[0] == "claude" and not any(tuple(argv[1:1 + len(f)]) == f for f in CLAUDE_FORMS):
+        return f"claude may run only in these forms: {[' '.join(f) for f in CLAUDE_FORMS]}"
+    return ""
+
+
+def _validate_cmd_exit(check: dict, tag: str) -> list[str]:
+    errs = []
+    err = cmd_form_error(check.get("argv"))
+    if err:
+        errs.append(f"{tag}: cmd_exit {err}")
+    t = check.get("timeout_s", 1)
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or not 0 < t <= MAX_TIMEOUT_S:
+        errs.append(f"{tag}: cmd_exit timeout_s must be a number in (0, {MAX_TIMEOUT_S}]")
     return errs
 
 
@@ -253,6 +278,8 @@ def effective_risk(item: dict) -> str:
     floors = [_op_floor(op) for op in item.get("ops") or [] if isinstance(op, dict)]
     if item.get("reversible", "full") != "full":
         floors.append("review")
+    if any(isinstance(c, dict) and c.get("kind") == "cmd_exit" for c in item.get("checks") or []):
+        floors.append("review")  # a check that runs a command is reviewed like a write
     return "review" if declared == "review" or "review" in floors else "safe"
 
 

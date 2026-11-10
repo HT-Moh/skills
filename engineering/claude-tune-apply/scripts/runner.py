@@ -26,9 +26,11 @@ class Preview:
     errors: list = field(default_factory=list)
 
 
-def _digest(previews: list) -> str:
+def _digest(previews: list, items: list) -> str:
+    """What the user approves: every write, plus the checks that will run around it."""
     rows = [(p.item_id, r.kind, r.path, hashlib.sha256((r.after or "").encode("utf-8")).hexdigest())
             for p in previews for r in p.results]
+    rows += [(it["id"], "checks", json.dumps(it.get("checks") or [], sort_keys=True)) for it in items]
     return hashlib.sha256(json.dumps(rows).encode("utf-8")).hexdigest()[:16]
 
 
@@ -43,7 +45,7 @@ def dry_run(plan: dict, items: list) -> tuple[list, str]:
         blockers = selection.blockers(it, plan, set(), selected)
         errors = [e for r in results for e in r.errors]
         previews.append(Preview(it["id"], results, blockers, errors))
-    return previews, _digest(previews)
+    return previews, _digest(previews, ordered)
 
 
 def _refuse_unconfirmed(items: list, confirmed: set) -> None:

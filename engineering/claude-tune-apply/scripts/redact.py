@@ -13,8 +13,11 @@ SECRET_WORDS = frozenset({"token", "secret", "key", "apikey", "password", "passw
                           "credential", "credentials", "bearer"})
 _WORD_SPLIT_RE = re.compile(r"[-_.\s]+|(?<=[a-z0-9])(?=[A-Z])")
 _JSON_PAIR_RE = re.compile(r'("(?P<key>(?:[^"\\]|\\.)*)"\s*:\s*")(?P<value>(?:[^"\\]|\\.)*)(")')
-# KEY=value anywhere in a line, so prose quoting an env line is covered too
-_ENV_LINE_RE = re.compile(r"(?<![A-Za-z0-9_])((?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*)(\S+)")
+# KEY=value with no spaces (shell form), anywhere in the text, so quoted env lines are covered;
+# "tokens = 35%" in prose is not an assignment and stays readable
+_ENV_LINE_RE = re.compile(r"(?<![A-Za-z0-9_])((?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=)(\S+)")
+_QUOTED_ASSIGN_RE = re.compile(r"""(?<![A-Za-z0-9_])(([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(["']))((?:(?!\3).)+)\3""")
+_PLACEHOLDERS = frozenset({"value", "...", "xxx", "<value>", "<token>", "<literal>", "null", "none"})
 _PRIVATE_KEY_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|\Z)", re.S)
 
 SECRET_VALUE_RES = (
@@ -62,6 +65,20 @@ def _redact_env_line(m: re.Match) -> str:
     return m.group(1) + REDACTED if key_is_sensitive(m.group(2)) else m.group(0)
 
 
+def _redact_quoted_assign(m: re.Match) -> str:
+    return m.group(1) + REDACTED + m.group(3) if key_is_sensitive(m.group(2)) else m.group(0)
+
+
+def real_looking(value: str) -> bool:
+    """A value that could be a live credential: not a placeholder, reference or trivial word."""
+    v = value.strip().strip("\"'`,;")
+    if not v or v.lower() in _PLACEHOLDERS or v.startswith(("<", "$", "{")) or v.endswith(("=\\|", "=")):
+        return False
+    if not re.fullmatch(r"[A-Za-z0-9_\-./+=]+", v) or len(v) < 6:
+        return False
+    return any(c.isdigit() for c in v) or len(v) >= 16
+
+
 def _entropy(token: str) -> float:
     counts = {c: token.count(c) for c in set(token)}
     return -sum(n / len(token) * math.log2(n / len(token)) for n in counts.values())
@@ -79,12 +96,33 @@ def redact(text: str) -> str:
     """Return `text` with every credential-looking value replaced by <redacted>."""
     out = _JSON_PAIR_RE.sub(_redact_json_pair, text)
     out = _ENV_LINE_RE.sub(_redact_env_line, out)
+    out = _QUOTED_ASSIGN_RE.sub(_redact_quoted_assign, out)
     out = _PRIVATE_KEY_RE.sub(f"-----BEGIN PRIVATE KEY----- {REDACTED}", out)
     for pattern in SECRET_VALUE_RES:
         out = pattern.sub(REDACTED, out)
     return _redact_high_entropy(out)
 
 
+def _value_only(text: str) -> str:
+    out = _PRIVATE_KEY_RE.sub(REDACTED, text)
+    for pattern in SECRET_VALUE_RES:
+        out = pattern.sub(REDACTED, out)
+    return _redact_high_entropy(out)
+
+
 def has_secret(text: str) -> bool:
-    """True when `redact` would change the text, excluding key-only matches on empty values."""
-    return redact(text) != text
+    """True for a credential-shaped value, or a credential-named key assigned a real-looking value.
+
+    Key names alone, placeholders and ${VAR} references do not count, so a plan may talk about
+    `BROWSERLESS_TOKEN=<literal>` without tripping the validator.
+    """
+    if _value_only(text) != text:
+        return True
+    for m in _JSON_PAIR_RE.finditer(text):
+        if key_is_sensitive(m.group("key")) and real_looking(m.group("value")):
+            return True
+    for pattern, key_group, value_group in ((_ENV_LINE_RE, 2, 3), (_QUOTED_ASSIGN_RE, 2, 4)):
+        for m in pattern.finditer(text):
+            if key_is_sensitive(m.group(key_group)) and real_looking(m.group(value_group)):
+                return True
+    return False

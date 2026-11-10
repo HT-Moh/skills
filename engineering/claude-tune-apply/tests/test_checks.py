@@ -65,7 +65,8 @@ def test_cmd_exit_refuses_non_allowlisted():
 
 
 def test_cmd_exit_times_out(monkeypatch):
-    monkeypatch.setattr(checks, "CMD_ALLOWLIST", checks.CMD_ALLOWLIST + ("sleep",))
+    import plan_schema
+    monkeypatch.setattr(plan_schema, "CHECK_CMD_ALLOWLIST", plan_schema.CHECK_CMD_ALLOWLIST + ("sleep",))
     r = run_one([{"phase": "post", "kind": "cmd_exit", "argv": ["sleep", "5"], "timeout_s": 0.2}])
     assert not r.ok and "timed out" in r.detail
 
@@ -119,3 +120,40 @@ def test_mark_done_runs_post_checks(tmp_home):
     with pytest.raises(PlanError, match="post-check"):
         selection.mark_done(plan, ["P0-02"], run_post_checks=checks.require_post)
     assert manual["status"] == "proposed"
+
+
+def test_cmd_exit_refuses_path_qualified_argv0():
+    r = run_one([{"phase": "post", "kind": "cmd_exit", "argv": ["/usr/bin/test", "-d", "/"]}])
+    assert not r.ok and "bare" in r.detail
+
+
+def test_cmd_exit_claude_only_fixed_forms():
+    bad = run_one([{"phase": "post", "kind": "cmd_exit", "argv": ["claude", "-p", "hello"]}])
+    assert not bad.ok and "form" in bad.detail
+    ok_form = run_one([{"phase": "post", "kind": "cmd_exit", "argv": ["claude", "--version"]}])
+    assert "form" not in ok_form.detail and "allowlist" not in ok_form.detail
+
+
+def test_timeout_is_clamped():
+    assert checks.timeout_for({"timeout_s": 9999}) == checks.MAX_TIMEOUT_S
+    assert checks.timeout_for({"timeout_s": -1}) == checks.DEFAULT_TIMEOUT_S
+    assert checks.timeout_for({"timeout_s": "x"}) == checks.DEFAULT_TIMEOUT_S
+    assert checks.timeout_for({"timeout_s": 2}) == 2
+
+
+def test_check_file_outside_allowlist_not_ok(tmp_home):
+    r = run_one([{"phase": "post", "kind": "file_contains", "file": "/etc/passwd", "text": "root"}])
+    assert not r.ok and "refused" in r.detail
+
+
+def test_run_checks_turns_exceptions_into_failures(monkeypatch):
+    def boom(check):
+        raise RuntimeError("kaboom")
+    monkeypatch.setitem(checks.RUNNERS, "note", boom)
+    r = run_one([{"phase": "post", "kind": "note", "text": "x"}])
+    assert not r.ok and "kaboom" in r.detail
+
+
+def test_deferred_cmd_exit_is_not_executed():
+    r = run_one([{"phase": "deferred", "kind": "cmd_exit", "argv": ["test", "-d", "/"]}], phase="deferred")
+    assert r.ok and "not run" in r.detail

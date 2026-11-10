@@ -92,3 +92,19 @@ def test_bearer_any_case_with_token_shape():
 
 def test_canonical_bearer_letter_only_token_redacted():
     assert "<redacted>" in redact.redact("Authorization: Bearer abcdefghij")
+
+
+def test_prose_assignment_with_spaces_not_redacted():
+    text = "fresh tokens = 35% of the total"
+    assert redact.redact(text) == text
+
+
+def test_has_secret_ignores_placeholders_and_references():
+    for text in ("KEY=value lines", "FIRECRAWL_API_KEY='${FIRECRAWL_TOKEN}'", "BROWSERLESS_TOKEN=<literal>",
+                 "grep '_TOKEN=\\|_SECRET='", '"X_TOKEN": ""'):
+        assert not redact.has_secret(text), text
+
+
+def test_has_secret_flags_real_looking_assignments():
+    for text in ("GITHUB_TOKEN=abc123", '"X_TOKEN": "abc123"', "export API_KEY=ZmFrZS1rZXktMTIz"):
+        assert redact.has_secret(text), text

@@ -156,3 +156,12 @@ def test_secret_backup_warning_names_purge_command(tmp_home, plan_file):
     lines = runner.apply_items(plan, [a], plan_file(plan), expect=digest, confirmed={"P0-03"})
     assert any("--purge-backup P0-03" in line for line in lines)
     assert all("abc123" not in line for line in lines)
+
+
+def test_digest_changes_when_checks_change(tmp_home):
+    path = settings(tmp_home, {})
+    a = mkitem("P1-01", [jset(path, "a", 1)])
+    _, d1 = runner.dry_run(mkplan(a), [a])
+    a["checks"] = [{"phase": "post", "kind": "json_equals", "file": path, "path": ["a"], "value": 1}]
+    _, d2 = runner.dry_run(mkplan(a), [a])
+    assert d1 != d2

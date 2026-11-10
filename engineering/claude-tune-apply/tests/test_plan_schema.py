@@ -203,3 +203,15 @@ def test_validate_rejects_unsafe_or_non_int_mode(mode):
 def test_validate_accepts_owner_only_mode():
     op = {"kind": "file_create", "file": "~/.claude/hooks/x.sh", "content": "x", "mode": 0o700}
     assert plan_schema.validate(plan(item(risk="review", ops=[op]))) == []
+
+
+def test_effective_risk_review_for_cmd_exit_check():
+    it = item(risk="safe", checks=[{"phase": "post", "kind": "cmd_exit", "argv": ["test", "-d", "/"]}])
+    assert plan_schema.effective_risk(it) == "review"
+
+
+def test_validate_rejects_cmd_exit_with_path_argv0_or_bad_timeout():
+    bad_argv = item(checks=[{"phase": "post", "kind": "cmd_exit", "argv": ["/usr/bin/test", "-d", "/"]}])
+    bad_timeout = item(checks=[{"phase": "post", "kind": "cmd_exit", "argv": ["test", "-d", "/"], "timeout_s": 999}])
+    assert any("argv" in e for e in plan_schema.validate(plan(bad_argv)))
+    assert any("timeout" in e for e in plan_schema.validate(plan(bad_timeout)))

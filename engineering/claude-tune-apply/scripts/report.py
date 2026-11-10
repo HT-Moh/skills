@@ -24,6 +24,9 @@ def _floor_reason(item: dict) -> str:
             reasons.append(f"op kind {op['kind']}")
     if item.get("reversible", "full") != "full":
         reasons.append(f"reversible={item['reversible']}")
+    for c in item.get("checks") or []:
+        if c.get("kind") == "cmd_exit":
+            reasons.append(f"runs cmd_exit {' '.join(map(str, c.get('argv') or []))}")
     return ", ".join(sorted(set(reasons)))
 
 
