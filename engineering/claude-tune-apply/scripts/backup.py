@@ -204,6 +204,15 @@ def _rmdir_if_empty(directory: str) -> None:
         pass
 
 
+def restore_from(bdir: Path) -> None:
+    """Put every file in the manifest back as it was before the item wrote (crash recovery)."""
+    manifest = load_manifest(bdir)
+    for f in manifest["files"]:
+        _validate_entry(f)
+    for f in manifest["files"]:
+        _restore_entry(bdir, f)
+
+
 def rollback_item(plan: dict, item: dict, force: bool = False) -> list[str]:
     """Restore every file of an applied item from its backup; return warning lines.
 

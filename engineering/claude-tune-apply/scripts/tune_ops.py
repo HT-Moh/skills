@@ -13,9 +13,12 @@ from ops_base import (ALLOWED_USER_ROOTS, OpResult, ReadError, SYSTEM_PREFIXES, 
 from plan_schema import OP_KINDS, PlanError
 
 
-def preview_item_ops(ops):
-    """Preview an item's ops in order; each op sees the text the previous one produced."""
-    overlay, results = {}, []
+def preview_item_ops(ops, overlay=None):
+    """Preview an item's ops in order; each op sees the text the previous one produced.
+
+    Pass one `overlay` dict across items to chain a whole selection (the dry run does)."""
+    overlay = {} if overlay is None else overlay
+    results = []
     for op in ops:
         r = preview(op, overlay)
         results.append(r)
