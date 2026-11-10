@@ -122,3 +122,77 @@ def purge_backup(bdir: Path) -> None:
     if bdir.resolve().parent != backup_root().resolve():
         raise PlanError(f"refusing to purge {bdir}: not a backup directory")
     shutil.rmtree(bdir)
+
+
+def dependents_of(plan: dict, item_id: str) -> list[str]:
+    """Ids of items that depend on `item_id`, directly or through other items, in plan order."""
+    found: list[str] = []
+    frontier = {item_id}
+    while frontier:
+        new = {it["id"] for it in plan["items"]
+               if it["id"] not in found and frontier & set(it.get("depends_on") or [])}
+        found += sorted(new)
+        frontier = new
+    return found
+
+
+def _drift(manifest: dict) -> list[str]:
+    """Paths whose current content differs from what apply wrote."""
+    out = []
+    for f in manifest["files"]:
+        p = Path(f["path"])
+        if f.get("sha256_after") and p.is_file() and sha256_file(p) != f["sha256_after"]:
+            out.append(f["path"])
+    return out
+
+
+def _restore_entry(bdir: Path, f: dict) -> None:
+    path = f["path"]
+    if f["existed"] and f.get("link_target"):
+        if os.path.lexists(path):
+            os.remove(path)
+        os.symlink(f["link_target"], path)
+    elif f["existed"] and f["saved_as"]:
+        data = (bdir / f["saved_as"]).read_bytes()
+        tmp = f"{path}.{os.getpid()}.restore"
+        with open(tmp, "wb") as fh:
+            fh.write(data)
+        os.chmod(tmp, f.get("mode") or FILE_MODE)
+        os.replace(tmp, path)
+    elif not f["existed"] and os.path.lexists(path):
+        os.remove(path)
+        if not f.get("parent_existed", True):
+            _rmdir_if_empty(os.path.dirname(path))
+
+
+def _rmdir_if_empty(directory: str) -> None:
+    try:
+        os.rmdir(directory)
+    except OSError:
+        pass
+
+
+def rollback_item(plan: dict, item: dict, force: bool = False) -> list[str]:
+    """Restore every file of an applied item from its backup; return warning lines.
+
+    `force` maps 1:1 to the CLI flag: without it, a file edited after apply stops the rollback.
+    """
+    from ops_base import check_path
+    if item.get("status") != "applied":
+        raise PlanError(f"{item['id']} is {item.get('status')}; only applied items roll back")
+    bdir = backup_dir_for(item)
+    manifest = load_manifest(bdir)
+    for f in manifest["files"]:
+        check_path(f["path"])
+    drift = _drift(manifest)
+    if drift and not force:
+        raise PlanError(f"{', '.join(drift)} changed after apply; roll back anyway with --force")
+    warnings = [f"WARNING {p} was edited after apply (drift); the edit is overwritten" for p in drift]
+    for f in manifest["files"]:
+        _restore_entry(bdir, f)
+    item["status"] = "rolled_back"
+    by_id = {it["id"]: it for it in plan["items"]}
+    for dep_id in dependents_of(plan, item["id"]):
+        by_id[dep_id]["status"] = "proposed"
+        warnings.append(f"WARNING {dep_id} depended on {item['id']}; reset to proposed. Re-apply with /claude-tune-apply {dep_id}")
+    return warnings
