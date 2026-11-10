@@ -50,3 +50,28 @@ def test_high_entropy_token():
 def test_has_secret():
     assert redact.has_secret('"T": "sk_live_x"')
     assert not redact.has_secret("plain text")
+
+
+def test_mixed_case_keys_redacted():
+    for text in ('"Authorization": "Bearer x"', '"apiKey": "v1"', '"X-Api-Key": "v2"', '"password": "v3"'):
+        out = redact.redact(text)
+        assert "<redacted>" in out, text
+    assert redact.redact('"keyword-research": "off"') == '"keyword-research": "off"'
+    assert redact.redact('"monkey": "on"') == '"monkey": "on"'
+
+
+def test_url_password_with_slash():
+    out = redact.redact("https://u:p/a/ss@host/x")
+    assert "p/a/ss" not in out and "host/x" in out
+
+
+def test_hex_tokens_redacted_by_value():
+    hex64 = "0123456789abcdef" * 4
+    hex48 = "fedcba9876543210" * 3
+    out = redact.redact(f"a {hex64} b {hex48}")
+    assert hex64 not in out and hex48 not in out
+
+
+def test_base64_token_redacted():
+    b64 = "QWxhZGRpbjpvcGVuIHNlc2FtZSBhbmQgbW9yZSBzdHVmZg=="
+    assert b64 not in redact.redact(f"token {b64}")
