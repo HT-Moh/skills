@@ -58,15 +58,29 @@ class Pop:
     """One population: interactive, headless or subagent."""
 
     def __init__(self):
-        self.sessions = set(); self.user_msgs = 0; self.fresh = 0; self.cache_read = 0
-        self.by_model = collections.Counter(); self.first_req = []
-        self.tools = collections.Counter(); self.skills = collections.Counter()
-        self.agents = collections.Counter(); self.sig = collections.Counter()
-        self.reasons = collections.Counter(); self.hooks = collections.Counter()
-        self.compactions = 0; self.pre_tokens = []; self.waits = 0
-        self.bash_time = collections.Counter(); self.bash_n = collections.Counter()
-        self.long_bash = 0; self.errors = 0; self.secret_hits = 0; self.malformed = 0
-        self.prompts = collections.defaultdict(set); self.msg_ids = set()
+        self.sessions = set()
+        self.user_msgs = 0
+        self.fresh = 0
+        self.cache_read = 0
+        self.by_model = collections.Counter()
+        self.first_req = []
+        self.tools = collections.Counter()
+        self.skills = collections.Counter()
+        self.agents = collections.Counter()
+        self.sig = collections.Counter()
+        self.reasons = collections.Counter()
+        self.hooks = collections.Counter()
+        self.compactions = 0
+        self.pre_tokens = []
+        self.waits = 0
+        self.bash_time = collections.Counter()
+        self.bash_n = collections.Counter()
+        self.long_bash = 0
+        self.errors = 0
+        self.secret_hits = 0
+        self.malformed = 0
+        self.prompts = collections.defaultdict(set)
+        self.msg_ids = set()
         self.patterns = scan_patterns.Patterns()
 
 

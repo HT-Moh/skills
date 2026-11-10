@@ -81,14 +81,23 @@ class Patterns:
     """Per-population counters; every value is a count, a ratio or a hash."""
 
     def __init__(self):
-        self.reverts = collections.Counter(); self.dangerous = collections.Counter()
-        self.credential_reads = 0; self.premature_sessions = 0; self.churn_files = 0
-        self.repeated_bash = 0; self.duplicate_reads = 0; self.duplicate_read_chars = 0
+        self.reverts = collections.Counter()
+        self.dangerous = collections.Counter()
+        self.credential_reads = 0
+        self.premature_sessions = 0
+        self.churn_files = 0
+        self.repeated_bash = 0
+        self.duplicate_reads = 0
+        self.duplicate_read_chars = 0
         self.oversized_results = collections.Counter()
-        self.tool_wait_s = collections.Counter(); self.tool_wait_n = collections.Counter()
-        self.nudges = 0; self.near_prompts = collections.defaultdict(set)
-        self.done_claims = 0; self.done_without_verify = 0
-        self.interrupt_before = collections.Counter(); self.orphaned_agents = 0
+        self.tool_wait_s = collections.Counter()
+        self.tool_wait_n = collections.Counter()
+        self.nudges = 0
+        self.near_prompts = collections.defaultdict(set)
+        self.done_claims = 0
+        self.done_without_verify = 0
+        self.interrupt_before = collections.Counter()
+        self.orphaned_agents = 0
         self.cache_miss_ratio = []
 
 
@@ -96,11 +105,18 @@ class Session:
     """Per-file state: open tool calls plus what the detectors need to remember."""
 
     def __init__(self, name):
-        self.name = name; self.pending = {}; self.first_seen = False
-        self.first_tool = None; self.last_tool = None; self.last_bash = None
-        self.edits = collections.Counter(); self.reads = collections.Counter()
-        self.verified = False; self.agents = set()
-        self.cache_creation = 0; self.cache_read = 0
+        self.name = name
+        self.pending = {}
+        self.first_seen = False
+        self.first_tool = None
+        self.last_tool = None
+        self.last_bash = None
+        self.edits = collections.Counter()
+        self.reads = collections.Counter()
+        self.verified = False
+        self.agents = set()
+        self.cache_creation = 0
+        self.cache_read = 0
 
 
 def on_user_text(text, sess, pat):
