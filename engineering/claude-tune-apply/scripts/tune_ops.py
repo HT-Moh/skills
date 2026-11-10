@@ -5,12 +5,11 @@ returns an OpResult describing the change without touching the disk; `write_resu
 performs it. Standard library only.
 """
 import difflib, json, os
-
-from redact import redact
 from dataclasses import dataclass, field
 
-OP_KINDS = ("json_set", "json_delete", "json_append", "file_create", "file_append",
-            "file_replace", "symlink", "file_remove", "manual")
+from plan_schema import OP_KINDS
+from redact import redact
+
 REFUSED_PREFIXES = ("/etc", "/usr", "/bin", "/sbin", "/lib", "/boot", "/var", "/opt",
                     "/root", "/sys", "/proc", "/dev")
 JSON_INDENT = 2

@@ -75,3 +75,8 @@ def test_hex_tokens_redacted_by_value():
 def test_base64_token_redacted():
     b64 = "QWxhZGRpbjpvcGVuIHNlc2FtZSBhbmQgbW9yZSBzdHVmZg=="
     assert b64 not in redact.redact(f"token {b64}")
+
+
+def test_bearer_prose_not_redacted():
+    text = "14 files with bearer headers"
+    assert redact.redact(text) == text

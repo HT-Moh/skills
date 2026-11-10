@@ -4,76 +4,15 @@
 Usage: plan_render.py PLAN.json [--md OUT.md] [--html OUT.html] [--latest]
 --latest also points ~/.claude/tune/plans/latest.json at PLAN.json.
 Exit 1 when the plan is invalid; the errors name the item and field.
-Standard library only; never prints secret values (it prints no file contents).
+Validation lives in claude-tune-apply/scripts/plan_schema.py (shared). Prints no file contents.
 """
-import argparse, json, os, re, sys
+import argparse, json, os, sys
 
-ID_RE = re.compile(r"^P\d-\d{2}$")
-RISKS = ("safe", "review", "manual")
-OP_KINDS = ("json_set", "json_delete", "json_append", "file_create", "file_append",
-            "file_replace", "symlink", "file_remove", "manual")
-REQUIRED = ("id", "phase", "title", "risk", "why", "evidence", "docs", "impact", "ops")
-SECRET_RE = re.compile(r"sk_live_|rk_live_|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH) PRIVATE KEY")
-PHASES = {0: "Security", 1: "Global config", 2: "Instruction files", 3: "Skills, rules, scripts",
-          4: "Pipelines", 5: "Habits", 6: "Later"}
+APPLY_SCRIPTS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "claude-tune-apply", "scripts")
+sys.path.insert(0, os.path.realpath(APPLY_SCRIPTS))
+from plan_schema import OP_KINDS, PHASES, RISKS, migrate_v1, validate  # noqa: E402
+
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "templates", "plan.html")
-
-
-def validate(plan):
-    errors = []
-    if plan.get("schema") != 1:
-        errors.append("schema must be 1")
-    items = plan.get("items")
-    if not isinstance(items, list) or not items:
-        return errors + ["items must be a non-empty list"]
-    ids = [it.get("id") for it in items]
-    for it in items:
-        errors += validate_item(it, set(ids))
-    dupes = {i for i in ids if ids.count(i) > 1}
-    if dupes:
-        errors.append(f"duplicate ids: {sorted(dupes)}")
-    if SECRET_RE.search(json.dumps(plan)):
-        errors.append("plan text matches a secret pattern; remove the value, keep the key name")
-    return errors
-
-
-def validate_item(it, all_ids):
-    tag = f"item {it.get('id', '?')}"
-    errs = [f"{tag}: missing {k}" for k in REQUIRED if k not in it]
-    if not ID_RE.match(str(it.get("id", ""))):
-        errs.append(f"{tag}: id must look like P1-02")
-    if it.get("risk") not in RISKS:
-        errs.append(f"{tag}: risk must be one of {RISKS}")
-    if not isinstance(it.get("phase"), int) or it["phase"] not in PHASES:
-        errs.append(f"{tag}: phase must be an integer 0-6")
-    if it.get("docs") and not str(it["docs"]).startswith("https://"):
-        errs.append(f"{tag}: docs must be a URL or empty with UNVERIFIED in impact")
-    for dep in it.get("depends_on") or []:
-        if dep not in all_ids:
-            errs.append(f"{tag}: depends_on {dep} is not an item")
-    ops = it.get("ops") or []
-    if not ops:
-        errs.append(f"{tag}: needs at least one op (use kind manual for user actions)")
-    for n, op in enumerate(ops):
-        errs += validate_op(op, f"{tag} op {n}")
-    if it.get("risk") == "manual" and any(op.get("kind") != "manual" for op in ops):
-        errs.append(f"{tag}: risk manual must carry only manual ops")
-    return errs
-
-
-def validate_op(op, tag):
-    kind = op.get("kind")
-    if kind not in OP_KINDS:
-        return [f"{tag}: unknown kind {kind!r}"]
-    need = {"json_set": ("file", "path", "value"), "json_delete": ("file", "path"), "json_append": ("file", "path", "values"),
-            "file_create": ("file", "content"), "file_append": ("file", "content"), "file_replace": ("file", "old", "new"),
-            "symlink": ("link", "target"), "file_remove": ("file",), "manual": ("text",)}[kind]
-    errs = [f"{tag}: {kind} needs {k}" for k in need if k not in op]
-    if kind.startswith("json_") and not isinstance(op.get("path"), list):
-        errs.append(f"{tag}: path must be a list of keys")
-    if op.get("file", "").endswith("/.claude.json") or op.get("file") == "~/.claude.json":
-        errs.append(f"{tag}: ~/.claude.json may not be edited by a plan; use a manual op with the `claude mcp` command")
-    return errs
 
 
 def render_md(plan):
@@ -121,7 +60,7 @@ def main():
     ap.add_argument("plan"); ap.add_argument("--md"); ap.add_argument("--html"); ap.add_argument("--latest", action="store_true")
     a = ap.parse_args()
     with open(a.plan, encoding="utf-8") as fh:
-        plan = json.load(fh)
+        plan = migrate_v1(json.load(fh))
     errors = validate(plan)
     if errors:
         print("\n".join("INVALID: " + e for e in errors)); sys.exit(1)

@@ -27,7 +27,7 @@ SECRET_VALUE_RES = (
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"\bfc-[A-Za-z0-9]+"),
     re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_.-]*"),
-    re.compile(r"(?i)\bBearer\s+\S+"),
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{6,}"),  # case-sensitive: prose says "bearer headers"
     re.compile(r"(?<=://)[^\s/@]*:[^\s@]*@"),
     re.compile(r"(?<![A-Za-z0-9])[0-9a-fA-F]{32,}(?![A-Za-z0-9])"),
     re.compile(r"(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{32,}={1,2}"),
