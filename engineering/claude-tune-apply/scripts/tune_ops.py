@@ -4,7 +4,9 @@ Every op is idempotent: applying it twice yields the same files. Each `preview_*
 returns an OpResult describing the change without touching the disk; `write_result`
 performs it. Standard library only.
 """
-import re, difflib, json, os
+import difflib, json, os
+
+from redact import redact
 from dataclasses import dataclass, field
 
 OP_KINDS = ("json_set", "json_delete", "json_append", "file_create", "file_append",
@@ -12,9 +14,6 @@ OP_KINDS = ("json_set", "json_delete", "json_append", "file_create", "file_appen
 REFUSED_PREFIXES = ("/etc", "/usr", "/bin", "/sbin", "/lib", "/boot", "/var", "/opt",
                     "/root", "/sys", "/proc", "/dev")
 JSON_INDENT = 2
-
-
-REDACT_RE = re.compile(r'("[^"]*(?:TOKEN|SECRET|KEY|PASSWORD|AUTHORIZATION)[^"]*"\s*:\s*")[^"]*(")', re.I)
 
 
 @dataclass
@@ -37,8 +36,8 @@ class OpResult:
         if not self.changed:
             return ""
         # Never print a credential value, even in a diff that deletes it.
-        a = REDACT_RE.sub(r"\1<redacted>\2", self.before or "").splitlines(keepends=True)
-        b = REDACT_RE.sub(r"\1<redacted>\2", self.after or "").splitlines(keepends=True)
+        a = redact(self.before or "").splitlines(keepends=True)
+        b = redact(self.after or "").splitlines(keepends=True)
         return "".join(difflib.unified_diff(a, b, f"a{self.path}", f"b{self.path}", n=2))
 
 
