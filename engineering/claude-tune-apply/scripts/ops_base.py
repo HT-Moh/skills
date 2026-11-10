@@ -13,7 +13,8 @@ SYSTEM_PREFIXES = ("/etc", "/usr", "/bin", "/sbin", "/lib", "/boot", "/var", "/o
 REFUSED_USER_PATHS = (".bashrc", ".zshrc", ".zprofile", ".profile", ".bash_profile", ".ssh",
                       ".config/autostart", ".config/systemd", ".gnupg", ".aws", ".kube")
 ALLOWED_USER_ROOTS = (".claude", ".agents", ".config/claude")
-RC_BASENAMES = (".bashrc", ".zshrc", ".zprofile", ".profile", ".bash_profile")
+RC_BASENAMES = (".bashrc", ".zshrc", ".zprofile", ".zshenv", ".zlogin", ".zlogout", ".profile",
+                ".bash_profile", ".bash_login", ".bash_logout", ".bash_aliases")
 JSON_INDENT = 2
 
 
@@ -113,9 +114,21 @@ def _refuse_lexical(path):
         raise PlanError(f"login-time or credential path refused: {path}")
 
 
+def _startup_link_targets(home):
+    """Real paths that a shell startup file in $HOME is a symlink to (dotfiles repos)."""
+    targets = set()
+    for name in RC_BASENAMES:
+        candidate = os.path.join(home, name)
+        if os.path.islink(candidate):
+            targets.add(os.path.realpath(candidate))
+    return targets
+
+
 def _validate_real(real):
     _refuse_lexical(real)
     home = _home()
+    if real in _startup_link_targets(home):
+        raise PlanError(f"shell startup file (via a $HOME symlink) refused: {real}")
     if any(_under(real, os.path.join(home, rel)) for rel in ALLOWED_USER_ROOTS):
         return
     if any(_under(real, pre) for pre in SYSTEM_PREFIXES):

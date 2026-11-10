@@ -129,3 +129,18 @@ def test_check_path_refuses_rc_basename_inside_repo(tmp_home):
     (tmp_home / "src" / "dotfiles" / ".git").mkdir(parents=True)
     with pytest.raises(PlanError):
         tune_ops.check_path(str(tmp_home / "src" / "dotfiles" / ".zshrc"))
+
+
+def test_check_path_refuses_repo_file_that_home_startup_file_links_to(tmp_home):
+    repo = tmp_home / "src" / "dotfiles"
+    (repo / ".git").mkdir(parents=True)
+    (repo / "zshrc").write_text("x")
+    os.symlink(repo / "zshrc", tmp_home / ".zshrc")
+    with pytest.raises(PlanError):
+        tune_ops.check_path(str(repo / "zshrc"))
+
+
+@pytest.mark.parametrize("name", [".zshenv", ".zlogin", ".zlogout", ".bash_login", ".bash_logout", ".bash_aliases"])
+def test_check_path_refuses_more_startup_files(tmp_home, name):
+    with pytest.raises(PlanError):
+        tune_ops.check_path(str(tmp_home / name))

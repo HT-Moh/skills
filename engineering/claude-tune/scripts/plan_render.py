@@ -2,7 +2,8 @@
 """Validate a claude-tune plan.json and render it as Markdown and as an HTML page.
 
 Usage: plan_render.py PLAN.json [--md OUT.md] [--html OUT.html] [--latest]
---latest also points ~/.claude/tune/plans/latest.json at PLAN.json.
+--latest also points ~/.claude/tune/plans/latest.json at PLAN.json (refused while the old plan
+has applied items unless --force-latest).
 Exit 1 when the plan is invalid; the errors name the item and field.
 Validation lives in claude-tune-apply/scripts/plan_schema.py (shared). Prints no file contents.
 """
@@ -58,6 +59,7 @@ def render_html(plan):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("plan"); ap.add_argument("--md"); ap.add_argument("--html"); ap.add_argument("--latest", action="store_true")
+    ap.add_argument("--force-latest", action="store_true", help="repoint latest.json even if the old plan has applied items")
     a = ap.parse_args()
     with open(a.plan, encoding="utf-8") as fh:
         plan = migrate_v1(json.load(fh))
@@ -71,10 +73,9 @@ def main():
     if a.html:
         with open(a.html, "w", encoding="utf-8") as fh: fh.write(render_html(plan))
     if a.latest:
-        latest = os.path.expanduser("~/.claude/tune/plans/latest.json")
-        os.makedirs(os.path.dirname(latest), exist_ok=True)
-        if os.path.lexists(latest): os.remove(latest)
-        os.symlink(os.path.abspath(a.plan), latest)
+        from plan_store import point_latest
+        from pathlib import Path
+        point_latest(Path(a.plan), force=a.force_latest)
     n = len(plan["items"]); by = {r: sum(1 for i in plan["items"] if i["risk"] == r) for r in RISKS}
     print(f"valid: {n} items (safe={by['safe']} review={by['review']} manual={by['manual']})"
           + (f"; md={a.md}" if a.md else "") + (f"; html={a.html}" if a.html else "") + ("; latest.json updated" if a.latest else ""))
