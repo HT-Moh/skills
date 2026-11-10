@@ -26,6 +26,10 @@ def pct(values, q):
     return ordered[min(len(ordered) - 1, int(len(ordered) * q))]
 
 
+def ratio(a, b):
+    return round(a / b, 2) if b else None
+
+
 def find_files(want, cutoff):
     files = []
     for proj in sorted(glob.glob(os.path.join(ROOT, "*"))):
@@ -67,6 +71,9 @@ def population_summary(p):
         "bash_wait_commands": p.waits, "bash_over_120s": p.long_bash,
         "bash_top_by_seconds": [(k, int(v), p.bash_n[k]) for k, v in p.bash_time.most_common(12)],
         "repeated_prompts_sessions": [(n, k.split(":")[0], int(k.split(":")[1])) for n, k in repeated],
+        "write_edit_ratio": ratio(p.tools["Write"], p.tools["Edit"]),
+        "ask_interrupt_ratio": ratio(p.tools["AskUserQuestion"], p.sig["interrupts"]),
+        "patterns": scan_lib.scan_patterns.summary(p.patterns, len(p.sessions)),
     }
 
 
@@ -83,6 +90,14 @@ def print_summary(out):
         print(f"   skills={d['skills'][:8]}")
         print(f"   slow_bash={d['bash_top_by_seconds'][:5]}")
         print(f"   repeated_prompts(hash,len)={d['repeated_prompts_sessions'][:5]}")
+        pt = d["patterns"]
+        print(f"   patterns: reverts={pt['reverts'][:4]} dangerous={pt['dangerous_forms'][:4]} cred_reads={pt['credential_reads']} "
+              f"premature={pt['premature_sessions']} churn={pt['churn_files_over_5_edits']} repeat_bash={pt['repeated_bash']}")
+        print(f"   patterns: dup_reads={pt['duplicate_reads']} ({pt['duplicate_read_chars'] // 1000}k chars) oversized={pt['oversized_results_over_20k'][:4]} "
+              f"nudges={pt['nudge_prompts']} near_dup={pt['near_duplicate_prompts_sessions'][:4]}")
+        print(f"   patterns: done_claims={pt['done_claims']} unverified={pt['done_without_verify']} interrupt_before={pt['interrupt_before_tool'][:4]} "
+              f"orphan_agents={pt['orphaned_agents']} cache_miss_med={pt['cache_miss_ratio_median']}")
+        print(f"   patterns: tool_wait(total_s,n,mean)={dict(list(pt['tool_wait_seconds_total_n_mean'].items())[:6])}")
     print(f"== subagent types (meta): {out['subagent_types_from_meta'][:12]}")
     print(f"== files={out['files']} skipped_over_max_mb={out['skipped_over_max_mb']}")
 

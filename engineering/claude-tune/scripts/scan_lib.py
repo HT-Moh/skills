@@ -2,7 +2,8 @@
 
 Commands are reduced to a tool name plus a known subcommand, hooks to a basename, prompts
 to a hash and a length. The summary is written owner-only and refused if it still carries
-anything credential-shaped.
+anything credential-shaped. Command parsing lives in `scan_commands`, structural pattern
+detectors in `scan_patterns`.
 """
 import collections
 import datetime as dt
@@ -10,8 +11,10 @@ import hashlib
 import json
 import os
 import re
-import shlex
 import sys
+
+import scan_patterns
+from scan_commands import hook_key, prefix  # noqa: F401  (re-exported for callers and tests)
 
 APPLY_SCRIPTS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "claude-tune-apply", "scripts")
 sys.path.insert(0, os.path.realpath(APPLY_SCRIPTS))
@@ -28,7 +31,6 @@ REASON_RE = re.compile(r"classifier\. Reason: \[([^\]\\]{1,60})\]")
 HOOK_RE = re.compile(r'"command":\s*"([^"]{0,160})"')
 SECRET_HINT_RE = re.compile(r"sk_live_|rk_live_|Authorization: Bearer |BEGIN (RSA|OPENSSH) PRIVATE KEY")
 WAIT_RE = re.compile(r"\b(sleep \d|until \[|until \$\(|watch )")
-KNOWN_TOOLS = ("git", "gh", "kubectl", "docker", "npm", "uv", "rtk", "make", "bun")  # tools whose next word is a verb, not content
 LONG_BASH_S = 120
 BOILERPLATE_PREFIXES = ("<system", "[system", "<task-notification", "[request interrupted", "another claude session sent",
                         "this session is being continued", "base directory for this skill", "<command-name>",
@@ -40,93 +42,6 @@ def ts(s):
         return dt.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
     except Exception:
         return None
-
-
-TOOL_SHAPE_RE = re.compile(r"[\w.+-]{1,40}")
-VERB_SHAPE_RE = re.compile(r"[a-z][a-z-]{1,20}")
-SCRIPT_SHAPE_RE = re.compile(r"[\w./-]+\.(?:js|mjs|cjs|py|sh|ts)")
-INLINE_CODE_FLAGS = ("-c", "-e", "--eval", "-p", "--print")
-INTERPRETERS = ("node", "python3", "python", "bash", "sh", "uv", "npx", "bun")
-
-
-def _tokens(cmd):
-    """Shell-aware tokens; separators inside quotes stay inside their word. None when unparsable."""
-    lexer = shlex.shlex(cmd, posix=True, punctuation_chars=True)
-    lexer.whitespace_split = True
-    try:
-        return list(lexer)
-    except ValueError:
-        return None
-
-
-def _argv(cmd):
-    """Tokens of the first simple command after leading cd segments and VAR= assignments.
-
-    Returns None when the command cannot be tokenized."""
-    tokens = _tokens(cmd)
-    if tokens is None:
-        return None
-    segments, current = [], []
-    for tok in tokens:
-        if tok in ("&&", "||", ";", "|", "&", "|&"):
-            segments.append(current)
-            current = []
-        else:
-            current.append(tok)
-    segments.append(current)
-    for words in segments:
-        words = [w for w in words if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", w, re.S)]
-        if words and words[0] != "cd":
-            return words
-    return []
-
-
-def _subcommand(words):
-    """The first verb-shaped word after the tool, skipping flags and short-flag values."""
-    skip_next = False
-    for w in words[1:]:
-        if skip_next:
-            skip_next = False
-            continue
-        if re.fullmatch(r"-[A-Za-z]", w):
-            skip_next = True
-            continue
-        if w.startswith("--") and "=" not in w:
-            return ""  # a long flag may take the next word; stop rather than guess
-        if w.startswith("-"):
-            continue
-        return w if VERB_SHAPE_RE.fullmatch(w) else ""
-    return ""
-
-
-def _tool(words):
-    name = os.path.basename(words[0])
-    return name if TOOL_SHAPE_RE.fullmatch(name) else "(odd)"
-
-
-def prefix(cmd):
-    """`tool verb` for known tools, the bare tool name otherwise; never an argument value."""
-    words = _argv(cmd)
-    if words is None:
-        return "(unparsed)"
-    if not words:
-        return "(empty)"
-    tool = _tool(words)
-    if tool in KNOWN_TOOLS:
-        return f"{tool} {_subcommand(words)}".strip()
-    return tool
-
-
-def hook_key(command):
-    """The hook script's basename for an interpreter, else the program; inline code yields the program."""
-    words = _argv(command)
-    if not words:
-        return "(empty)" if words is not None else "(unparsed)"
-    tool = _tool(words)
-    if tool in INTERPRETERS and not any(w in INLINE_CODE_FLAGS for w in words[1:]):
-        script = next((w for w in words[1:] if SCRIPT_SHAPE_RE.fullmatch(w)), "")
-        return os.path.basename(script) if script else tool
-    return tool
 
 
 def prompt_key(text):
@@ -152,6 +67,7 @@ class Pop:
         self.bash_time = collections.Counter(); self.bash_n = collections.Counter()
         self.long_bash = 0; self.errors = 0; self.secret_hits = 0; self.malformed = 0
         self.prompts = collections.defaultdict(set); self.msg_ids = set()
+        self.patterns = scan_patterns.Patterns()
 
 
 def classify_line(raw, pop):
@@ -175,34 +91,48 @@ def _entrypoint(path):
     return m.group(1) if m else ""
 
 
-def record_user(ev, pop, pending, when, sess):
+def _text_of(block):
+    if isinstance(block, str):
+        return block
+    if isinstance(block, dict) and block.get("type") == "text":
+        return block.get("text", "")
+    return None
+
+
+def record_user(ev, pop, sess, when):
     content = (ev.get("message") or {}).get("content")
     blocks = [content] if isinstance(content, str) else (content if isinstance(content, list) else [])
     for b in blocks:
-        text = b if isinstance(b, str) else (b.get("text", "") if isinstance(b, dict) and b.get("type") == "text" else None)
+        text = _text_of(b)
         if isinstance(b, dict) and b.get("type") == "tool_result":
-            _record_tool_result(b, pop, pending, when)
+            _record_tool_result(b, pop, sess, when)
         elif text is not None and text.strip():
             pop.user_msgs += 1
             if not is_boilerplate(text):
-                pop.prompts[prompt_key(text)].add(sess)
+                pop.prompts[prompt_key(text)].add(sess.name)
+            if not is_boilerplate(text) or text.lstrip().lower().startswith("[request interrupted"):
+                scan_patterns.on_user_text(text, sess, pop.patterns)
 
 
-def _record_tool_result(block, pop, pending, when):
+def _record_tool_result(block, pop, sess, when):
     if block.get("is_error"):
         pop.errors += 1
     tid = block.get("tool_use_id")
-    if tid in pending and when:
-        t0, cmd = pending.pop(tid)
-        p = prefix(cmd)
-        pop.bash_time[p] += when - t0
+    if tid not in sess.pending:
+        return
+    t0, name, inp = sess.pending.pop(tid)
+    elapsed = when - t0 if (when and t0) else None
+    if name == "Bash" and elapsed is not None:
+        p = prefix(str(inp.get("command", "")))
+        pop.bash_time[p] += elapsed
         pop.bash_n[p] += 1
-        if when - t0 > LONG_BASH_S:
+        if elapsed > LONG_BASH_S:
             pop.long_bash += 1
+    scan_patterns.on_tool_result(block, (name, inp), sess, pop.patterns, elapsed)
 
 
-def record_assistant(ev, pop, pending, when, first_seen):
-    """Usage once per message id, then every tool_use block. Returns the new first_seen flag."""
+def record_assistant(ev, pop, sess, when):
+    """Usage once per message id, then every text and tool_use block."""
     msg = ev.get("message") or {}
     usage = msg.get("usage") or {}
     mid = msg.get("id")
@@ -211,16 +141,18 @@ def record_assistant(ev, pop, pending, when, first_seen):
         pop.fresh += usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("output_tokens", 0)
         pop.cache_read += usage.get("cache_read_input_tokens", 0)
         pop.by_model[msg.get("model", "?")] += 1
-        if not first_seen:
-            first_seen = True
+        scan_patterns.on_usage(usage, sess)
+        if not sess.first_seen:
+            sess.first_seen = True
             pop.first_req.append(usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("cache_read_input_tokens", 0))
     for b in msg.get("content") if isinstance(msg.get("content"), list) else []:
         if isinstance(b, dict) and b.get("type") == "tool_use":
-            _record_tool_use(b, pop, pending, when)
-    return first_seen
+            _record_tool_use(b, pop, sess, when)
+        elif (text := _text_of(b)) is not None:
+            scan_patterns.on_assistant_text(text, sess, pop.patterns)
 
 
-def _record_tool_use(block, pop, pending, when):
+def _record_tool_use(block, pop, sess, when):
     name = block.get("name", "?")
     inp = block.get("input") or {}
     pop.tools[name] += 1
@@ -228,12 +160,10 @@ def _record_tool_use(block, pop, pending, when):
         pop.skills[str(inp.get("skill", "?"))] += 1
     if name == "Agent":
         pop.agents[str(inp.get("subagent_type", "general-purpose"))] += 1
-    if name == "Bash":
-        cmd = str(inp.get("command", ""))
-        if WAIT_RE.search(cmd):
-            pop.waits += 1
-        if when:
-            pending[block.get("id")] = (when, cmd)
+    if name == "Bash" and WAIT_RE.search(str(inp.get("command", ""))):
+        pop.waits += 1
+    sess.pending[block.get("id")] = (when, name, inp)
+    scan_patterns.on_tool_use(block, sess, pop.patterns)
 
 
 def _record_compaction(ev, pop):
@@ -248,9 +178,8 @@ def scan_file(path, pop_for, max_bytes, cutoff=0.0):
     if os.path.getsize(path) > max_bytes:
         return "skipped"
     pop = pop_for(_entrypoint(path), path)
-    sess = os.path.basename(path)
-    pop.sessions.add(sess)
-    pending, first_seen = {}, False
+    sess = scan_patterns.Session(os.path.basename(path))
+    pop.sessions.add(sess.name)
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
         for raw in fh:
             classify_line(raw, pop)
@@ -260,7 +189,8 @@ def scan_file(path, pop_for, max_bytes, cutoff=0.0):
             when = ts(ev.get("timestamp", "")) if ev.get("timestamp") else None
             if when is not None and when < cutoff:
                 continue
-            first_seen = _dispatch(ev, pop, pending, when, sess, first_seen)
+            _dispatch(ev, pop, sess, when)
+    scan_patterns.finish_session(sess, pop.patterns)
     return "ok"
 
 
@@ -276,15 +206,14 @@ def _parse(raw, pop):
     return ev
 
 
-def _dispatch(ev, pop, pending, when, sess, first_seen):
+def _dispatch(ev, pop, sess, when):
     kind = ev.get("type")
     if kind == "system" and ev.get("subtype") == "compact_boundary":
         _record_compaction(ev, pop)
     elif kind == "user":
-        record_user(ev, pop, pending, when, sess)
+        record_user(ev, pop, sess, when)
     elif kind == "assistant":
-        return record_assistant(ev, pop, pending, when, first_seen)
-    return first_seen
+        record_assistant(ev, pop, sess, when)
 
 
 def write_summary(out, path):
