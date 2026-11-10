@@ -1,5 +1,3 @@
-import secrets
-
 import redact
 
 
@@ -41,7 +39,7 @@ def test_private_key_block():
 
 
 def test_high_entropy_token():
-    token = secrets.token_urlsafe(30)
+    token = "Qm3xZ9vL2pK8wT1rY6uH4nJ0sD7fG5aB-cE_hM"  # fixed: random tokens can miss the digit or entropy bar
     assert token not in redact.redact(f"x={token}")
     low = "configuration-management-tooling"
     assert low in redact.redact(low)
