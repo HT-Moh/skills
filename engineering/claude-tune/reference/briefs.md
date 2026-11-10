@@ -25,11 +25,16 @@ user message by task type (deploy, CI fix, refactor, content, debugging, researc
 model time vs tool time vs user think time (drop gaps over 30 min). Session length,
 compactions per session, crash/resume openers. Prompts typed in 3+ sessions.
 Tool sequences of 3+ steps that recur and are not a skill yet (name the commands).
-Interrupts and the action right before each.
+Interrupts and the action right before each: start from `patterns.interrupt_before_tool`
+and `patterns.repeated_bash` in the scan, then label each interrupt with one of: missing
+context or correction, slow or excessive action, user takes the next step, requirement
+change, other. `patterns.nudge_prompts` counts `proceed`/`continue` messages: 10+ in the
+window means the user is driving a loop by hand; recommend `/loop`, a ralph-style loop or
+an "always continue" rule for that project.
 
 ## C. Waits and operations
 Top 20 Bash patterns by total wall time; calls over 120 s and 600 s timeouts;
-identical retries. `sleep`/`until`/`watch` loops and what they wait for (CI, deploy,
+identical retries (`patterns.repeated_bash` is the count; find the command prefixes). `sleep`/`until`/`watch` loops and what they wait for (CI, deploy,
 pod rollout, pipeline). Background runs: completed, failed, stopped, orphaned.
 Remote commands (ssh, kubectl, docker, curl) split into read-only and write forms,
 with the real command prefixes seen (rules must match those). Secret-reading forms
@@ -41,6 +46,11 @@ candidates) and which must stay gated. Hook blocks by hook file and plugin, with
 hook's latency if measurable. Sizes of `permissions.allow` in every
 `settings.local.json`; one-off absolute-path entries. Rules that would still prompt
 under the proposed allow list (list the 10 most frequent unmatched prefixes).
+`patterns.tool_wait_seconds_total_n_mean` gives result-minus-use time per non-Bash tool;
+a mean over 3 s on Read, Grep, Glob or Edit is permission wait, not work: name the rule
+that removes it. `patterns.dangerous_forms` lists `rm -rf`, `git push --force`, `git reset
+--hard`, `git clean -f`, `--no-verify` counts: propose a deny rule or a PreToolUse hook for
+each form seen more than 5 times, and say which population issued it.
 
 ## E. Subagent economics
 Every `subagents/agent-*.jsonl` in the window, grouped by `agentType` from
@@ -48,7 +58,9 @@ Every `subagents/agent-*.jsonl` in the window, grouped by `agentType` from
 edits yes/no, failures/timeouts/TaskStop. Runs over 100k fresh tokens. Read-only
 types running on the most expensive model. Parallelism: summed duration vs wall span;
 same-file edits by concurrent agents. Rework: a later agent editing a file an earlier
-agent wrote in the same session. Do not use "parent edited after review" as a value
+agent wrote in the same session. `patterns.orphaned_agents` in the interactive population
+counts Agent calls whose result never arrived before the session ended: each is a turn the
+parent ended early (rule 7 of the skill). Do not use "parent edited after review" as a value
 signal when the parent is an orchestrator.
 
 ## F. Config and instruction layer
@@ -61,12 +73,30 @@ imported; contradictions between loaded files (quote both with path:line); grep
 compliance of 10 checkable rules; user corrections that no rule records (session,
 paraphrase, proposed rule, destination file).
 
+Skill candidates from repeated prompts. The scan gives `repeated_prompts_sessions` (exact)
+and `patterns.near_duplicate_prompts_sessions` (numbers, paths and quoted spans replaced).
+For each cluster in 3+ sessions: grep the hash back to 3 sample prompts (hash the user text
+the same way: lower-case, whitespace-collapsed sha256[:12]; for near-duplicates also
+replace quoted spans, then `/`-containing words, then digits), keep only samples from
+sessions that ended in a commit, a merged PR or an explicit user confirmation, and write
+the skill: the fixed steps as the body, the parts that differed across samples as
+`$ARGUMENTS` or named placeholders, a one-line `description`. A cluster whose sessions
+mostly failed becomes a CLAUDE.md lesson ("when X, do not Y"), never a skill. Report
+cluster size, the proposed name and the destination path.
+
 ## G. Quality
 Read-only `gh run list --limit 200`, `gh pr list --state all --limit 100`,
 `git log --since`. CI failures on PR branches and their jobs; reverts and hotfixes;
 PRs with 2+ fix commits and the cause of each fix (reviewer finding, CI, user,
-self-correction, scope); which checks ran before "done" claims. State what the
-numbers cannot show.
+self-correction, scope); which checks ran before "done" claims: the scan's `patterns.done_claims` and
+`patterns.done_without_verify` count assistant text that claims tests pass or work is
+complete with no test or lint command since the last user prompt; read 10 flagged turns
+and report how many are real unverified claims (MAST FM-3.2, no or incomplete
+verification) versus prose that mentions tests. `patterns.premature_sessions` counts
+sessions whose first tool call edits before any read; `patterns.churn_files_over_5_edits`
+counts files edited more than 5 times in one session; `patterns.reverts` counts undo
+commands. For each, read 5 sessions and name the cause (no plan mode, no test first,
+unclear spec). State what the numbers cannot show.
 
 ## H. Security exposure
 Literal tokens in `settings.json` `env`, `~/.claude.json` (`env`, `headers`), their
@@ -87,4 +117,10 @@ Give the full draft and ask: which disabled item is used (counts)? which rule mi
 the real command form? which hook can loop or block on old errors or break in a
 worktree? which copied agent references tools its plugin provided? does any step put
 a secret in git, a prompt or a subprocess environment? which measurement is an
-artefact? what breaks out of order; what is irreversible?
+artefact? what breaks out of order; what is irreversible? For the pattern counters: is a
+`git checkout -b` or `git checkout <branch>` counted as a revert (it must not be)? is
+`--force-with-lease` counted as `--force` (it must not be)? does a "done" claim come from
+a quoted rule or a plan rather than the assistant's own report? does a Read of
+`.env.example` count as a credential read (it must not)? is a near-duplicate cluster the
+same task or two tasks that share a sentence shape? does a proposed skill contain a path,
+token or name from a sample prompt that must not be in a skill file?

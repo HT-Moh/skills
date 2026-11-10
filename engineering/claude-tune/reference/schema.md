@@ -63,3 +63,29 @@
 4. **One-shot plugin sessions** (for example a security-review hook that starts a new
    `claude -p` per change) may carry `entrypoint: cli` or none. Detect them by their
    identical first prompt across many sessions and treat them as headless.
+
+## Structural patterns (`scan.json` → `<population>.patterns`, computed by `scripts/scan_patterns.py`)
+
+Counts only; paths are hashed, commands reduced to named forms. Each key, what it measures,
+and the brief that interprets it:
+
+| Key | Measures | Brief |
+|---|---|---|
+| `reverts` | Bash `git checkout --`, `git reset`, `git revert`, `git stash`, `git restore` by form | G |
+| `dangerous_forms` | `rm -rf`, `git push --force` (not `--force-with-lease`), `git reset --hard`, `git clean -f`, `--no-verify` | D, H |
+| `credential_reads` | Read of `.env*`, `id_*`, `*.pem`, `*.key`, `credentials`, `.netrc` (not `.example`/`.sample`) | H |
+| `premature_sessions`, `premature_share` | sessions whose first tool call is Edit/Write before any Read/Grep/Glob | G |
+| `churn_files_over_5_edits` | (session, path) pairs edited more than 5 times | G |
+| `repeated_bash` | identical Bash command issued twice in a row | C |
+| `duplicate_reads`, `duplicate_read_chars` | a Read of a path already read in the session, and the chars re-read | I |
+| `oversized_results_over_20k` | tool results above 20,000 chars, by tool | I |
+| `tool_wait_seconds_total_n_mean` | result minus use for non-Bash tools (includes permission wait); top 20 by total | D |
+| `nudge_prompts` | whole-message prompts such as `proceed`, `continue`, `yes` | B, F |
+| `near_duplicate_prompts_sessions` | prompts equal after numbers, paths and quoted spans are replaced; `(sessions, hash)`, 3+ sessions | B, F |
+| `done_claims`, `done_without_verify` | assistant text claiming tests pass or work complete; the subset with no test/lint command since the last user prompt | G |
+| `interrupt_before_tool` | tool called right before each `[Request interrupted by user` | B |
+| `orphaned_agents` | Agent calls with no tool_result before the file ends | E |
+| `cache_miss_ratio_median`, `_p90` | per session, `cache_creation / (cache_creation + cache_read)` | I |
+
+Also in the population summary: `write_edit_ratio` (Write calls per Edit call) and
+`ask_interrupt_ratio` (AskUserQuestion calls per interrupt).

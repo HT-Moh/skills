@@ -69,7 +69,9 @@ match aborts the skill.
    the installed version decides which flags exist.
 2. **Scan.** `python3 ${CLAUDE_SKILL_DIR}/scripts/scan.py --days $days --projects "$projects" --out ~/.claude/tune/work/${CLAUDE_SESSION_ID}/scan.json`.
    It prints per-population totals, denials, hook blocks, waits, slow commands,
-   repeated prompts (as hashes), agents and skills used. Treat its numbers as the baseline
+   repeated prompts (as hashes), agents and skills used, and the structural patterns listed in
+   `reference/schema.md` (reverts, dangerous forms, churn, duplicate reads, unverified done
+   claims, near-duplicate prompts). Treat its numbers as the baseline
    every agent must stay consistent with.
 3. **Agents.** Launch the briefs in `reference/briefs.md` (A–I) with the Agent tool, all in
    one message, each with the header, `reference/schema.md`, the scan summary, the window

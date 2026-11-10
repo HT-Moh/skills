@@ -10,6 +10,14 @@ Measurement artefacts
 - Durations include permission-prompt wait. Say so.
 - A one-shot plugin session (security review per change) can look like interactive
   work. Separate it by its identical first prompt.
+- Pattern counters are hints, not findings. `done_without_verify` matches prose about
+  tests, not only claims; `repeated_bash` in subagents is mostly legitimate re-runs after
+  an edit; `tool_wait` on AskUserQuestion, Agent and Workflow is the user or the agent
+  working, not permission wait; `reverts` in subagents include worktree setup. Read
+  samples before turning a count into an item.
+- A skill induced from repeated prompts must not carry a value from any sample: no path,
+  branch, PR number, host or token. Replace them with `$ARGUMENTS` or a placeholder and
+  state the rule in the skill body.
 
 Config changes that backfire
 - Disabling a plugin removes its agents and skills. Count their calls first; copy the
