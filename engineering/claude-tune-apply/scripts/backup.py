@@ -146,6 +146,43 @@ def _drift(manifest: dict) -> list[str]:
     return out
 
 
+def _checked_mode(f: dict) -> int:
+    mode = f.get("mode")
+    if mode is None:
+        return FILE_MODE
+    if isinstance(mode, bool) or not isinstance(mode, int):
+        raise PlanError(f"manifest mode for {f['path']} is not an int")
+    return mode & 0o777  # the file's own former mode, special bits dropped
+
+
+def _write_bytes_atomic(path: str, data: bytes, mode: int) -> None:
+    tmp = f"{path}.{os.getpid()}.restore"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, FILE_MODE)
+    try:
+        os.write(fd, data)
+        os.fchmod(fd, mode)
+        os.close(fd)
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.lexists(tmp):
+            os.remove(tmp)
+        raise
+
+
+def _validate_entry(f: dict) -> None:
+    """Manifest paths are absolute and allowed; link targets resolve to allowed places too."""
+    from ops_base import check_path
+    path = f.get("path", "")
+    if not os.path.isabs(path) or os.path.normpath(path) != path:
+        raise PlanError(f"manifest path is not a normalised absolute path: {path!r}")
+    f["path"] = check_path(path)
+    _checked_mode(f)
+    target = f.get("link_target")
+    if target:
+        resolved = target if os.path.isabs(target) else os.path.join(os.path.dirname(path), target)
+        check_path(os.path.normpath(resolved))
+
+
 def _restore_entry(bdir: Path, f: dict) -> None:
     path = f["path"]
     if f["existed"] and f.get("link_target"):
@@ -153,12 +190,7 @@ def _restore_entry(bdir: Path, f: dict) -> None:
             os.remove(path)
         os.symlink(f["link_target"], path)
     elif f["existed"] and f["saved_as"]:
-        data = (bdir / f["saved_as"]).read_bytes()
-        tmp = f"{path}.{os.getpid()}.restore"
-        with open(tmp, "wb") as fh:
-            fh.write(data)
-        os.chmod(tmp, f.get("mode") or FILE_MODE)
-        os.replace(tmp, path)
+        _write_bytes_atomic(path, (bdir / f["saved_as"]).read_bytes(), _checked_mode(f))
     elif not f["existed"] and os.path.lexists(path):
         os.remove(path)
         if not f.get("parent_existed", True):
@@ -177,13 +209,12 @@ def rollback_item(plan: dict, item: dict, force: bool = False) -> list[str]:
 
     `force` maps 1:1 to the CLI flag: without it, a file edited after apply stops the rollback.
     """
-    from ops_base import check_path
     if item.get("status") != "applied":
         raise PlanError(f"{item['id']} is {item.get('status')}; only applied items roll back")
     bdir = backup_dir_for(item)
     manifest = load_manifest(bdir)
     for f in manifest["files"]:
-        check_path(f["path"])
+        _validate_entry(f)
     drift = _drift(manifest)
     if drift and not force:
         raise PlanError(f"{', '.join(drift)} changed after apply; roll back anyway with --force")

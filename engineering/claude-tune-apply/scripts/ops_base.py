@@ -11,7 +11,8 @@ SYSTEM_PREFIXES = ("/etc", "/usr", "/bin", "/sbin", "/lib", "/boot", "/var", "/o
                    "/proc", "/dev", "/run", "/srv", "/mnt")
 # Relative to $HOME. Code that runs at login or on every shell, and credential stores.
 REFUSED_USER_PATHS = (".bashrc", ".zshrc", ".zprofile", ".profile", ".bash_profile", ".ssh",
-                      ".config/autostart", ".config/systemd", ".gnupg", ".aws", ".kube")
+                      ".config/autostart", ".config/systemd", ".gnupg", ".aws", ".kube",
+                      ".claude/tune")  # plans and backups are the engine's own files
 ALLOWED_USER_ROOTS = (".claude", ".agents", ".config/claude")
 RC_BASENAMES = (".bashrc", ".zshrc", ".zprofile", ".zshenv", ".zlogin", ".zlogout", ".profile",
                 ".bash_profile", ".bash_login", ".bash_logout", ".bash_aliases")

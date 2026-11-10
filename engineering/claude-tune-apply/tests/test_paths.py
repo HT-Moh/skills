@@ -144,3 +144,9 @@ def test_check_path_refuses_repo_file_that_home_startup_file_links_to(tmp_home):
 def test_check_path_refuses_more_startup_files(tmp_home, name):
     with pytest.raises(PlanError):
         tune_ops.check_path(str(tmp_home / name))
+
+
+def test_check_path_refuses_tune_dir(tmp_home):
+    for rel in ("tune/backups/x/00_settings.json", "tune/plans/latest.json"):
+        with pytest.raises(PlanError):
+            tune_ops.check_path(str(tmp_home / ".claude" / rel))

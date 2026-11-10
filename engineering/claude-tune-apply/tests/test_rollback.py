@@ -117,3 +117,40 @@ def test_second_rollback_refused(tmp_home):
     backup.rollback_item(_plan(item), item)
     with pytest.raises(PlanError):
         backup.rollback_item(_plan(item), item)
+
+
+def _tamper(item, **fields):
+    bdir = backup.backup_dir_for(item)
+    manifest = json.loads((bdir / "manifest.json").read_text())
+    manifest["files"][0].update(fields)
+    (bdir / "manifest.json").write_text(json.dumps(manifest))
+
+
+def test_rollback_refuses_link_target_outside_allowlist(tmp_home):
+    link = tmp_home / ".claude" / "skills" / "x"
+    link.parent.mkdir()
+    (tmp_home / ".agents" / "skills" / "x").mkdir(parents=True)
+    os.symlink("../../.agents/skills/x", link)
+    item = _apply(tmp_home, "P3-01", {"kind": "file_remove", "file": str(link)})
+    _tamper(item, link_target="/etc/passwd")
+    with pytest.raises(PlanError):
+        backup.rollback_item(_plan(item), item)
+    assert not os.path.lexists(link)
+
+
+def test_rollback_refuses_relative_manifest_path(tmp_home):
+    p = tmp_home / ".claude" / "a.md"
+    p.write_text("x\n")
+    item = _apply(tmp_home, "P1-01", {"kind": "file_append", "file": str(p), "content": "y\n"})
+    _tamper(item, path=".claude/a.md")
+    with pytest.raises(PlanError):
+        backup.rollback_item(_plan(item), item)
+
+
+def test_rollback_refuses_non_int_mode(tmp_home):
+    p = tmp_home / ".claude" / "a.md"
+    p.write_text("x\n")
+    item = _apply(tmp_home, "P1-01", {"kind": "file_append", "file": str(p), "content": "y\n"})
+    _tamper(item, mode="755")
+    with pytest.raises(PlanError, match="mode"):
+        backup.rollback_item(_plan(item), item)
