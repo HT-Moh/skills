@@ -1,239 +1,171 @@
 #!/usr/bin/env python3
-"""Apply, preview or roll back selected items of a claude-tune plan.
+"""Apply, preview, explain or roll back selected items of a claude-tune plan.
 
-Usage:
   apply.py --list [--plan FILE]
-  apply.py [--dry-run] SELECTION... [--plan FILE]
-  apply.py --rollback ID [--plan FILE]
-  apply.py --done ID [--plan FILE]          # mark a manual item as done by the user
+  apply.py --dry-run SELECTION...          prints the diffs and a digest
+  apply.py SELECTION... --expect DIGEST [--confirmed ID,ID]
+  apply.py --explain ID
+  apply.py --done ID... | --undone ID...   record manual items the user did
+  apply.py --rollback ID... [--force]
+  apply.py --purge-backup ID
+  apply.py --render | --migrate
 
-SELECTION: item ids (P1-02), phaseN or pN, `safe` (every unapplied safe item),
-`all` (every unapplied item; manual ones are printed, not executed).
-Every touched file is copied to ~/.claude/tune/backups/<timestamp>_<id>/ first.
+SELECTION: item ids (P1-02), phaseN or pN, `safe` (every open safe item), `all`.
+A manual dependency counts only after --done. Review items are written only when named
+in --confirmed. Every touched file is backed up under ~/.claude/tune/backups/ first.
 """
-import argparse, datetime as dt, json, os, re, shutil, stat, sys
+import argparse
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import backup  # noqa: E402
+import checks  # noqa: E402
+import plan_store  # noqa: E402
+import report  # noqa: E402
+import runner  # noqa: E402
+import selection  # noqa: E402
 import tune_ops  # noqa: E402
-
-TUNE_DIR = os.path.expanduser("~/.claude/tune")
-DEFAULT_PLAN = os.path.join(TUNE_DIR, "plans", "latest.json")
-BACKUP_ROOT = os.path.join(TUNE_DIR, "backups")
-ID_RE = re.compile(r"^P\d-\d{2}$")
-PHASE_RE = re.compile(r"^(?:phase|p)(\d)$", re.I)
-APPLIED_STATES = ("applied", "done")
+from plan_schema import PlanError, effective_risk  # noqa: E402
+from redact import redact  # noqa: E402
 
 
-def load_plan(path):
-    with open(path, encoding="utf-8") as fh:
-        plan = json.load(fh)
-    if plan.get("schema") != 1 or not isinstance(plan.get("items"), list):
-        sys.exit(f"{path}: not a schema-1 claude-tune plan")
-    return plan
+def say(text: str) -> None:
+    print(redact(text))
 
 
-def save_plan(path, plan):
-    real = os.path.realpath(path)
-    tmp = real + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(plan, fh, indent=1, ensure_ascii=False)
-    os.replace(tmp, real)
-
-
-def by_id(plan):
-    return {it["id"]: it for it in plan["items"]}
-
-
-def select(plan, tokens):
-    items = by_id(plan)
-    chosen, unknown = [], []
-    for tok in tokens:
-        if tok in items:
-            chosen.append(tok)
-        elif PHASE_RE.match(tok):
-            ph = int(PHASE_RE.match(tok).group(1))
-            chosen += [i["id"] for i in plan["items"] if i.get("phase") == ph and i.get("status") not in APPLIED_STATES]
-        elif tok == "safe":
-            chosen += [i["id"] for i in plan["items"] if i.get("risk") == "safe" and i.get("status") not in APPLIED_STATES]
-        elif tok == "all":
-            chosen += [i["id"] for i in plan["items"] if i.get("status") not in APPLIED_STATES]
-        else:
-            unknown.append(tok)
-    if unknown:
-        sys.exit(f"unknown selection token(s): {' '.join(unknown)}. Use ids like P1-02, phase1, safe or all.")
-    ordered = sorted(set(chosen), key=lambda i: (items[i].get("phase", 9), i))
-    return [items[i] for i in ordered]
-
-
-def missing_dependencies(item, selected_ids, items):
-    out = []
-    for dep in item.get("depends_on") or []:
-        if dep in selected_ids:
-            continue
-        if items.get(dep, {}).get("status") not in APPLIED_STATES:
-            out.append(dep)
-    return out
-
-
-def print_list(plan):
-    print(f"plan: {plan.get('generated', '?')}  window={plan.get('window_days', '?')}d  items={len(plan['items'])}")
-    print("id     ph risk    status      title")
-    for it in plan["items"]:
-        print(f"{it['id']:<6} {it.get('phase', '?'):<2} {it.get('risk', '?'):<7} {it.get('status', 'proposed'):<11} {it.get('title', '')[:70]}")
-    print("\napply:  /claude-tune-apply P0-01 P1-03    or  phase1  or  safe\nrollback: /claude-tune-apply --rollback P1-03")
-
-
-def preview_item(item):
-    results = tune_ops.preview_item_ops(item.get("ops") or [])
-    errors = [e for r in results for e in r.errors]
-    return results, errors
-
-
-def make_backup(item, results):
-    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-    bdir = os.path.join(BACKUP_ROOT, f"{stamp}_{item['id']}")
-    os.makedirs(bdir, mode=0o700, exist_ok=True)
-    manifest = {"item": item["id"], "created": stamp, "files": []}
-    seen = set()
-    for n, r in enumerate(results):
-        if not r.changed or r.kind == "manual" or r.path in seen:
-            continue
-        seen.add(r.path)
-        entry = {"path": r.path, "kind": r.kind, "existed": os.path.lexists(r.path), "saved_as": "",
-                 "parent_existed": os.path.isdir(os.path.dirname(r.path))}
-        if entry["existed"] and not os.path.islink(r.path) and os.path.isfile(r.path):
-            entry["saved_as"] = f"{n:02d}_{os.path.basename(r.path)}"
-            shutil.copy2(r.path, os.path.join(bdir, entry["saved_as"]))
-            os.chmod(os.path.join(bdir, entry["saved_as"]), stat.S_IRUSR | stat.S_IWUSR)
-        manifest["files"].append(entry)
-    with open(os.path.join(bdir, "manifest.json"), "w") as fh:
-        json.dump(manifest, fh, indent=1)
-    return bdir
-
-
-def show_item(item, results, errors):
-    print(f"\n== {item['id']}  {item.get('title', '')}  [{item.get('risk', '?')}]")
-    for r in results:
-        if r.kind == "manual":
-            print("   MANUAL: " + r.manual_text.replace("\n", "\n           "))
-        elif r.errors:
-            print(f"   ERROR {r.kind} {r.path}: {'; '.join(r.errors)}")
-        elif not r.changed:
-            print(f"   skip  {r.kind} {r.path} ({r.note or 'no change needed'})")
-        else:
-            print(f"   {r.kind} {r.path}")
-            d = r.diff()
-            if d and r.kind != "symlink":
-                print("   " + d.rstrip().replace("\n", "\n   "))
-    return not errors
-
-
-def run(plan, plan_path, items, dry):
-    all_items = by_id(plan)
-    selected_ids = {i["id"] for i in items}
-    counts = {"applied": 0, "failed": 0, "unchanged": 0, "manual": 0}
-    for item in items:
-        deps = missing_dependencies(item, selected_ids, all_items)
-        results, errors = preview_item(item)
-        if deps:
-            errors.append(f"depends on {', '.join(deps)} which is not applied and not selected")
-        ok = show_item(item, results, errors)
-        if deps:
-            print(f"   ERROR {errors[-1]}")
-        if not ok:
-            counts["failed"] += 1
-            continue
-        if all(r.kind == "manual" for r in results):
-            counts["manual"] += 1
-            if not dry:
-                item["status"] = "needs_user"
-            continue
-        if not any(r.changed for r in results):
-            counts["unchanged"] += 1
-            if not dry:
-                item["status"] = "applied"; item["applied_at"] = dt.datetime.now().isoformat()
-            continue
-        if dry:
-            counts["applied"] += 1
-            continue
-        bdir = make_backup(item, results)
-        for r in results:
-            tune_ops.write_result(r)
-        item.update(status="applied", applied_at=dt.datetime.now().isoformat(), backup=bdir,
-                    files=sorted({r.path for r in results if r.changed and r.kind != "manual"}))
-        counts["applied"] += 1
-        print(f"   applied; backup {bdir}")
-    if not dry:
-        save_plan(plan_path, plan)
-    label = "would apply" if dry else "applied"
-    print(f"\n{label}={counts['applied']} unchanged={counts['unchanged']} manual={counts['manual']} failed={counts['failed']}")
-    if dry:
-        print("dry run: nothing written.")
-    elif counts["applied"]:
-        print("rollback one item: /claude-tune-apply --rollback <id>")
-    return counts["failed"] == 0
-
-
-def rollback(plan, plan_path, item_id):
-    item = by_id(plan).get(item_id) or sys.exit(f"no item {item_id}")
-    bdir = item.get("backup") or sys.exit(f"{item_id} has no backup recorded (status {item.get('status')})")
-    with open(os.path.join(bdir, "manifest.json")) as fh:
-        manifest = json.load(fh)
-    for f in manifest["files"]:
-        if f["existed"] and f["saved_as"]:
-            shutil.copy2(os.path.join(bdir, f["saved_as"]), f["path"])
-            print(f"restored {f['path']}")
-        elif not f["existed"] and os.path.lexists(f["path"]):
-            os.remove(f["path"])
-            if not f.get("parent_existed", True):
-                remove_empty_parent(f["path"])
-            print(f"removed  {f['path']} (did not exist before)")
-    item["status"] = "rolled_back"
-    for later in later_items_sharing_files(plan, item):
-        later["status"] = "proposed"
-        print(f"WARNING {later['id']} was applied after {item_id} on the same file; its change is gone too. "
-              f"Re-apply with: /claude-tune-apply {later['id']}")
-    save_plan(plan_path, plan)
-    print(f"{item_id} rolled back from {bdir}")
-
-
-def later_items_sharing_files(plan, item):
-    files = set(item.get("files") or [])
-    return [o for o in plan["items"] if o is not item and o.get("status") == "applied"
-            and (o.get("applied_at") or "") > (item.get("applied_at") or "") and files & set(o.get("files") or [])]
-
-
-def remove_empty_parent(path):
-    parent = os.path.dirname(path)
-    try:
-        os.rmdir(parent)  # only succeeds when empty
-    except OSError:
-        pass
-
-
-def main():
+def parse(argv):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("selection", nargs="*")
-    ap.add_argument("--plan", default=DEFAULT_PLAN)
+    ap.add_argument("--plan")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--rollback", metavar="ID")
-    ap.add_argument("--done", metavar="ID")
-    a = ap.parse_args()
-    if not os.path.exists(a.plan):
-        print(f"no plan at {a.plan}. Run /claude-tune first.")
-        sys.exit(0 if (a.list or not a.selection) else 1)
-    plan = load_plan(a.plan)
+    ap.add_argument("--expect", metavar="DIGEST")
+    ap.add_argument("--confirmed", metavar="IDS", default="")
+    ap.add_argument("--rollback", nargs="+", metavar="ID")
+    ap.add_argument("--force", action="store_true")
+    ap.add_argument("--done", nargs="+", metavar="ID")
+    ap.add_argument("--undone", nargs="+", metavar="ID")
+    ap.add_argument("--explain", metavar="ID")
+    ap.add_argument("--purge-backup", metavar="ID")
+    ap.add_argument("--render", action="store_true")
+    ap.add_argument("--migrate", action="store_true")
+    return ap.parse_args(argv)
+
+
+def render_quietly(plan_path) -> None:
+    """Re-render the Markdown and HTML beside the plan when the renderer is available."""
+    try:
+        import render
+    except ImportError:
+        return
+    render.render_after_change(plan_path)
+
+
+def cmd_dry_run(plan, items):
+    previews, digest = runner.dry_run(plan, items)
+    for p in previews:
+        say(report.show_preview(p, selection.by_id(plan)[p.item_id], plan))
+    blocked = sum(1 for p in previews if p.blockers)
+    errors = sum(1 for p in previews if p.errors)
+    would = sum(1 for p in previews if not p.blockers and not p.errors and any(r.changed for r in p.results))
+    say(f"\nwould apply={would} blocked={blocked} errors={errors}\ndigest: {digest}\ndry run: nothing written.")
+    ids = " ".join(p.item_id for p in previews)
+    review = [p.item_id for p in previews if selection.by_id(plan)[p.item_id].get("risk") != "manual"
+              and effective_risk(selection.by_id(plan)[p.item_id]) == "review"]
+    confirmed = f" --confirmed {','.join(review)}" if review else ""
+    say(f"apply: /claude-tune-apply {ids} --expect {digest}{confirmed}")
+
+
+def cmd_apply(plan, items, plan_path, a):
+    if not a.expect:
+        raise PlanError("run --dry-run first, read the diffs, then pass its digest with --expect <digest>")
+    confirmed = {c for c in a.confirmed.split(",") if c}
+    for line in runner.apply_items(plan, items, plan_path, expect=a.expect, confirmed=confirmed):
+        say(line)
+    say("settings, hooks and CLAUDE.md changes load in the next session.")
+
+
+def cmd_rollback(plan, plan_path, ids, force):
+    by_id = selection.by_id(plan)
+    for item_id in ids:
+        item = by_id.get(item_id)
+        if item is None:
+            raise PlanError(f"no item {item_id}")
+        for warning in backup.rollback_item(plan, item, force=force):
+            say(warning)
+        say(f"{item_id} rolled back")
+    plan_store.save_plan(plan, plan_path)
+
+
+def cmd_done(plan, plan_path, ids):
+    unblocked = selection.mark_done(plan, ids, run_post_checks=checks.require_post)
+    plan_store.save_plan(plan, plan_path)
+    say(f"{', '.join(ids)} marked done" + (f"; now unblocked: {', '.join(unblocked)}" if unblocked else ""))
+
+
+def cmd_undone(plan, plan_path, ids):
+    selection.mark_undone(plan, ids)
+    plan_store.save_plan(plan, plan_path)
+    say(f"{', '.join(ids)} back to proposed")
+
+
+def cmd_purge(plan, plan_path, item_id):
+    item = selection.by_id(plan).get(item_id)
+    if item is None or item.get("status") != "applied":
+        raise PlanError(f"{item_id} is not an applied item with a backup")
+    backup.purge_backup(backup.backup_dir_for(item))
+    item["status"] = "applied-purged"
+    plan_store.save_plan(plan, plan_path)
+    say(f"{item_id}: backup purged; rollback is no longer possible")
+
+
+def cmd_migrate(plan, plan_path):
+    raised = [it["id"] for it in plan["items"] if it.get("risk") == "safe" and effective_risk(it) == "review"]
+    plan_store.save_plan(plan, plan_path)
+    say(f"{plan_path}: schema {plan['schema']} saved" + (f"; effective risk is review for: {', '.join(raised)}" if raised else ""))
+
+
+def dispatch(a) -> None:
+    plan, plan_path = plan_store.load_plan(a.plan)
+    if a.explain:
+        item = selection.by_id(plan).get(a.explain)
+        if item is None:
+            raise PlanError(f"no item {a.explain}")
+        return say(report.explain(item, plan))
     if a.rollback:
-        return rollback(plan, a.plan, a.rollback)
-    if a.done:
-        item = by_id(plan).get(a.done) or sys.exit(f"no item {a.done}")
-        item["status"] = "done"; save_plan(a.plan, plan); return print(f"{a.done} marked done")
-    if a.list or not a.selection:
-        return print_list(plan)
-    ok = run(plan, a.plan, select(plan, a.selection), a.dry_run)
-    sys.exit(0 if ok else 1)
+        cmd_rollback(plan, plan_path, a.rollback, a.force)
+    elif a.done:
+        cmd_done(plan, plan_path, a.done)
+    elif a.undone:
+        cmd_undone(plan, plan_path, a.undone)
+    elif a.purge_backup:
+        cmd_purge(plan, plan_path, a.purge_backup)
+    elif a.migrate:
+        cmd_migrate(plan, plan_path)
+    elif a.selection and a.dry_run:
+        return cmd_dry_run(plan, selection.select(plan, a.selection))
+    elif a.selection:
+        cmd_apply(plan, selection.select(plan, a.selection), plan_path, a)
+    elif not a.render:
+        return say(report.list_table(plan))
+    render_quietly(plan_path)
+
+
+def main(argv) -> int:
+    a = parse(argv)
+    tune_ops.secure_umask()
+    if a.list and not os.path.exists(a.plan or plan_store.latest_path()):
+        say(f"no plan at {a.plan or plan_store.latest_path()}. Run /claude-tune first.")
+        return 0
+    try:
+        with plan_store.locked():
+            dispatch(a)
+    except PlanError as exc:
+        say(f"ERROR {exc}")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main(sys.argv[1:]))
