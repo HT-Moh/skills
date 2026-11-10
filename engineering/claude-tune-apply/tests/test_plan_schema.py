@@ -173,3 +173,21 @@ def test_validate_rejects_secret_in_json_append_values():
     op = {"kind": "json_append", "file": SETTINGS, "path": ["permissions", "allow"], "values": ["sk_live_abcdef0123"]}
     errs = plan_schema.validate(plan(item(risk="review", ops=[op], consumers=["x"])))
     assert any("secret" in e for e in errs)
+
+
+def test_validate_rejects_literal_in_append_values_under_credential_path():
+    op = {"kind": "json_append", "file": SETTINGS, "path": ["env", "X_TOKEN"], "values": ["abc"]}
+    errs = plan_schema.validate(plan(item(risk="review", ops=[op])))
+    assert any("credential key" in e for e in errs)
+
+
+def test_validate_rejects_literal_under_credential_ancestor():
+    op = {"kind": "json_set", "file": SETTINGS, "path": ["env", "X_TOKEN"], "value": {"nested": "abc"}}
+    errs = plan_schema.validate(plan(item(risk="review", ops=[op])))
+    assert any("credential key" in e for e in errs)
+
+
+def test_validate_rejects_var_reference_with_default():
+    op = {"kind": "json_set", "file": SETTINGS, "path": ["env", "X_TOKEN"], "value": "${X:-abc}"}
+    errs = plan_schema.validate(plan(item(risk="review", ops=[op])))
+    assert any("credential key" in e for e in errs)

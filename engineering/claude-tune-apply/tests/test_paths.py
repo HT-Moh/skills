@@ -116,3 +116,16 @@ def test_check_path_refuses_system_repo(tmp_home, monkeypatch):
     monkeypatch.setattr(ops_base, "_in_git_worktree", lambda real: True)
     with pytest.raises(PlanError):
         tune_ops.check_path("/usr/share/repo/CLAUDE.md")
+
+
+def test_check_path_refuses_lexical_ssh_even_when_symlinked_elsewhere(tmp_home):
+    (tmp_home / ".claude" / "sshdir").mkdir()
+    os.symlink(tmp_home / ".claude" / "sshdir", tmp_home / ".ssh")
+    with pytest.raises(PlanError):
+        tune_ops.check_path(str(tmp_home / ".ssh" / "config"))
+
+
+def test_check_path_refuses_rc_basename_inside_repo(tmp_home):
+    (tmp_home / "src" / "dotfiles" / ".git").mkdir(parents=True)
+    with pytest.raises(PlanError):
+        tune_ops.check_path(str(tmp_home / "src" / "dotfiles" / ".zshrc"))

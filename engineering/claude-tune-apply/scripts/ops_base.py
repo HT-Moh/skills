@@ -13,6 +13,7 @@ SYSTEM_PREFIXES = ("/etc", "/usr", "/bin", "/sbin", "/lib", "/boot", "/var", "/o
 REFUSED_USER_PATHS = (".bashrc", ".zshrc", ".zprofile", ".profile", ".bash_profile", ".ssh",
                       ".config/autostart", ".config/systemd", ".gnupg", ".aws", ".kube")
 ALLOWED_USER_ROOTS = (".claude", ".agents", ".config/claude")
+RC_BASENAMES = (".bashrc", ".zshrc", ".zprofile", ".profile", ".bash_profile")
 JSON_INDENT = 2
 
 
@@ -89,6 +90,7 @@ def check_path(path):
     the symlink itself and can refuse or remove it while nothing reaches a forbidden file.
     """
     lexical = os.path.abspath(os.path.expanduser(path))
+    _refuse_lexical(lexical)
     if os.path.islink(lexical):
         _validate_real(os.path.join(os.path.realpath(os.path.dirname(lexical)), os.path.basename(lexical)))
         if os.path.exists(lexical):
@@ -98,14 +100,22 @@ def check_path(path):
     return lexical
 
 
-def _validate_real(real):
+def _refuse_lexical(path):
+    """Refusals that hold for the path as written, before any symlink is resolved."""
     home = _home()
-    if any(part.casefold() == ".git" for part in real.split("/")):
-        raise PlanError(f"git metadata refused: {real}")
-    if real == os.path.join(home, ".claude.json"):
+    if any(part.casefold() == ".git" for part in path.split("/")):
+        raise PlanError(f"git metadata refused: {path}")
+    if os.path.basename(path) in RC_BASENAMES:
+        raise PlanError(f"shell startup file refused: {path}")
+    if path == os.path.join(home, ".claude.json"):
         raise PlanError("~/.claude.json is rewritten by running sessions; use `claude mcp add/remove` or edit with all sessions closed")
-    if any(_under(real, os.path.join(home, rel)) for rel in REFUSED_USER_PATHS):
-        raise PlanError(f"login-time or credential path refused: {real}")
+    if any(_under(path, os.path.join(home, rel)) for rel in REFUSED_USER_PATHS):
+        raise PlanError(f"login-time or credential path refused: {path}")
+
+
+def _validate_real(real):
+    _refuse_lexical(real)
+    home = _home()
     if any(_under(real, os.path.join(home, rel)) for rel in ALLOWED_USER_ROOTS):
         return
     if any(_under(real, pre) for pre in SYSTEM_PREFIXES):
