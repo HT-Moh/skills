@@ -7,12 +7,20 @@ performs it. Standard library only.
 import difflib, json, os
 from dataclasses import dataclass, field
 
-from plan_schema import OP_KINDS
+from plan_schema import OP_KINDS, PlanError
 from redact import redact
 
-REFUSED_PREFIXES = ("/etc", "/usr", "/bin", "/sbin", "/lib", "/boot", "/var", "/opt",
-                    "/root", "/sys", "/proc", "/dev")
+SYSTEM_PREFIXES = ("/etc", "/usr", "/bin", "/sbin", "/lib", "/boot", "/var", "/opt", "/root", "/sys",
+                   "/proc", "/dev", "/tmp", "/run", "/srv", "/mnt")
+# Relative to $HOME. Code that runs at login or on every shell, and credential stores.
+REFUSED_USER_PATHS = (".bashrc", ".zshrc", ".zprofile", ".profile", ".bash_profile", ".ssh",
+                      ".config/autostart", ".config/systemd", ".gnupg", ".aws", ".kube")
+ALLOWED_USER_ROOTS = (".claude", ".agents", ".config/claude")
 JSON_INDENT = 2
+
+
+class ReadError(Exception):
+    """A target could not be read as UTF-8 text (missing files are not errors)."""
 
 
 @dataclass
@@ -41,28 +49,66 @@ class OpResult:
 
 
 def expand(path):
-    return os.path.abspath(os.path.expanduser(path))
+    return os.path.realpath(os.path.expanduser(path))
+
+
+def _home():
+    return os.path.realpath(os.path.expanduser("~"))
+
+
+def _under(path, root):
+    return path == root or path.startswith(root.rstrip("/") + "/")
+
+
+def _in_git_worktree(real):
+    """True for a file inside a repository, false for anything under its .git directory."""
+    if ".git" in real.split("/"):
+        return False
+    probe = os.path.dirname(real)
+    while probe and probe != "/":
+        if os.path.isdir(os.path.join(probe, ".git")):
+            return True
+        probe = os.path.dirname(probe)
+    return False
 
 
 def check_path(path):
-    """Return an error string when a plan may not touch this path."""
-    p = expand(path)
-    if p == expand("~/.claude.json"):
-        return "~/.claude.json is rewritten by running sessions; use `claude mcp add/remove` or edit with all sessions closed"
-    if any(p == pre or p.startswith(pre + "/") for pre in REFUSED_PREFIXES):
-        return f"system path refused: {p}"
-    return ""
+    """Return the real path a plan may touch, or raise PlanError saying why not."""
+    real = expand(path)
+    home = _home()
+    if real == os.path.join(home, ".claude.json"):
+        raise PlanError("~/.claude.json is rewritten by running sessions; use `claude mcp add/remove` or edit with all sessions closed")
+    if any(_under(real, os.path.join(home, rel)) for rel in REFUSED_USER_PATHS):
+        raise PlanError(f"login-time or credential path refused: {real}")
+    if any(_under(real, os.path.join(home, rel)) for rel in ALLOWED_USER_ROOTS):
+        return real  # checked before the system prefixes so a HOME under /tmp (tests) still works
+    if _in_git_worktree(real):
+        return real
+    if any(_under(real, pre) for pre in SYSTEM_PREFIXES):
+        raise PlanError(f"system path refused: {real}")
+    raise PlanError(f"path outside ~/.claude, ~/.agents, ~/.config/claude or a git work tree: {real}")
+
+
+def target_kind(path):
+    """missing | file | symlink | dangling-symlink | dir, without following the final link."""
+    if os.path.islink(path):
+        return "symlink" if os.path.exists(path) else "dangling-symlink"
+    if not os.path.lexists(path):
+        return "missing"
+    return "dir" if os.path.isdir(path) else "file"
 
 
 def read_text(path, overlay=None):
-    """Current text of `path`, preferring the in-item overlay of earlier ops."""
+    """Current text of `path` (None when missing), preferring the in-item overlay of earlier ops."""
     if overlay is not None and path in overlay:
         return overlay[path]
     try:
-        with open(path, encoding="utf-8") as fh:
+        with open(path, encoding="utf-8", newline="") as fh:
             return fh.read()
     except FileNotFoundError:
         return None
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ReadError(f"cannot read {path}: {exc}") from exc
 
 
 def preview_item_ops(ops):
@@ -85,10 +131,11 @@ def preview(op, overlay=None):
     target = op.get("link") if kind == "symlink" else op.get("file")
     if not target:
         return OpResult(kind=kind, errors=["op has no file/link"])
-    err = check_path(target)
-    if err:
-        return OpResult(kind=kind, path=expand(target), errors=[err])
-    return PREVIEWERS[kind](op, expand(target), overlay)
+    try:
+        real = check_path(target)
+        return PREVIEWERS[kind](op, real, overlay)
+    except (PlanError, ReadError) as exc:
+        return OpResult(kind=kind, path=expand(target), errors=[str(exc)])
 
 
 def _load_json(text, path):

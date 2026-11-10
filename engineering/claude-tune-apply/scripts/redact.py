@@ -36,10 +36,16 @@ _HIGH_ENTROPY_RE = re.compile(r"[A-Za-z0-9_-]{32,}")
 ENTROPY_BITS = 4.5  # 40 random url-safe chars score above 5; English identifiers below 4.2
 
 
+_STRONG_SUBSTRINGS = ("token", "secret", "password", "passwd", "authorization", "credential", "apikey", "privatekey")
+
+
 def key_is_sensitive(key: str) -> bool:
-    """True when any word of the key (split on -_. and camelCase) names a credential."""
+    """True when a word of the key names a credential, or a strong word is glued in (GITHUBTOKEN)."""
     words = {w.lower() for w in _WORD_SPLIT_RE.split(key) if w}
-    return bool(words & SECRET_WORDS)
+    if words & SECRET_WORDS:
+        return True
+    flat = re.sub(r"[^a-z0-9]", "", key.lower())
+    return any(s in flat for s in _STRONG_SUBSTRINGS)  # not endswith("key"): "monkey"
 
 
 def _redact_json_pair(m: re.Match) -> str:

@@ -80,3 +80,8 @@ def test_base64_token_redacted():
 def test_bearer_prose_not_redacted():
     text = "14 files with bearer headers"
     assert redact.redact(text) == text
+
+
+def test_keys_without_separators_redacted():
+    for text in ("DBPASSWORD=x1", "GITHUBTOKEN=x2", "SECRETKEY=x3", '"privatekey": "x4"'):
+        assert "<redacted>" in redact.redact(text), text
