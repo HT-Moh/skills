@@ -85,3 +85,8 @@ def test_bearer_prose_not_redacted():
 def test_keys_without_separators_redacted():
     for text in ("DBPASSWORD=x1", "GITHUBTOKEN=x2", "SECRETKEY=x3", '"privatekey": "x4"'):
         assert "<redacted>" in redact.redact(text), text
+
+
+def test_bearer_any_case_with_token_shape():
+    for text in ("bearer abc.def123", "BEARER x9y8z7w6", "Authorization: bearer eyJhbGci.eyJz.sig1"):
+        assert "<redacted>" in redact.redact(text), text

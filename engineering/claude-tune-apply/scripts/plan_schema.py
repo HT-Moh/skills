@@ -6,7 +6,7 @@ never drift. Standard library only.
 import os
 import re
 
-from redact import has_secret
+from redact import has_secret, key_is_sensitive
 
 SCHEMA = 2
 OP_KINDS = ("json_set", "json_delete", "json_append", "json_upsert", "file_create", "file_append",
@@ -55,14 +55,36 @@ def validate(plan: dict) -> list[str]:
     for it in dict_items:
         errors += _validate_item(it, set(ids))
     errors += _duplicate_ids(ids) + _validate_dependencies(dict_items)
-    if has_secret(_text_of(plan)):
+    if any(has_secret(text) for text in _strings(plan)):
         errors.append("plan text matches a secret pattern; remove the value, keep the key name")
+    for it in dict_items:
+        errors += _literal_credentials(it)
     return errors
 
 
-def _text_of(plan: dict) -> str:
-    import json
-    return json.dumps(plan, ensure_ascii=False)
+def _strings(node):
+    """Every string inside a nested plan structure, decoded (so env lines keep their newlines)."""
+    if isinstance(node, str):
+        yield node
+    elif isinstance(node, dict):
+        for v in node.values():
+            yield from _strings(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _strings(v)
+
+
+def _literal_credentials(it: dict) -> list[str]:
+    """A json_set/json_upsert under a credential-named key must carry a ${VAR} reference, not a value."""
+    errs = []
+    for op in it.get("ops") or []:
+        if not isinstance(op, dict) or op.get("kind") not in ("json_set", "json_upsert"):
+            continue
+        path = op.get("path") or []
+        value = op.get("value")
+        if path and key_is_sensitive(str(path[-1])) and isinstance(value, str) and value and not value.startswith("${"):
+            errs.append(f"item {it.get('id', '?')}: op sets a literal under credential key {path[-1]}; use ${{VAR}}")
+    return errs
 
 
 def _duplicate_ids(ids: list[str]) -> list[str]:

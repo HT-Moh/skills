@@ -138,3 +138,19 @@ def test_migrate_v1_sets_schema_2_defaults_and_keeps_status():
 def test_validate_allows_env_set_without_consumers():
     op = {"kind": "json_set", "file": SETTINGS, "path": ["env", "NEW_FLAG"], "value": "1"}
     assert plan_schema.validate(plan(item(risk="review", ops=[op], consumers=[]))) == []
+
+
+def test_validate_rejects_env_line_secret_inside_string():
+    errs = plan_schema.validate(plan(item(evidence="see GITHUB_TOKEN=abc123 in file")))
+    assert any("secret" in e for e in errs)
+
+
+def test_validate_rejects_literal_under_credential_key():
+    op = {"kind": "json_set", "file": SETTINGS, "path": ["env", "X_TOKEN"], "value": "abc"}
+    errs = plan_schema.validate(plan(item(risk="review", ops=[op])))
+    assert any("credential key" in e for e in errs)
+
+
+def test_validate_allows_var_reference_under_credential_key():
+    op = {"kind": "json_set", "file": SETTINGS, "path": ["env", "X_TOKEN"], "value": "${X_TOKEN}"}
+    assert plan_schema.validate(plan(item(risk="review", ops=[op]))) == []

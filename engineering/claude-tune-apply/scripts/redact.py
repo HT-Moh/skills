@@ -13,7 +13,8 @@ SECRET_WORDS = frozenset({"token", "secret", "key", "apikey", "password", "passw
                           "credential", "credentials", "bearer"})
 _WORD_SPLIT_RE = re.compile(r"[-_.\s]+|(?<=[a-z0-9])(?=[A-Z])")
 _JSON_PAIR_RE = re.compile(r'("(?P<key>(?:[^"\\]|\\.)*)"\s*:\s*")(?P<value>(?:[^"\\]|\\.)*)(")')
-_ENV_LINE_RE = re.compile(r"(?m)^(\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=).*$")
+# KEY=value anywhere in a line, so prose quoting an env line is covered too
+_ENV_LINE_RE = re.compile(r"(?<![A-Za-z0-9_])((?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*)(\S+)")
 _PRIVATE_KEY_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|\Z)", re.S)
 
 SECRET_VALUE_RES = (
@@ -27,7 +28,8 @@ SECRET_VALUE_RES = (
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"\bfc-[A-Za-z0-9]+"),
     re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_.-]*"),
-    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{6,}"),  # case-sensitive: prose says "bearer headers"
+    # any case, but the token must hold a non-letter so prose like "bearer headers" stays
+    re.compile(r"(?i)\bbearer\s+(?=[A-Za-z0-9._~+/=-]*[0-9._~+/=-])[A-Za-z0-9._~+/=-]{6,}"),
     re.compile(r"(?<=://)[^\s/@]*:[^\s@]*@"),
     re.compile(r"(?<![A-Za-z0-9])[0-9a-fA-F]{32,}(?![A-Za-z0-9])"),
     re.compile(r"(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{32,}={1,2}"),
