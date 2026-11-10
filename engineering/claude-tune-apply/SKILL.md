@@ -3,7 +3,7 @@ name: claude-tune-apply
 description: Preview, apply, explain or roll back chosen items of the latest claude-tune plan, selected by id (P1-02), phase (phase1) or risk (safe). Every write is previewed first and bound to a digest, backed up, and undone one item at a time. Run after /claude-tune has produced a plan.
 argument-hint: '[P1-02 ...|phaseN|safe|all] [--dry-run] [--explain ID] [--rollback ID] [--done ID] [--purge-backup ID]'
 disable-model-invocation: true
-allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/apply.py *) Read(/home/bicatalyst/.claude/tune/plans/**) AskUserQuestion
+allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/apply.py *) Read(~/.claude/tune/plans/**) AskUserQuestion
 disallowed-tools: Edit Write NotebookEdit
 metadata:
   author: Mohamed Habbat (https://github.com/HT-Moh)
@@ -58,8 +58,9 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/apply.py --list
   4. Run the apply command the dry run printed, with the digest and only the ids the user
      ticked in `--confirmed`:
      `python3 ${CLAUDE_SKILL_DIR}/scripts/apply.py <ids> --expect <digest> --confirmed <ticked ids>`.
-     A selection of only `[safe]` items with no warnings needs no question; pass `--expect`
-     and no `--confirmed`.
+     Review items the user did not tick are skipped by the script and listed as skipped; the
+     digest stays valid, so no second dry run is needed. A selection of only `[safe]` items
+     with no warnings needs no question; pass `--expect` and no `--confirmed`.
   5. Summarise in full sentences, per item: what changed and in which file; when it takes
      effect (`takes_effect`: next session, restart of MCP servers or cron); who reads the
      value (`consumers`); the backup directory and `/claude-tune-apply --rollback ID`; any

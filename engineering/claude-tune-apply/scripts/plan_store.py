@@ -45,7 +45,7 @@ def load_plan(path: str | None) -> tuple[dict, Path]:
     errors = validate(plan)
     if errors:
         raise PlanError("invalid plan:\n" + "\n".join("  " + e for e in errors))
-    return plan, chosen
+    return plan, real  # the plan file itself, never the latest.json link
 
 
 def save_plan(plan: dict, path: Path) -> None:

@@ -87,12 +87,23 @@ def make_backup(item_id: str, results: list) -> Path:
     return bdir
 
 
+def _state_of(path: str) -> tuple:
+    """(kind, detail) of what is on disk now: ('link', target), ('file', sha256) or ('missing', '')."""
+    if os.path.islink(path):
+        return "link", os.readlink(path)
+    if os.path.isfile(path):
+        return "file", sha256_file(Path(path))
+    return "missing", ""
+
+
 def record_after_hashes(bdir: Path) -> None:
-    """After the writes: store each surviving file's sha256 so rollback can detect drift."""
+    """After the writes: store what each path became, so rollback can detect drift."""
     manifest = load_manifest(bdir)
     for f in manifest["files"]:
-        p = Path(f["path"])
-        f["sha256_after"] = sha256_file(p) if p.is_file() and not p.is_symlink() else ""
+        kind, detail = _state_of(f["path"])
+        f["after_kind"] = kind
+        f["sha256_after"] = detail if kind == "file" else ""
+        f["link_target_after"] = detail if kind == "link" else ""
     _write_manifest(bdir, manifest)
 
 
@@ -137,11 +148,17 @@ def dependents_of(plan: dict, item_id: str) -> list[str]:
 
 
 def _drift(manifest: dict) -> list[str]:
-    """Paths whose current content differs from what apply wrote."""
+    """Paths that no longer match what apply left behind. Unknown after-state counts as drift."""
     out = []
     for f in manifest["files"]:
-        p = Path(f["path"])
-        if f.get("sha256_after") and p.is_file() and sha256_file(p) != f["sha256_after"]:
+        kind, detail = _state_of(f["path"])
+        expected_kind = f.get("after_kind")
+        if expected_kind is None:
+            if kind != "missing":
+                out.append(f["path"])  # old manifest: nothing recorded, fail closed
+            continue
+        expected_detail = f.get("sha256_after") if kind == "file" else f.get("link_target_after", "")
+        if kind != expected_kind or (kind != "missing" and detail != expected_detail):
             out.append(f["path"])
     return out
 
@@ -204,12 +221,13 @@ def _rmdir_if_empty(directory: str) -> None:
         pass
 
 
-def restore_from(bdir: Path) -> None:
-    """Put every file in the manifest back as it was before the item wrote (crash recovery)."""
+def restore_from(bdir: Path, only=None) -> None:
+    """Put files back as they were before the item wrote; `only` limits it to the paths written."""
     manifest = load_manifest(bdir)
-    for f in manifest["files"]:
+    entries = [f for f in manifest["files"] if only is None or f["path"] in only]
+    for f in entries:
         _validate_entry(f)
-    for f in manifest["files"]:
+    for f in entries:
         _restore_entry(bdir, f)
 
 
@@ -220,6 +238,11 @@ def rollback_item(plan: dict, item: dict, force: bool = False) -> list[str]:
     """
     if item.get("status") != "applied":
         raise PlanError(f"{item['id']} is {item.get('status')}; only applied items roll back")
+    by_id = {it["id"]: it for it in plan["items"]}
+    dependents = dependents_of(plan, item["id"])
+    still_applied = [d for d in dependents if by_id[d].get("status") == "applied"]
+    if still_applied:
+        raise PlanError(f"{', '.join(still_applied)} depend on {item['id']} and are still applied; roll them back first")
     bdir = backup_dir_for(item)
     manifest = load_manifest(bdir)
     for f in manifest["files"]:
@@ -231,8 +254,8 @@ def rollback_item(plan: dict, item: dict, force: bool = False) -> list[str]:
     for f in manifest["files"]:
         _restore_entry(bdir, f)
     item["status"] = "rolled_back"
-    by_id = {it["id"]: it for it in plan["items"]}
-    for dep_id in dependents_of(plan, item["id"]):
+    for dep_id in dependents:
         by_id[dep_id]["status"] = "proposed"
-        warnings.append(f"WARNING {dep_id} depended on {item['id']}; reset to proposed. Re-apply with /claude-tune-apply {dep_id}")
+        by_id[dep_id].pop("done_at", None)
+        warnings.append(f"WARNING {dep_id} depended on {item['id']}; reset to proposed. Redo it with /claude-tune-apply {dep_id}")
     return warnings

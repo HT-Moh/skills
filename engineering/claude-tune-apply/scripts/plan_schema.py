@@ -26,6 +26,7 @@ CLAUDE_FORMS = (("--version",), ("--help",), ("mcp", "list"), ("mcp", "get"), ("
 MAX_TIMEOUT_S = 60
 SENSITIVE_JSON_ROOTS = ("env", "permissions", "hooks", "statusLine", "mcpServers", "apiKeyHelper")
 SENSITIVE_BASENAMES = ("CLAUDE.md", "AGENTS.md", "RULES.md")
+SENSITIVE_PATH_SEGMENTS = ("/.claude/hooks/", "/skills/", "/.claude/rules/", "/.claude/agents/", "/.claude/commands/")
 REVIEW_OP_KINDS = ("json_delete", "file_remove", "file_replace", "symlink")
 REQUIRED = ("id", "phase", "title", "risk", "why", "evidence", "docs", "impact", "ops")
 PHASES = {0: "Security", 1: "Global config", 2: "Instruction files", 3: "Skills, rules, scripts",
@@ -187,6 +188,8 @@ def _validate_check(check, tag: str) -> list[str]:
         errs.append(f"{tag}: check kind must be one of {CHECK_KINDS}")
     if check.get("kind") == "cmd_exit":
         errs += _validate_cmd_exit(check, tag)
+        if check.get("phase") != "deferred":
+            errs.append(f"{tag}: cmd_exit is display-only and allowed in phase deferred only")
     return errs
 
 
@@ -235,8 +238,13 @@ def _op_floor(op: dict) -> str:
     if kind.startswith("json_") and _json_root(op) in SENSITIVE_JSON_ROOTS:
         return "review"
     target = os.path.expanduser(str(op.get("file") or op.get("link") or ""))
-    if "/.claude/hooks/" in target or "/skills/" in target or os.path.basename(target) in SENSITIVE_BASENAMES:
+    base = os.path.basename(target)
+    if any(seg in target for seg in SENSITIVE_PATH_SEGMENTS) or base in SENSITIVE_BASENAMES:
         return "review"
+    if kind.startswith("file_") and (base.startswith("settings") and base.endswith(".json") or base == ".mcp.json"):
+        return "review"  # whole-file edits of settings or MCP files; json ops are judged by their path
+    if kind == "file_create" and isinstance(op.get("mode"), int) and op["mode"] & 0o111:
+        return "review"  # an executable file
     return "safe"
 
 

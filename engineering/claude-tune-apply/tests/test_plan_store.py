@@ -98,3 +98,19 @@ def test_point_latest_refuses_outside_plans_dir(tmp_home):
     outside.write_text(json.dumps(v2_plan()))
     with pytest.raises(PlanError):
         plan_store.point_latest(outside)
+
+
+def test_load_plan_returns_the_real_file_not_the_latest_link(plan_file):
+    path = plan_file(v2_plan(), "real.json")
+    plan_store.point_latest(path)
+    _, loaded = plan_store.load_plan(None)
+    assert loaded.name == "real.json"
+
+
+def test_render_after_change_through_latest_writes_beside_real_plan(plan_file):
+    import render
+    path = plan_file(v2_plan(), "real.json")
+    plan_store.point_latest(path)
+    html = render.render_after_change(plan_store.latest_path())
+    assert html.name == "real.json.html" and (path.parent / "real.json.md").exists()
+    assert not (path.parent / "latest.json.html").exists()

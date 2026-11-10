@@ -117,3 +117,10 @@ def test_mark_undone_resets_to_proposed():
 def test_mark_undone_refuses_non_done():
     with pytest.raises(PlanError):
         selection.mark_undone(plan(item("P0-01", risk="manual")), ["P0-01"])
+
+
+def test_safe_token_uses_effective_risk():
+    floor = item("P1-02")
+    floor["ops"] = [{"kind": "json_set", "file": "~/.claude/settings.json", "path": ["statusLine", "command"], "value": "x"}]
+    p = plan(item("P1-01"), floor)
+    assert [i["id"] for i in selection.select(p, ["safe"])] == ["P1-01"]

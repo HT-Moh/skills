@@ -17,7 +17,7 @@ def render_after_change(plan_path) -> Path:
         sys.path.insert(0, TUNE_SCRIPTS)
     import plan_render
     from plan_schema import migrate_v1
-    plan_path = Path(plan_path)
+    plan_path = Path(os.path.realpath(plan_path))  # through latest.json to the plan file itself
     with open(plan_path, encoding="utf-8") as fh:
         plan = migrate_v1(json.load(fh))
     md_path = plan_path.with_name(plan_path.name + ".md")

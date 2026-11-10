@@ -103,6 +103,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   try { selected = JSON.parse(localStorage.getItem(STORE) || "{}"); } catch (e) { selected = {}; }
   var byId = {}; plan.items.forEach(function (it) { byId[it.id] = it; });
   var closed = function (it) { return !!CLOSED[it.status]; };
+  var riskOf = function (it) { return it.risk_effective || it.risk; };
 
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
   function stat(label, value) { var s = el("span"); s.appendChild(el("b", null, String(value))); s.appendChild(document.createTextNode(" " + label)); return s; }
@@ -133,7 +134,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     return d;
   }
   function chipsFor(it) {
-    var chips = el("span", "chips"); chips.appendChild(el("span", "chip " + it.risk, it.risk));
+    var chips = el("span", "chips"); chips.appendChild(el("span", "chip " + riskOf(it), riskOf(it) + (riskOf(it) !== it.risk ? " (declared " + it.risk + ")" : "")));
     if (it.status && it.status !== "proposed") chips.appendChild(el("span", "chip " + it.status, it.status.replace("_", " ")));
     var b = blockers(it); if (b.length && !closed(it)) chips.appendChild(el("span", "chip blocked", "needs " + b.join(", ")));
     return chips;
@@ -184,11 +185,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, fallback); else fallback();
   }
   Array.prototype.forEach.call(document.querySelectorAll("[data-copy]"), function (btn) { btn.onclick = function () { copyFrom(btn.getAttribute("data-copy"), btn); }; });
-  document.getElementById("selSafe").onclick = function () { plan.items.forEach(function (it) { if (it.risk === "safe" && !closed(it)) selected[it.id] = true; }); render(); };
+  document.getElementById("selSafe").onclick = function () { plan.items.forEach(function (it) { if (riskOf(it) === "safe" && !closed(it)) selected[it.id] = true; }); render(); };
   document.getElementById("clear").onclick = function () { selected = {}; render(); };
   document.getElementById("summary").textContent = plan.summary || "";
   var counts = { safe: 0, review: 0, manual: 0, closed: 0 };
-  plan.items.forEach(function (it) { counts[it.risk] = (counts[it.risk] || 0) + 1; if (closed(it)) counts.closed++; });
+  plan.items.forEach(function (it) { counts[riskOf(it)] = (counts[riskOf(it)] || 0) + 1; if (closed(it)) counts.closed++; });
   var stats = document.getElementById("stats");
   [["changes", plan.items.length], ["safe", counts.safe], ["review", counts.review], ["manual", counts.manual], ["applied or done", counts.closed], ["days in window", plan.window_days || "?"]]
     .forEach(function (pair) { stats.appendChild(stat(pair[0], pair[1])); });

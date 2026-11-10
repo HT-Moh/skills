@@ -66,22 +66,22 @@ def test_apply_refuses_on_digest_mismatch_after_external_edit(tmp_home, plan_fil
     assert json.loads(open(path).read()) == {"user": "edit"}
 
 
-def test_apply_refuses_unconfirmed_review_item(tmp_home, plan_file):
+def test_apply_skips_unconfirmed_review_item(tmp_home, plan_file):
     path = settings(tmp_home, {"env": {}})
     a = mkitem("P1-01", [jset(path, "cleanupPeriodDays", 90)], risk="review")
     plan = mkplan(a)
     _, digest = runner.dry_run(plan, [a])
-    with pytest.raises(PlanError, match="--confirmed"):
-        runner.apply_items(plan, [a], plan_file(plan), expect=digest, confirmed=set())
+    lines = runner.apply_items(plan, [a], plan_file(plan), expect=digest, confirmed=set())
+    assert a["status"] == "proposed" and any("--confirmed" in line for line in lines)
 
 
-def test_apply_refuses_effective_review_even_if_declared_safe(tmp_home, plan_file):
+def test_apply_skips_effective_review_even_if_declared_safe(tmp_home, plan_file):
     path = settings(tmp_home, {})
     a = mkitem("P1-02", [{"kind": "json_set", "file": path, "path": ["statusLine", "command"], "value": "x"}])
     plan = mkplan(a)
     _, digest = runner.dry_run(plan, [a])
-    with pytest.raises(PlanError, match="--confirmed"):
-        runner.apply_items(plan, [a], plan_file(plan), expect=digest, confirmed=set())
+    runner.apply_items(plan, [a], plan_file(plan), expect=digest, confirmed=set())
+    assert a["status"] == "proposed" and json.loads(open(path).read()) == {}
 
 
 def test_apply_refuses_blocked_item(tmp_home, plan_file):
@@ -165,3 +165,69 @@ def test_digest_changes_when_checks_change(tmp_home):
     a["checks"] = [{"phase": "post", "kind": "json_equals", "file": path, "path": ["a"], "value": 1}]
     _, d2 = runner.dry_run(mkplan(a), [a])
     assert d1 != d2
+
+
+def test_failed_dependency_blocks_dependent(tmp_home, plan_file):
+    a_path = settings(tmp_home, {"a": 0})
+    b_path = str(tmp_home / ".claude" / "other.json")
+    (tmp_home / ".claude" / "other.json").write_text("{}\n")
+    dep = mkitem("P1-01", [jset(a_path, "a", 1)])
+    dep["checks"] = [{"phase": "post", "kind": "json_equals", "file": a_path, "path": ["a"], "value": 999}]
+    dependent = mkitem("P1-02", [jset(b_path, "b", 2)], deps=["P1-01"])
+    plan = mkplan(dep, dependent)
+    _, digest = runner.dry_run(plan, [dep, dependent])
+    runner.apply_items(plan, [dep, dependent], plan_file(plan), expect=digest, confirmed=set())
+    assert dep["status"] == "failed" and dependent["status"] == "failed"
+    assert "P1-01" in dependent["error"] and json.loads(open(b_path).read()) == {}
+
+
+def test_recovery_restores_only_files_the_item_wrote(tmp_home, plan_file, monkeypatch):
+    a_path = settings(tmp_home, {"a": 0})
+    b_path = str(tmp_home / ".claude" / "b.json")
+    (tmp_home / ".claude" / "b.json").write_text('{"b": 0}\n')
+    item = mkitem("P1-01", [jset(a_path, "a", 1), jset(b_path, "b", 1)])
+    plan = mkplan(item)
+    _, digest = runner.dry_run(plan, [item])
+    real_write = runner.tune_ops.write_result
+
+    def edit_b_then_write(r):
+        if r.path == b_path:
+            open(b_path, "w").write('{"b": "session edit"}\n')
+        real_write(r)
+    monkeypatch.setattr(runner.tune_ops, "write_result", edit_b_then_write)
+    runner.apply_items(plan, [item], plan_file(plan), expect=digest, confirmed=set())
+    assert item["status"] == "failed"
+    assert json.loads(open(a_path).read()) == {"a": 0}
+    assert json.loads(open(b_path).read()) == {"b": "session edit"}
+
+
+def test_unconfirmed_review_item_is_skipped_not_fatal(tmp_home, plan_file):
+    path = settings(tmp_home, {})
+    safe = mkitem("P1-01", [jset(path, "a", 1)])
+    review = mkitem("P1-02", [{"kind": "json_set", "file": path, "path": ["statusLine", "command"], "value": "x"}])
+    plan = mkplan(safe, review)
+    _, digest = runner.dry_run(plan, [safe, review])
+    lines = runner.apply_items(plan, [safe, review], plan_file(plan), expect=digest, confirmed=set())
+    assert safe["status"] == "applied" and review["status"] == "proposed"
+    assert any("P1-02" in line and "skipped" in line and "--confirmed" in line for line in lines)
+
+
+def test_digest_binds_before_and_symlink_target(tmp_home):
+    target_a = tmp_home / ".agents" / "skills" / "a"
+    target_b = tmp_home / ".agents" / "skills" / "b"
+    target_a.mkdir(parents=True)
+    target_b.mkdir()
+    link = str(tmp_home / ".claude" / "skills" / "x")
+    (tmp_home / ".claude" / "skills").mkdir()
+    item = mkitem("P3-01", [{"kind": "symlink", "link": link, "target": "../../.agents/skills/a"}])
+    _, d1 = runner.dry_run(mkplan(item), [item])
+    item["ops"][0]["target"] = "../../.agents/skills/b"
+    _, d2 = runner.dry_run(mkplan(item), [item])
+    assert d1 != d2
+    path = settings(tmp_home, {"k": 1})
+    rem = mkitem("P0-04", [{"kind": "file_remove", "file": path}], risk="review")
+    rem["consumers"] = ["none"]
+    _, d3 = runner.dry_run(mkplan(rem), [rem])
+    settings(tmp_home, {"k": 2})
+    _, d4 = runner.dry_run(mkplan(rem), [rem])
+    assert d3 != d4

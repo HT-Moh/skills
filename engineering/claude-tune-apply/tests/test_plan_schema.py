@@ -215,3 +215,22 @@ def test_validate_rejects_cmd_exit_with_path_argv0_or_bad_timeout():
     bad_timeout = item(checks=[{"phase": "post", "kind": "cmd_exit", "argv": ["test", "-d", "/"], "timeout_s": 999}])
     assert any("argv" in e for e in plan_schema.validate(plan(bad_argv)))
     assert any("timeout" in e for e in plan_schema.validate(plan(bad_timeout)))
+
+
+@pytest.mark.parametrize("op", [
+    {"kind": "file_append", "file": "/repo/.claude/settings.json", "content": "x"},
+    {"kind": "file_create", "file": "/repo/.mcp.json", "content": "{}"},
+    {"kind": "file_append", "file": "~/.claude/rules/workflow.md", "content": "x"},
+    {"kind": "file_create", "file": "~/.claude/agents/x.md", "content": "x"},
+    {"kind": "file_create", "file": "~/.claude/commands/x.md", "content": "x"},
+    {"kind": "file_create", "file": "~/.claude/notes/run.sh", "content": "x", "mode": 0o700},
+])
+def test_effective_risk_floor_for_instruction_and_executable_files(op):
+    assert plan_schema.effective_risk(item(risk="safe", ops=[op])) == "review"
+
+
+def test_validate_rejects_cmd_exit_outside_deferred():
+    it = item(checks=[{"phase": "post", "kind": "cmd_exit", "argv": ["test", "-d", "/"]}])
+    assert any("deferred" in e for e in plan_schema.validate(plan(it)))
+    ok = item(checks=[{"phase": "deferred", "kind": "cmd_exit", "argv": ["test", "-d", "/"]}])
+    assert plan_schema.validate(plan(ok)) == []

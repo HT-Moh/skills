@@ -102,8 +102,8 @@ def test_rollback_resets_transitive_dependents(tmp_home):
     a = tmp_home / ".claude" / "a.md"
     a.write_text("a\n")
     first = _apply(tmp_home, "P2-02", {"kind": "file_append", "file": str(a), "content": "rule\n"})
-    second = {"id": "P5-01", "status": "applied", "depends_on": ["P2-02"], "files": []}
-    third = {"id": "P5-02", "status": "done", "depends_on": ["P5-01"]}
+    second = {"id": "P5-01", "status": "needs_user", "depends_on": ["P2-02"], "files": []}
+    third = {"id": "P5-02", "status": "done", "depends_on": ["P5-01"], "done_at": "x"}
     plan = _plan(first, second, third)
     warnings = backup.rollback_item(plan, first)
     assert second["status"] == "proposed" and third["status"] == "proposed"
@@ -154,3 +154,37 @@ def test_rollback_refuses_non_int_mode(tmp_home):
     _tamper(item, mode="755")
     with pytest.raises(PlanError, match="mode"):
         backup.rollback_item(_plan(item), item)
+
+
+def test_rollback_refuses_when_created_link_was_replaced_by_a_file(tmp_home):
+    (tmp_home / ".agents" / "skills" / "x").mkdir(parents=True)
+    link = tmp_home / ".claude" / "skills" / "x"
+    link.parent.mkdir()
+    item = _apply(tmp_home, "P3-02", {"kind": "symlink", "link": str(link), "target": "../../.agents/skills/x"})
+    os.remove(link)
+    link.write_text("the user's own file\n")
+    with pytest.raises(PlanError, match="--force"):
+        backup.rollback_item(_plan(item), item)
+    assert link.read_text() == "the user's own file\n"
+
+
+def test_rollback_treats_missing_after_hash_as_drift(tmp_home):
+    p = tmp_home / ".claude" / "a.md"
+    p.write_text("x\n")
+    item = _apply(tmp_home, "P1-01", {"kind": "file_append", "file": str(p), "content": "y\n"})
+    bdir = backup.backup_dir_for(item)
+    manifest = json.loads((bdir / "manifest.json").read_text())
+    manifest["files"][0].pop("sha256_after")
+    (bdir / "manifest.json").write_text(json.dumps(manifest))
+    with pytest.raises(PlanError, match="--force"):
+        backup.rollback_item(_plan(item), item)
+
+
+def test_rollback_refuses_while_a_dependent_is_still_applied(tmp_home):
+    a = tmp_home / ".claude" / "a.md"
+    a.write_text("a\n")
+    first = _apply(tmp_home, "P2-02", {"kind": "file_append", "file": str(a), "content": "rule\n"})
+    dependent = {"id": "P5-01", "status": "applied", "depends_on": ["P2-02"], "files": [], "backup": "x"}
+    with pytest.raises(PlanError, match="P5-01"):
+        backup.rollback_item(_plan(first, dependent), first)
+    assert first["status"] == "applied" and a.read_text() == "a\nrule\n"

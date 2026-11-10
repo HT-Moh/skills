@@ -85,7 +85,8 @@ def test_apply_review_item_needs_confirmed(two_item_plan):
     run("--done", "P0-01")
     digest = re.search(r"digest: ([0-9a-f]{16})", run("--dry-run", "P0-03").stdout).group(1)
     r = run("P0-03", "--expect", digest)
-    assert r.returncode == 1 and "--confirmed" in r.stdout
+    assert r.returncode == 0 and "skipped" in r.stdout and "--confirmed" in r.stdout
+    assert json.loads(open(two_item_plan[1]).read()) == {"cleanupPeriodDays": 3650}
     r = run("P0-03", "--expect", digest, "--confirmed", "P0-03")
     assert r.returncode == 0, r.stdout
 
@@ -164,3 +165,12 @@ def test_migrate_rewrites_schema_and_reports_risk_changes(tmp_home, plan_file):
     saved = json.loads(pf.read_text())
     assert saved["schema"] == 2 and saved["items"][1]["status"] == "applied"
     assert saved["items"][0]["checks"][0]["kind"] == "note"
+
+
+def test_rollback_saves_after_each_item(two_item_plan):
+    pf, path = two_item_plan
+    digest = re.search(r"digest: ([0-9a-f]{16})", run("--dry-run", "P6-01").stdout).group(1)
+    run("P6-01", "--expect", digest)
+    r = run("--rollback", "P6-01", "P9-99")
+    assert r.returncode == 1
+    assert json.loads(pf.read_text())["items"][1]["status"] == "rolled_back"

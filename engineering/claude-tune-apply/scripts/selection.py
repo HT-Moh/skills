@@ -7,7 +7,7 @@ dependency is never satisfied by selection: only `--done` records that the user 
 import datetime as dt
 import re
 
-from plan_schema import PlanError, topo_order
+from plan_schema import PlanError, effective_risk, topo_order
 
 GROUP_EXCLUDED = ("applied", "done", "rolled_back", "needs_user", "failed", "applied-purged")
 SATISFIED_STATES = ("applied", "done")
@@ -25,7 +25,7 @@ def _group(plan: dict, token: str) -> list[str] | None:
         phase = int(PHASE_RE.match(token).group(1))
         return [it["id"] for it in items if it.get("phase") == phase]
     if token == "safe":
-        return [it["id"] for it in items if it.get("risk") == "safe"]
+        return [it["id"] for it in items if effective_risk(it) == "safe"]
     if token == "all":
         return [it["id"] for it in items]
     return None

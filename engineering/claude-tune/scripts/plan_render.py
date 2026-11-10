@@ -93,7 +93,8 @@ def op_line(op):
 def render_html(plan, rendered_at, plan_mtime):
     with open(TEMPLATE, encoding="utf-8") as fh:
         tpl = fh.read()
-    safe_json = json.dumps(plan, ensure_ascii=False).replace("<", "\\u003c")
+    shown = dict(plan, items=[dict(it, risk_effective=effective_risk(it)) for it in plan["items"]])
+    safe_json = json.dumps(shown, ensure_ascii=False).replace("<", "\\u003c")
     return (tpl.replace("{{PLAN_JSON}}", safe_json)
             .replace("{{RENDERED_AT}}", html.escape(rendered_at, quote=True))
             .replace("{{PLAN_MTIME}}", html.escape(plan_mtime, quote=True)))

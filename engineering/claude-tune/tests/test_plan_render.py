@@ -74,3 +74,11 @@ def test_render_after_change_writes_md_and_html(tmp_path, monkeypatch):
     html_path = render.render_after_change(plan_path)
     assert html_path == plans / "p.json.html" and (plans / "p.json.md").exists()
     assert re.search(r'data-rendered-at="\d{4}-\d{2}-\d{2} \d{2}:\d{2}', html_path.read_text())
+
+
+def test_html_embeds_effective_risk_per_item():
+    item = mkitem("P1-02", [{"kind": "json_set", "file": SETTINGS, "path": ["statusLine", "command"], "value": "x"}])
+    html = plan_render.render_html(mkplan(item), rendered_at="r", plan_mtime="m")
+    assert '"risk_effective": "review"' in html
+    tpl = TEMPLATE.read_text(encoding="utf-8")
+    assert "risk_effective" in tpl and 'it.risk === "safe"' not in tpl

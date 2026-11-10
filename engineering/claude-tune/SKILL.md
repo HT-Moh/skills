@@ -6,7 +6,7 @@ arguments: [days, projects, focus]
 disable-model-invocation: true
 effort: high
 allowed-tools: >-
-  Bash(bash ${CLAUDE_SKILL_DIR}/scripts/*) Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/*) Bash(python3 /home/bicatalyst/.claude/skills/claude-tune-apply/scripts/apply.py *) Bash(python3 /home/bicatalyst/.agents/skills/claude-tune-apply/scripts/apply.py *) Bash(jq *) Bash(grep *) Bash(find /home/bicatalyst/.claude/*) Bash(ls *) Bash(wc *) Bash(head *) Bash(du *) Bash(mkdir -p /home/bicatalyst/.claude/tune/*) Bash(claude --help) Bash(claude --version) Bash(gh pr list *) Bash(gh pr view *) Bash(gh run list *) Bash(git log *) Bash(git status *) Read Grep Glob Agent Edit(/home/bicatalyst/.claude/tune/**) Artifact WebFetch(domain:code.claude.com) WebFetch(domain:support.claude.com) WebFetch(domain:www.anthropic.com)
+  Bash(bash ${CLAUDE_SKILL_DIR}/scripts/*) Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/*) Bash(python3 ${CLAUDE_SKILL_DIR}/../claude-tune-apply/scripts/apply.py *) Bash(jq *) Bash(grep *) Bash(find *) Bash(ls *) Bash(wc *) Bash(head *) Bash(du *) Bash(claude --help) Bash(claude --version) Bash(gh pr list *) Bash(gh pr view *) Bash(gh run list *) Bash(git log *) Bash(git status *) Read Grep Glob Agent Edit(~/.claude/tune/**) Artifact WebFetch(domain:code.claude.com) WebFetch(domain:support.claude.com) WebFetch(domain:www.anthropic.com)
 disallowed-tools: NotebookEdit
 metadata:
   author: Mohamed Habbat (https://github.com/HT-Moh)
@@ -63,11 +63,11 @@ One simple command per Bash call, exactly as written below: no `&&`, `||`, `;`, 
 or newline. The pre-approved rules match each subcommand; a compound command that does not
 match aborts the skill.
 
-1. **Docs.** `mkdir -p /home/bicatalyst/.claude/tune/work/${CLAUDE_SESSION_ID}`, then
-   `bash ${CLAUDE_SKILL_DIR}/scripts/docs_fetch.sh /home/bicatalyst/.claude/tune/work/${CLAUDE_SESSION_ID}/docs`.
+1. **Docs.** `bash ${CLAUDE_SKILL_DIR}/scripts/docs_fetch.sh ~/.claude/tune/work/${CLAUDE_SESSION_ID}/docs`
+   (the script creates the directory).
    Grep those files for every setting you later recommend. Run `claude --help` once;
    the installed version decides which flags exist.
-2. **Scan.** `python3 ${CLAUDE_SKILL_DIR}/scripts/scan.py --days $days --projects "$projects" --out /home/bicatalyst/.claude/tune/work/${CLAUDE_SESSION_ID}/scan.json`.
+2. **Scan.** `python3 ${CLAUDE_SKILL_DIR}/scripts/scan.py --days $days --projects "$projects" --out ~/.claude/tune/work/${CLAUDE_SESSION_ID}/scan.json`.
    It prints per-population totals, denials, hook blocks, waits, slow commands,
    repeated prompts (as hashes), agents and skills used. Treat its numbers as the baseline
    every agent must stay consistent with.
@@ -84,12 +84,13 @@ match aborts the skill.
    under `env`, `permissions`, `hooks`. Check every item in `reference/traps.md` against the draft.
 5. **Adversarial pass.** Launch brief J with the full draft. Fold its findings in.
    Remove any item that a used feature, a doc page or a trap contradicts.
-6. **Plan file.** `mkdir -p /home/bicatalyst/.claude/tune/plans`; write the plan with the Write tool to
-   `/home/bicatalyst/.claude/tune/plans/<YYYY-MM-DD>-<first 4 chars of session id>.json`. Then:
+6. **Plan file.** Write the plan with the Write tool to
+   `~/.claude/tune/plans/<YYYY-MM-DD>-<first 4 chars of session id>.json` (the tool creates the directory). Then:
    `python3 ${CLAUDE_SKILL_DIR}/scripts/plan_render.py <plan> --md <plan>.md --html <plan>.html --latest`.
    Fix every `INVALID:` line and rerun until it prints `valid:`. If `--latest` refuses because
    the previous plan has applied items, tell the user and ask before adding `--force-latest`.
-7. **Preflight.** Run `python3 /home/bicatalyst/.claude/skills/claude-tune-apply/scripts/apply.py --dry-run all --plan <plan>`.
+7. **Preflight.** Run `python3 ${CLAUDE_SKILL_DIR}/../claude-tune-apply/scripts/apply.py --dry-run all --plan <plan>`
+   (the apply skill lives next to this one).
    An `ERROR` line means an op will not apply on this machine (text not found, file exists,
    refused path, precondition failed): fix the op and rerun step 6. `blocked by` lines are
    expected for items behind manual work. If the apply skill is absent, say so in the report.

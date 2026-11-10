@@ -28,7 +28,9 @@ class Preview:
 
 def _digest(previews: list, items: list) -> str:
     """What the user approves: every write, plus the checks that will run around it."""
-    rows = [(p.item_id, r.kind, r.path, hashlib.sha256((r.after or "").encode("utf-8")).hexdigest())
+    rows = [(p.item_id, r.kind, r.path, r.symlink_target,
+             hashlib.sha256((r.before or "").encode("utf-8")).hexdigest(),
+             hashlib.sha256((r.after or "").encode("utf-8")).hexdigest())
             for p in previews for r in p.results]
     rows += [(it["id"], "checks", json.dumps(it.get("checks") or [], sort_keys=True)) for it in items]
     return hashlib.sha256(json.dumps(rows).encode("utf-8")).hexdigest()[:16]
@@ -48,13 +50,6 @@ def dry_run(plan: dict, items: list) -> tuple[list, str]:
     return previews, _digest(previews, ordered)
 
 
-def _refuse_unconfirmed(items: list, confirmed: set) -> None:
-    pending = [it["id"] for it in items if effective_risk(it) == "review" and it["id"] not in confirmed]
-    if pending:
-        raise PlanError(f"{', '.join(pending)} need review; re-run with --confirmed {','.join(pending)} "
-                        f"after reading their diffs")
-
-
 def _refuse_blocked(previews: list) -> None:
     blocked = [f"{p.item_id} needs {', '.join(p.blockers)}" for p in previews if p.blockers]
     if blocked:
@@ -66,19 +61,25 @@ def apply_items(plan: dict, items: list, plan_path, expect: str, confirmed: set)
     previews, digest = dry_run(plan, items)
     if digest != expect:
         raise PlanError(f"state changed since the dry run (digest {digest}, expected {expect}); run --dry-run again")
-    _refuse_unconfirmed(topo_order(items), confirmed)
     _refuse_blocked(previews)
     by_id = selection.by_id(plan)
     succeeded: set = set()
     lines = []
     for p in previews:
         item = by_id[p.item_id]
-        lines += _apply_one(item, p, succeeded)
+        if effective_risk(item) == "review" and item["id"] not in confirmed:
+            lines.append(f"{item['id']}: skipped (review, not in --confirmed); re-run with --confirmed {item['id']} to apply it")
+            continue
+        lines += _apply_one(item, p, succeeded, plan)
         plan_store.save_plan(plan, plan_path)
     return lines
 
 
-def _apply_one(item: dict, preview: Preview, succeeded: set) -> list:
+def _apply_one(item: dict, preview: Preview, succeeded: set, plan: dict) -> list:
+    unmet = selection.blockers(item, plan, succeeded, set())
+    if unmet:
+        item.update(status="failed", error=f"dependency {', '.join(unmet)} did not apply in this run")
+        return [f"{item['id']}: not applied: {item['error']}"]
     if preview.errors:
         item.update(status="failed", error="; ".join(preview.errors))
         return [f"{item['id']}: failed: {item['error']}"]
@@ -95,9 +96,10 @@ def _apply_one(item: dict, preview: Preview, succeeded: set) -> list:
         succeeded.add(item["id"])
         return [f"{item['id']}: already in place, marked applied"]
     bdir = backup.make_backup(item["id"], results)
-    error = _write_all(results) or _post_failure(item)
+    error, written = _write_all(results)
+    error = error or _post_failure(item)
     if error:
-        backup.restore_from(bdir)
+        backup.restore_from(bdir, only=written)
         item.update(status="failed", error=error)
         return [f"{item['id']}: failed and restored: {error}"]
     backup.record_after_hashes(bdir)
@@ -106,13 +108,17 @@ def _apply_one(item: dict, preview: Preview, succeeded: set) -> list:
     return _lines_for(item, bdir) + [f"   note: {c.detail}" for c in checks.run_checks(item, "deferred")]
 
 
-def _write_all(results: list) -> str:
+def _write_all(results: list) -> tuple:
+    """Write every result; return (error text or "", the paths actually written so far)."""
+    written: set = set()
     try:
         for r in results:
-            tune_ops.write_result(r)
+            if r.changed and not r.errors and r.kind != "manual":
+                tune_ops.write_result(r)
+                written.add(r.path)
     except (OSError, PlanError) as exc:
-        return str(exc)
-    return ""
+        return str(exc), written
+    return "", written
 
 
 def _post_failure(item: dict) -> str:

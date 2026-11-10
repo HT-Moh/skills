@@ -77,7 +77,7 @@ def preview_file_replace(op, path, overlay=None):
         if before is None:
             raise ValueError("file does not exist")
         n = before.count(old)
-        if (new and new in before) or (n == 0 and new == ""):
+        if n == 0 and (new == "" or new in before):
             return OpResult(kind="file_replace", path=path, before=before, after=before, note="already replaced")
         if n != 1:
             raise ValueError(f"old text occurs {n} times, need exactly 1")

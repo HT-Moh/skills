@@ -50,14 +50,17 @@ def test_injected_blocks_have_no_splitters(name):
 
 
 @pytest.mark.parametrize("name", list(SKILLS))
-def test_allowed_tools_have_no_tilde(name):
-    assert "~" not in frontmatter(SKILLS[name])["allowed-tools"]
+def test_skill_is_portable(name):
+    text = SKILLS[name].read_text(encoding="utf-8")
+    assert "/home/bicatalyst" not in text
+    bash_rules = re.findall(r"Bash\(([^)]*)\)", frontmatter(SKILLS[name])["allowed-tools"])
+    assert all("~" not in rule for rule in bash_rules)
 
 
 def test_apply_read_rule_is_plans_only():
     fm = frontmatter(SKILLS["claude-tune-apply"])
     reads = re.findall(r"Read\(([^)]*)\)", fm["allowed-tools"])
-    assert reads == ["/home/bicatalyst/.claude/tune/plans/**"]
+    assert reads == ["~/.claude/tune/plans/**"]
 
 
 def test_apply_procedure_uses_digest_and_confirmed():

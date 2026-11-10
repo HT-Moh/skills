@@ -94,8 +94,8 @@ def cmd_rollback(plan, plan_path, ids, force):
             raise PlanError(f"no item {item_id}")
         for warning in backup.rollback_item(plan, item, force=force):
             say(warning)
+        plan_store.save_plan(plan, plan_path)
         say(f"{item_id} rolled back")
-    plan_store.save_plan(plan, plan_path)
 
 
 def cmd_done(plan, plan_path, ids):

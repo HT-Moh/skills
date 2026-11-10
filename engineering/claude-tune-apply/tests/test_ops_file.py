@@ -122,3 +122,9 @@ def test_sha256_precondition_mismatch_is_error(tmp_home):
     stale = hashlib.sha256(b"then\n").hexdigest()
     r = tune_ops.preview({"kind": "file_append", "file": path, "content": "x\n", "sha256": stale})
     assert r.errors and "sha256" in r.errors[0]
+
+
+def test_file_replace_not_fooled_by_new_text_elsewhere(tmp_home):
+    path = claude(tmp_home, "agent.md", "model: sonnet\n# opus is for design\n")
+    r = tune_ops.preview({"kind": "file_replace", "file": path, "old": "model: sonnet", "new": "model: opus"})
+    assert r.changed and not r.errors and r.after.startswith("model: opus\n")

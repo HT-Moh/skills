@@ -114,6 +114,7 @@ def main():
            "subagent_types_from_meta": agent_types_from_meta(want, cutoff)}
     out.update({name: population_summary(p) for name, p in pops.items()})
     if a.out:
+        os.makedirs(os.path.dirname(os.path.abspath(a.out)) or ".", mode=0o700, exist_ok=True)
         scan_lib.write_summary(out, a.out)
         print(f"written {a.out}", file=sys.stderr)
     print_summary(out)
