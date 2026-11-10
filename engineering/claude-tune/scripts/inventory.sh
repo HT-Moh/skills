@@ -9,6 +9,14 @@ ROOT="$HOME/.claude/projects"
 
 echo "window_days=$DAYS  claude_version=$(claude --version 2>/dev/null | head -1)"
 echo "projects_dir_size=$(du -sh "$ROOT" 2>/dev/null | cut -f1)"
+INSIGHTS="$HOME/.claude/usage-data/report.html"
+if [ -f "$INSIGHTS" ]; then
+  # Built-in /insights report: a second opinion on friction; headings only, never the body
+  echo "insights_report=$INSIGHTS  modified=$(date -r "$INSIGHTS" +%F)"
+  grep -o '<h[23][^>]*>[^<]\{1,80\}' "$INSIGHTS" 2>/dev/null | sed 's/<[^>]*>/  /' | head -20
+else
+  echo "insights_report=none (run /insights in Claude Code to produce one)"
+fi
 echo
 echo "sessions	interactive	headless	size_mb	last_active	project_dir"
 find "$ROOT" -mindepth 2 -maxdepth 2 -name '*.jsonl' -mtime "-$DAYS" -printf '%h\t%s\t%TY-%Tm-%Td\t%p\n' 2>/dev/null \
