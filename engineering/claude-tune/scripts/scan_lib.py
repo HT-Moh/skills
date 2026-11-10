@@ -42,22 +42,47 @@ def ts(s):
         return None
 
 
+TOOL_SHAPE_RE = re.compile(r"[\w.+-]{1,40}")
+VERB_SHAPE_RE = re.compile(r"[a-z][a-z-]{1,20}")
+SCRIPT_SHAPE_RE = re.compile(r"[\w./-]+\.(?:js|mjs|cjs|py|sh|ts)")
+INLINE_CODE_FLAGS = ("-c", "-e", "--eval", "-p", "--print")
+INTERPRETERS = ("node", "python3", "python", "bash", "sh", "uv", "npx", "bun")
+
+
+def _tokens(cmd):
+    """Shell-aware tokens; separators inside quotes stay inside their word. None when unparsable."""
+    lexer = shlex.shlex(cmd, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    try:
+        return list(lexer)
+    except ValueError:
+        return None
+
+
 def _argv(cmd):
-    """Tokens of the first simple command, after leading cd/export/VAR= segments."""
-    first = re.split(r"\s*(?:&&|\|\||;|\|)\s*", cmd.strip(), maxsplit=8)
-    for segment in first:
-        try:
-            words = shlex.split(segment)
-        except ValueError:
-            words = segment.split()
-        words = [w for w in words if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", w)]
+    """Tokens of the first simple command after leading cd segments and VAR= assignments.
+
+    Returns None when the command cannot be tokenized."""
+    tokens = _tokens(cmd)
+    if tokens is None:
+        return None
+    segments, current = [], []
+    for tok in tokens:
+        if tok in ("&&", "||", ";", "|", "&", "|&"):
+            segments.append(current)
+            current = []
+        else:
+            current.append(tok)
+    segments.append(current)
+    for words in segments:
+        words = [w for w in words if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", w, re.S)]
         if words and words[0] != "cd":
-            return words  # a bare `export` segment stays as the tool name; its value is gone
+            return words
     return []
 
 
 def _subcommand(words):
-    """First word that is neither a flag, a short flag's value, nor a path."""
+    """The first verb-shaped word after the tool, skipping flags and short-flag values."""
     skip_next = False
     for w in words[1:]:
         if skip_next:
@@ -66,34 +91,40 @@ def _subcommand(words):
         if re.fullmatch(r"-[A-Za-z]", w):
             skip_next = True
             continue
-        if w.startswith("-") or re.fullmatch(r"[\w./-]*/[\w./-]*", w):
+        if w.startswith("--") and "=" not in w:
+            return ""  # a long flag may take the next word; stop rather than guess
+        if w.startswith("-"):
             continue
-        return w
+        return w if VERB_SHAPE_RE.fullmatch(w) else ""
     return ""
 
 
+def _tool(words):
+    name = os.path.basename(words[0])
+    return name if TOOL_SHAPE_RE.fullmatch(name) else "(odd)"
+
+
 def prefix(cmd):
-    """`tool subcommand` for known tools, the bare tool name otherwise; never an argument value."""
+    """`tool verb` for known tools, the bare tool name otherwise; never an argument value."""
     words = _argv(cmd)
+    if words is None:
+        return "(unparsed)"
     if not words:
         return "(empty)"
-    tool = os.path.basename(words[0])
+    tool = _tool(words)
     if tool in KNOWN_TOOLS:
         return f"{tool} {_subcommand(words)}".strip()
     return tool
 
 
-INTERPRETERS = ("node", "python3", "python", "bash", "sh", "uv", "npx", "bun")
-
-
 def hook_key(command):
-    """The hook script's basename, or the program when no script follows."""
+    """The hook script's basename for an interpreter, else the program; inline code yields the program."""
     words = _argv(command)
     if not words:
-        return "(empty)"
-    tool = os.path.basename(words[0])
-    if tool in INTERPRETERS:
-        script = next((w for w in words[1:] if not w.startswith("-")), "")
+        return "(empty)" if words is not None else "(unparsed)"
+    tool = _tool(words)
+    if tool in INTERPRETERS and not any(w in INLINE_CODE_FLAGS for w in words[1:]):
+        script = next((w for w in words[1:] if SCRIPT_SHAPE_RE.fullmatch(w)), "")
         return os.path.basename(script) if script else tool
     return tool
 

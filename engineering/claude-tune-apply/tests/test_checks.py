@@ -54,9 +54,11 @@ def test_file_sha256_and_mode(tmp_home):
     assert not run_one([{"phase": "post", "kind": "file_mode", "file": str(p), "mode": 0o644}]).ok
 
 
-def test_cmd_exit_ok_and_not_ok(tmp_home):
-    assert run_one([{"phase": "post", "kind": "cmd_exit", "argv": ["test", "-d", str(tmp_home)]}]).ok
-    assert not run_one([{"phase": "post", "kind": "cmd_exit", "argv": ["test", "-d", str(tmp_home / "none")]}]).ok
+def test_cmd_exit_is_never_executed_only_shown(tmp_home, monkeypatch):
+    import subprocess
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("executed")))
+    r = run_one([{"phase": "post", "kind": "cmd_exit", "argv": ["test", "-d", str(tmp_home)]}])
+    assert r.ok and "run it yourself" in r.detail and "test -d" in r.detail
 
 
 def test_cmd_exit_refuses_non_allowlisted():
@@ -64,11 +66,6 @@ def test_cmd_exit_refuses_non_allowlisted():
     assert not r.ok and "allowlist" in r.detail
 
 
-def test_cmd_exit_times_out(monkeypatch):
-    import plan_schema
-    monkeypatch.setattr(plan_schema, "CHECK_CMD_ALLOWLIST", plan_schema.CHECK_CMD_ALLOWLIST + ("sleep",))
-    r = run_one([{"phase": "post", "kind": "cmd_exit", "argv": ["sleep", "5"], "timeout_s": 0.2}])
-    assert not r.ok and "timed out" in r.detail
 
 
 def test_note_is_always_ok_and_phase_filter():
@@ -131,14 +128,7 @@ def test_cmd_exit_claude_only_fixed_forms():
     bad = run_one([{"phase": "post", "kind": "cmd_exit", "argv": ["claude", "-p", "hello"]}])
     assert not bad.ok and "form" in bad.detail
     ok_form = run_one([{"phase": "post", "kind": "cmd_exit", "argv": ["claude", "--version"]}])
-    assert "form" not in ok_form.detail and "allowlist" not in ok_form.detail
-
-
-def test_timeout_is_clamped():
-    assert checks.timeout_for({"timeout_s": 9999}) == checks.MAX_TIMEOUT_S
-    assert checks.timeout_for({"timeout_s": -1}) == checks.DEFAULT_TIMEOUT_S
-    assert checks.timeout_for({"timeout_s": "x"}) == checks.DEFAULT_TIMEOUT_S
-    assert checks.timeout_for({"timeout_s": 2}) == 2
+    assert ok_form.ok and "run it yourself" in ok_form.detail
 
 
 def test_check_file_outside_allowlist_not_ok(tmp_home):

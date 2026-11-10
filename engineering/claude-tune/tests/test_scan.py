@@ -76,3 +76,22 @@ def test_functions_are_short():
     for name in ("scan_file", "classify_line", "record_user", "record_assistant"):
         fn = getattr(scan_lib, name)
         assert len(inspect.getsource(fn).splitlines()) <= 30, name
+
+
+def test_hook_key_ignores_inline_code_and_odd_scripts():
+    assert scan_lib.hook_key("node -e 'console.log(process.env.TOKEN)'") == "node"
+    assert scan_lib.hook_key("python3 -c 'print(1)'") == "python3"
+    assert scan_lib.hook_key("bash sk_live_abc") == "bash"
+    assert scan_lib.hook_key("node /x/run_hook.mjs") == "run_hook.mjs"
+
+
+def test_prefix_subcommand_must_look_like_a_verb():
+    assert scan_lib.prefix("git -C /x 'sk_live_abc'") == "git"
+    assert scan_lib.prefix("gh --repo o/r pr view 12") == "gh"
+    assert scan_lib.prefix("docker run --rm img") == "docker run"
+
+
+def test_prefix_respects_quotes_and_unparsable_input():
+    assert scan_lib.prefix("echo 'a && b'") == "echo"
+    assert scan_lib.prefix("echo 'unterminated") == "(unparsed)"
+    assert scan_lib.prefix("TOKEN='a b' python3 x.py") == "python3"

@@ -2,7 +2,8 @@
 # Fast inventory of Claude Code session data for the last N days. Read-only.
 # Usage: inventory.sh [days]   (default 30). Prints a TSV table and config facts.
 set -u
-DAYS="${1:-30}"; case "$DAYS" in ''|*[!0-9]*) DAYS=30;; esac
+DAYS="${1:-30}"
+case "$DAYS" in ''|*[!0-9]*) echo "days must be an integer, got '$DAYS'"; exit 0;; esac
 ROOT="$HOME/.claude/projects"
 [ -d "$ROOT" ] || { echo "no $ROOT"; exit 0; }
 

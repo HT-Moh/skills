@@ -278,8 +278,6 @@ def effective_risk(item: dict) -> str:
     floors = [_op_floor(op) for op in item.get("ops") or [] if isinstance(op, dict)]
     if item.get("reversible", "full") != "full":
         floors.append("review")
-    if any(isinstance(c, dict) and c.get("kind") == "cmd_exit" for c in item.get("checks") or []):
-        floors.append("review")  # a check that runs a command is reviewed like a write
     return "review" if declared == "review" or "review" in floors else "safe"
 
 

@@ -17,6 +17,10 @@ _JSON_PAIR_RE = re.compile(r'("(?P<key>(?:[^"\\]|\\.)*)"\s*:\s*")(?P<value>(?:[^
 # "tokens = 35%" in prose is not an assignment and stays readable
 _ENV_LINE_RE = re.compile(r"(?<![A-Za-z0-9_])((?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=)(\S+)")
 _QUOTED_ASSIGN_RE = re.compile(r"""(?<![A-Za-z0-9_])(([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(["']))((?:(?!\3).)+)\3""")
+# `KEY = value` with spaces is prose or code; redacted only when the key is credential-named
+# and the value has a credential shape, so "tokens = 35%" survives
+_SPACED_ASSIGN_RE = re.compile(r"(?<![A-Za-z0-9_])(([A-Za-z_][A-Za-z0-9_]*)\s*=\s*)(\S+)")
+_VALUE_SHAPE_RE = re.compile(r"[A-Za-z0-9_\-./+=]{4,}")
 _PLACEHOLDERS = frozenset({"value", "...", "xxx", "<value>", "<token>", "<literal>", "null", "none"})
 _PRIVATE_KEY_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|\Z)", re.S)
 
@@ -70,13 +74,17 @@ def _redact_quoted_assign(m: re.Match) -> str:
 
 
 def real_looking(value: str) -> bool:
-    """A value that could be a live credential: not a placeholder, reference or trivial word."""
+    """Fail closed: any credential-shaped value counts unless it is a placeholder or a reference."""
     v = value.strip().strip("\"'`,;")
-    if not v or v.lower() in _PLACEHOLDERS or v.startswith(("<", "$", "{")) or v.endswith(("=\\|", "=")):
+    if not v or v.lower() in _PLACEHOLDERS or v.startswith(("<", "$", "{")):
         return False
-    if not re.fullmatch(r"[A-Za-z0-9_\-./+=]+", v) or len(v) < 6:
-        return False
-    return any(c.isdigit() for c in v) or len(v) >= 16
+    return bool(_VALUE_SHAPE_RE.fullmatch(v))
+
+
+def _redact_spaced_assign(m: re.Match) -> str:
+    if key_is_sensitive(m.group(2)) and real_looking(m.group(3)):
+        return m.group(1) + REDACTED
+    return m.group(0)
 
 
 def _entropy(token: str) -> float:
@@ -95,8 +103,9 @@ def _redact_high_entropy(text: str) -> str:
 def redact(text: str) -> str:
     """Return `text` with every credential-looking value replaced by <redacted>."""
     out = _JSON_PAIR_RE.sub(_redact_json_pair, text)
-    out = _ENV_LINE_RE.sub(_redact_env_line, out)
     out = _QUOTED_ASSIGN_RE.sub(_redact_quoted_assign, out)
+    out = _ENV_LINE_RE.sub(_redact_env_line, out)
+    out = _SPACED_ASSIGN_RE.sub(_redact_spaced_assign, out)
     out = _PRIVATE_KEY_RE.sub(f"-----BEGIN PRIVATE KEY----- {REDACTED}", out)
     for pattern in SECRET_VALUE_RES:
         out = pattern.sub(REDACTED, out)
@@ -121,7 +130,7 @@ def has_secret(text: str) -> bool:
     for m in _JSON_PAIR_RE.finditer(text):
         if key_is_sensitive(m.group("key")) and real_looking(m.group("value")):
             return True
-    for pattern, key_group, value_group in ((_ENV_LINE_RE, 2, 3), (_QUOTED_ASSIGN_RE, 2, 4)):
+    for pattern, key_group, value_group in ((_ENV_LINE_RE, 2, 3), (_QUOTED_ASSIGN_RE, 2, 4), (_SPACED_ASSIGN_RE, 2, 3)):
         for m in pattern.finditer(text):
             if key_is_sensitive(m.group(key_group)) and real_looking(m.group(value_group)):
                 return True

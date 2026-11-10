@@ -1,23 +1,19 @@
 """Structured checks a plan item carries: pre (before backup), post (after write), deferred.
 
 A failing pre-check refuses the item before anything is touched. A failing post-check
-rolls the item back. Deferred checks only print. `cmd_exit` runs an argv list, never a
-shell, from a short allowlist, with a timeout.
+rolls the item back. Deferred checks only print. `cmd_exit` is never executed by the
+engine: its argv is validated against a short allowlist and shown to the user to run.
 """
 import hashlib
 import json
 import os
-import shutil
 import stat
-import subprocess
 from dataclasses import dataclass
 
 from ops_base import check_path
-from plan_schema import CHECK_KINDS, MAX_TIMEOUT_S, PlanError, cmd_form_error
+from plan_schema import CHECK_KINDS, PlanError, cmd_form_error
 
-DEFAULT_TIMEOUT_S = 10
 MAX_READ_BYTES = 2_000_000
-PLAN_WRITABLE_ROOTS = (".claude", ".agents", ".config/claude")
 
 
 @dataclass
@@ -99,39 +95,13 @@ def _file_mode(check):
     return CheckResult("file_mode", ok, f"{_path(check)} mode {oct(mode)}")
 
 
-def timeout_for(check: dict) -> float:
-    t = check.get("timeout_s", DEFAULT_TIMEOUT_S)
-    if isinstance(t, bool) or not isinstance(t, (int, float)) or t <= 0:
-        return DEFAULT_TIMEOUT_S
-    return min(t, MAX_TIMEOUT_S)
-
-
-def _trusted_executable(name: str) -> str:
-    """Resolve a bare allowlisted name on PATH; refuse binaries under plan-writable roots."""
-    resolved = shutil.which(name)
-    if not resolved:
-        raise PlanError(f"{name} not found on PATH")
-    home = os.path.realpath(os.path.expanduser("~"))
-    real = os.path.realpath(resolved)
-    if any(real.startswith(os.path.join(home, root) + "/") for root in PLAN_WRITABLE_ROOTS):
-        raise PlanError(f"{real} lives under a directory plans may write; not trusted")
-    return real
-
-
 def _cmd_exit(check):
+    """Validated and displayed only. Running plan-supplied commands is not worth the exposure."""
     argv = check.get("argv")
     err = cmd_form_error(argv)
     if err:
         return CheckResult("cmd_exit", False, err.replace("argv[0] must be a bare name", "argv[0] must be a bare allowlist name"))
-    try:
-        exe = _trusted_executable(argv[0])
-        proc = subprocess.run([exe, *argv[1:]], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL, timeout=timeout_for(check))
-    except subprocess.TimeoutExpired:
-        return CheckResult("cmd_exit", False, f"{' '.join(argv)} timed out")
-    except (OSError, PlanError) as exc:
-        return CheckResult("cmd_exit", False, f"{' '.join(argv)} refused or failed to start: {exc}")
-    return CheckResult("cmd_exit", proc.returncode == 0, f"{' '.join(argv)} exited {proc.returncode}")
+    return CheckResult("cmd_exit", True, f"not run; run it yourself: {' '.join(argv)}")
 
 
 def _note(check):
@@ -156,8 +126,6 @@ def run_checks(item: dict, phase: str) -> list[CheckResult]:
 
 def _run_one(check: dict, phase: str) -> CheckResult:
     kind = str(check.get("kind"))
-    if kind == "cmd_exit" and phase == "deferred":
-        return CheckResult(kind, True, f"not run (deferred): {' '.join(map(str, check.get('argv') or []))}")
     runner = RUNNERS.get(kind)
     if runner is None:
         return CheckResult(kind, False, "unknown check kind")

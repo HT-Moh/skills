@@ -205,9 +205,9 @@ def test_validate_accepts_owner_only_mode():
     assert plan_schema.validate(plan(item(risk="review", ops=[op]))) == []
 
 
-def test_effective_risk_review_for_cmd_exit_check():
+def test_effective_risk_unchanged_by_cmd_exit_check():
     it = item(risk="safe", checks=[{"phase": "post", "kind": "cmd_exit", "argv": ["test", "-d", "/"]}])
-    assert plan_schema.effective_risk(it) == "review"
+    assert plan_schema.effective_risk(it) == "safe"  # cmd_exit is shown to the user, never executed
 
 
 def test_validate_rejects_cmd_exit_with_path_argv0_or_bad_timeout():

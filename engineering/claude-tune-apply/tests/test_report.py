@@ -80,3 +80,14 @@ def test_all_output_is_redacted():
     assert "sk_live_abcdef0123" not in report.explain(item, mkplan(item))
     r = tune_ops.OpResult(kind="manual", manual_text="sk_live_abcdef0123", changed=False)
     assert "sk_live_abcdef0123" not in report.show_preview(runner.Preview("P0-01", [r]), item, mkplan(item))
+
+
+def test_show_preview_lists_every_check(tmp_home):
+    path = str(tmp_home / ".claude" / "settings.json")
+    (tmp_home / ".claude" / "settings.json").write_text("{}\n")
+    item = mkitem("P1-01", [{"kind": "json_set", "file": path, "path": ["a"], "value": 1}],
+                  checks=[{"phase": "post", "kind": "json_equals", "file": path, "path": ["a"], "value": 1},
+                          {"phase": "deferred", "kind": "cmd_exit", "argv": ["claude", "--version"]}])
+    previews, _ = runner.dry_run(mkplan(item), [item])
+    text = report.show_preview(previews[0], item, mkplan(item))
+    assert "checks:" in text and "post: json_equals" in text and "claude --version" in text

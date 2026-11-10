@@ -108,3 +108,14 @@ def test_has_secret_ignores_placeholders_and_references():
 def test_has_secret_flags_real_looking_assignments():
     for text in ("GITHUB_TOKEN=abc123", '"X_TOKEN": "abc123"', "export API_KEY=ZmFrZS1rZXktMTIz"):
         assert redact.has_secret(text), text
+
+
+def test_spaced_assignment_under_credential_key_redacted():
+    assert "abc123" not in redact.redact("GITHUB_TOKEN = abc123 in the log")
+    assert redact.redact("fresh tokens = 35% of all") == "fresh tokens = 35% of all"
+
+
+def test_has_secret_fails_closed_for_short_literal_under_credential_key():
+    assert redact.has_secret("X_TOKEN=abcd")
+    assert redact.has_secret('"apiKey": "zzzz"')
+    assert not redact.has_secret("X_TOKEN=${X}")
