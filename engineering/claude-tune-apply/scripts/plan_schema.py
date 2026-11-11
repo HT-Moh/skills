@@ -3,7 +3,6 @@
 Owned by claude-tune-apply; claude-tune's renderer imports it from here so the two skills
 never drift. Standard library only.
 """
-import os
 import re
 
 from plan_credentials import _literal_credentials
@@ -13,6 +12,7 @@ SCHEMA = 2
 OP_KINDS = ("json_set", "json_delete", "json_append", "json_upsert", "file_create", "file_append",
             "file_replace", "symlink", "file_remove", "manual")
 ID_RE = re.compile(r"P[0-6]-\d{2}")
+STEP_LANG_RE = re.compile(r"^[a-z0-9+-]{1,20}$")
 PAGE_URL_RE = re.compile(r"^https://claude\.ai/(code/)?artifact/[A-Za-z0-9-]+$")
 RISKS = ("safe", "review", "manual")
 STATUSES = ("proposed", "applied", "done", "needs_user", "rolled_back", "failed", "applied-purged")
@@ -144,7 +144,7 @@ def _needs_consumers(it: dict) -> bool:
             continue
         if op.get("kind") in ("json_delete", "file_remove"):
             return True
-        if op.get("kind", "").startswith("json_") and _json_root(op) in ("permissions", "hooks"):
+        if op.get("kind", "").startswith("json_") and json_root(op) in ("permissions", "hooks"):
             return True  # whole-list replacements; a new env key has no consumer yet
     return False
 
@@ -179,12 +179,33 @@ def _validate_op(op, tag: str) -> list[str]:
         errs.append(f"{tag}: values must be a list")
     if kind == "json_upsert" and not isinstance(op.get("match"), dict):
         errs.append(f"{tag}: match must be an object of key: value")
+    if kind == "manual":
+        errs += _validate_steps(op, tag)
     mode = op.get("mode")
     if mode is not None and (isinstance(mode, bool) or not isinstance(mode, int) or mode & ~0o755 or mode & 0o022):
         errs.append(f"{tag}: mode must be an int with no group/other write and no special bits (e.g. 448 for 0700)")
     target = str(op.get("file", ""))
     if target.endswith("/.claude.json") or target == "~/.claude.json":
         errs.append(f"{tag}: ~/.claude.json may not be edited by a plan; use a manual op with the `claude mcp` command")
+    return errs
+
+
+def _validate_steps(op: dict, tag: str) -> list[str]:
+    """Optional numbered steps of a manual op: text, and the exact command in code."""
+    steps = op.get("steps")
+    if steps is None:
+        return []
+    if not isinstance(steps, list):
+        return [f"{tag}: steps must be a list of {{text, code?, lang?}}"]
+    errs = []
+    for n, step in enumerate(steps):
+        if not isinstance(step, dict) or not isinstance(step.get("text"), str) or not step["text"].strip():
+            errs.append(f"{tag}: steps[{n}] needs a text string")
+            continue
+        if "code" in step and not isinstance(step["code"], str):
+            errs.append(f"{tag}: steps[{n}].code must be a string")
+        if "lang" in step and not (isinstance(step["lang"], str) and STEP_LANG_RE.match(step["lang"])):
+            errs.append(f"{tag}: steps[{n}].lang must match {STEP_LANG_RE.pattern}")
     return errs
 
 
@@ -233,45 +254,9 @@ def _validate_dependencies(items: list[dict]) -> list[str]:
     return []
 
 
-def _json_root(op: dict) -> str:
+def json_root(op: dict) -> str:
     path = op.get("path")
     return str(path[0]) if isinstance(path, list) and path else ""
-
-
-def _op_floor(op: dict) -> str:
-    """The lowest risk an op may carry, from what it touches."""
-    kind = op.get("kind")
-    if kind == "manual":
-        return "safe"
-    if kind in REVIEW_OP_KINDS:
-        return "review"
-    if kind.startswith("json_") and _json_root(op) in SENSITIVE_JSON_ROOTS:
-        return "review"
-    target = os.path.expanduser(str(op.get("file") or op.get("link") or ""))
-    base = os.path.basename(target)
-    if any(seg in target for seg in SENSITIVE_PATH_SEGMENTS) or base in SENSITIVE_BASENAMES:
-        return "review"
-    if kind.startswith("file_") and (base.startswith("settings") and base.endswith(".json") or base == ".mcp.json"):
-        return "review"  # whole-file edits of settings or MCP files; json ops are judged by their path
-    if kind == "file_create" and isinstance(op.get("mode"), int) and op["mode"] & 0o111:
-        return "review"  # an executable file
-    return "safe"
-
-
-def effective_risk(item: dict) -> str:
-    """Declared risk raised to the floor the ops and reversibility demand."""
-    declared = item.get("risk", "review")
-    if declared == "manual":
-        return "manual"
-    floors = [_op_floor(op) for op in item.get("ops") or [] if isinstance(op, dict)]
-    if item.get("reversible", "full") != "full":
-        floors.append("review")
-    return "review" if declared == "review" or "review" in floors else "safe"
-
-
-def item_touches_secret_root(item: dict) -> bool:
-    return any(isinstance(op, dict) and op.get("kind", "").startswith("json_") and _json_root(op) == "env"
-               for op in item.get("ops") or [])
 
 
 def topo_order(items: list[dict]) -> list[dict]:

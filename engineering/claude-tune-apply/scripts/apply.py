@@ -26,7 +26,8 @@ import report  # noqa: E402
 import runner  # noqa: E402
 import selection  # noqa: E402
 import tune_ops  # noqa: E402
-from plan_schema import PlanError, effective_risk, validate  # noqa: E402
+from plan_risk import effective_risk  # noqa: E402
+from plan_schema import PlanError, validate  # noqa: E402
 from redact import redact  # noqa: E402
 
 

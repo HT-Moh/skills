@@ -4,6 +4,7 @@ import pytest
 
 import plan_lint
 import plan_migrate
+import plan_risk
 import plan_schema
 
 SETTINGS = "~/.claude/settings.json"
@@ -84,30 +85,30 @@ def test_validate_requires_consumers_for_env_delete():
                                   ["permissions", "allow"], ["mcpServers", "x"]])
 def test_effective_risk_floor_for_sensitive_json_roots(path):
     op = {"kind": "json_set", "file": SETTINGS, "path": path, "value": "x"}
-    assert plan_schema.effective_risk(item(risk="safe", ops=[op])) == "review"
+    assert plan_risk.effective_risk(item(risk="safe", ops=[op])) == "review"
 
 
 def test_effective_risk_floor_for_file_remove():
     op = {"kind": "file_remove", "file": "~/.claude/settings.json.bak"}
-    assert plan_schema.effective_risk(item(risk="safe", ops=[op])) == "review"
+    assert plan_risk.effective_risk(item(risk="safe", ops=[op])) == "review"
 
 
 def test_effective_risk_floor_for_claude_md():
     op = {"kind": "file_append", "file": "/repo/CLAUDE.md", "content": "x"}
-    assert plan_schema.effective_risk(item(risk="safe", ops=[op])) == "review"
+    assert plan_risk.effective_risk(item(risk="safe", ops=[op])) == "review"
 
 
 def test_effective_risk_keeps_safe_for_enabledPlugins():
     op = {"kind": "json_set", "file": SETTINGS, "path": ["enabledPlugins", "x@y"], "value": False}
-    assert plan_schema.effective_risk(item(risk="safe", ops=[op])) == "safe"
+    assert plan_risk.effective_risk(item(risk="safe", ops=[op])) == "safe"
 
 
 def test_effective_risk_manual_stays_manual():
-    assert plan_schema.effective_risk(item(risk="manual", ops=[{"kind": "manual", "text": "x"}])) == "manual"
+    assert plan_risk.effective_risk(item(risk="manual", ops=[{"kind": "manual", "text": "x"}])) == "manual"
 
 
 def test_effective_risk_non_full_reversible_is_review():
-    assert plan_schema.effective_risk(item(risk="safe", reversible="setting-only")) == "review"
+    assert plan_risk.effective_risk(item(risk="safe", reversible="setting-only")) == "review"
 
 
 def test_topo_order_dependency_first_across_phases():
@@ -209,7 +210,7 @@ def test_validate_accepts_owner_only_mode():
 
 def test_effective_risk_unchanged_by_cmd_exit_check():
     it = item(risk="safe", checks=[{"phase": "post", "kind": "cmd_exit", "argv": ["test", "-d", "/"]}])
-    assert plan_schema.effective_risk(it) == "safe"  # cmd_exit is shown to the user, never executed
+    assert plan_risk.effective_risk(it) == "safe"  # cmd_exit is shown to the user, never executed
 
 
 def test_validate_rejects_cmd_exit_with_path_argv0_or_bad_timeout():
@@ -228,7 +229,7 @@ def test_validate_rejects_cmd_exit_with_path_argv0_or_bad_timeout():
     {"kind": "file_create", "file": "~/.claude/notes/run.sh", "content": "x", "mode": 0o700},
 ])
 def test_effective_risk_floor_for_instruction_and_executable_files(op):
-    assert plan_schema.effective_risk(item(risk="safe", ops=[op])) == "review"
+    assert plan_risk.effective_risk(item(risk="safe", ops=[op])) == "review"
 
 
 def test_validate_rejects_cmd_exit_outside_deferred():
@@ -261,3 +262,28 @@ def test_warnings_stay_silent_when_the_mentioned_item_has_no_dependency_back():
     first = item(id="P0-01", risk="manual", ops=[{"kind": "manual", "text": "then P0-03 deletes the literals"}])
     third = item(id="P0-03", ops=[{"kind": "json_delete", "file": SETTINGS, "path": ["env", "X"]}], risk="review")
     assert plan_lint.warnings(plan(first, third)) == []
+
+
+def manual_with_steps(steps):
+    return item(id="P0-01", risk="manual", ops=[{"kind": "manual", "text": "rotate the key", "steps": steps}])
+
+
+def test_validate_accepts_manual_steps_with_code_and_lang():
+    steps = [{"text": "Create the file", "code": "install -m 600 /dev/null ~/.config/claude/secrets.env", "lang": "bash"},
+             {"text": "Restart the shell"}]
+    assert plan_schema.validate(plan(manual_with_steps(steps))) == []
+
+
+def test_validate_rejects_step_without_text():
+    errs = plan_schema.validate(plan(manual_with_steps([{"code": "ls"}])))
+    assert any("steps[0]" in e and "text" in e for e in errs)
+
+
+def test_validate_rejects_steps_that_are_not_a_list():
+    errs = plan_schema.validate(plan(manual_with_steps("do it")))
+    assert any("steps" in e and "list" in e for e in errs)
+
+
+def test_validate_rejects_odd_step_lang():
+    errs = plan_schema.validate(plan(manual_with_steps([{"text": "x", "code": "y", "lang": "Bash Shell"}])))
+    assert any("lang" in e for e in errs)

@@ -91,7 +91,7 @@ match aborts the skill.
    risk, why, evidence, docs URL, impact with a number, `depends_on`, `consumers` (who reads
    a value you delete or replace; grep the key name), `reversible`, `takes_effect`,
    `contains_secret`, structured `checks`, and ops that a script can execute (or a `manual` op
-   with the exact command). Put `expect` (the value you saw) on every `json_set`/`json_delete`
+   whose `steps` give one action each with the exact command in `code`). Put `expect` (the value you saw) on every `json_set`/`json_delete`
    under `env`, `permissions`, `hooks`. Check every item in `reference/traps.md` against the draft.
 5. **Adversarial pass.** Launch brief J with the full draft. Fold its findings in.
    Remove any item that a used feature, a doc page or a trap contradicts.

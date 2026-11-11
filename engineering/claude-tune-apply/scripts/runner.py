@@ -15,7 +15,8 @@ import checks
 import plan_store
 import selection
 import tune_ops
-from plan_schema import PlanError, effective_risk, topo_order
+from plan_risk import effective_risk
+from plan_schema import PlanError, topo_order
 
 
 @dataclass

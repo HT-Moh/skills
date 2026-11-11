@@ -98,3 +98,16 @@ def test_list_table_shows_page_url_when_recorded():
     assert "page:" not in report.list_table(plan)
     plan["page_url"] = "https://claude.ai/artifact/F4MKKZG56qTCCZEfLzMGXt"
     assert "page: https://claude.ai/artifact/F4MKKZG56qTCCZEfLzMGXt" in report.list_table(plan)
+
+
+def test_explain_prints_manual_steps_with_indented_code():
+    steps = [{"text": "Create the file", "code": "install -m 600 /dev/null ~/.config/claude/secrets.env"},
+             {"text": "Restart the shell"}]
+    manual = mkitem("P0-02", [{"kind": "manual", "text": "one secrets file", "steps": steps}], risk="manual")
+    out = report.explain(manual, mkplan(manual))
+    assert "steps:\n  1. Create the file\n     install -m 600 /dev/null ~/.config/claude/secrets.env\n  2. Restart the shell" in out
+
+
+def test_explain_prints_plain_manual_text_when_no_steps():
+    manual = mkitem("P0-01", [{"kind": "manual", "text": "rotate it"}], risk="manual")
+    assert "steps:\n  - rotate it" in report.explain(manual, mkplan(manual))

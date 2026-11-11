@@ -8,7 +8,8 @@ from pathlib import Path
 
 import consumers
 import selection
-from plan_schema import SENSITIVE_JSON_ROOTS, effective_risk
+from plan_risk import effective_risk
+from plan_schema import SENSITIVE_JSON_ROOTS
 from redact import redact
 
 EXEC_ROOTS = ("hooks", "statusLine", "apiKeyHelper")
@@ -45,6 +46,20 @@ def _check_lines(item: dict) -> list[str]:
     return out or ["  - none"]
 
 
+def _step_lines(item: dict) -> list[str]:
+    out = []
+    for op in item.get("ops") or []:
+        if op.get("kind") != "manual":
+            continue
+        steps = op.get("steps") or []
+        if not steps:
+            out.append(f"  - {op.get('text', '')}")
+        for n, step in enumerate(steps, 1):
+            out.append(f"  {n}. {step['text']}")
+            out += ["     " + line for line in (step.get("code") or "").splitlines()]
+    return out
+
+
 def explain(item: dict, plan: dict) -> str:
     """Why, evidence, impact, risk with its floor reason, consumers, dependencies, checks."""
     declared, effective = item.get("risk"), effective_risk(item)
@@ -57,6 +72,7 @@ def explain(item: dict, plan: dict) -> str:
              "consumers (declared): " + (", ".join(item.get("consumers") or []) or "none declared"),
              "consumers (found by grep): " + (", ".join(discovered) or "none found"),
              "depends on:", *_dependency_lines(item, plan), "checks:", *_check_lines(item),
+             *(["steps:", *_step_lines(item)] if item.get("risk") == "manual" else []),
              f"docs: {item.get('docs') or 'UNVERIFIED'}"]
     return redact("\n".join(lines))
 

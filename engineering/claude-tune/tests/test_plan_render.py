@@ -101,3 +101,22 @@ def test_main_prints_warnings_but_still_renders(tmp_path, monkeypatch, capsys):
     plan_render.main()
     out = capsys.readouterr().out
     assert "WARNING: " in out and "P0-02" in out and out.rstrip().endswith("md=" + str(tmp_path / "p.md"))
+
+
+STEPS = [{"text": "Create the secrets file", "code": "install -m 600 /dev/null ~/.config/claude/secrets.env"},
+         {"text": "Restart the shell"}]
+
+
+def test_md_renders_manual_steps_as_numbered_list_with_fenced_code():
+    manual = mkitem("P0-02", [{"kind": "manual", "text": "one secrets file", "steps": STEPS}], risk="manual")
+    md = plan_render.render_md(mkplan(manual))
+    assert "- Op: manual: one secrets file" in md
+    assert "  1. Create the secrets file" in md and "  2. Restart the shell" in md
+    assert "```bash\n     install -m 600 /dev/null ~/.config/claude/secrets.env\n     ```" in md
+
+
+def test_template_renders_steps_and_pins_the_highlighter_version():
+    tpl = TEMPLATE.read_text()
+    assert 'class="steps"' in tpl or '"steps"' in tpl
+    assert re.search(r"cdnjs\.cloudflare\.com/ajax/libs/highlight\.js/\d+\.\d+\.\d+/highlight\.min\.js", tpl)
+    assert "window.hljs" in tpl
