@@ -1,14 +1,11 @@
 ---
 name: retrospective
 description: >-
-  Facilitates a real retrospective instead of a vibes recap: picks the right mode
-  (sprint/iteration retro, incident postmortem, project retro, or solo/session retro on
-  git history or a work log), sets a blameless frame, gathers data before opinions, digs
-  past symptoms to systemic causes, and forces 1–3 owned actions into a written retro
-  file. Use when the user wants to reflect on how work went — says "retrospective",
-  "retro", "postmortem", "lessons learned", "what went well", "after action review",
-  closes a sprint/milestone/project, has just resolved an incident or outage, or asks to
-  review how a coding session or period of work went.
+  Facilitates a real retrospective: picks the mode (sprint retro, incident postmortem, project
+  retro, or solo retro on git history), sets a blameless frame, gathers data before opinions, digs
+  to systemic causes, and writes 1-3 owned actions into a retro file. Use when the user says
+  "retrospective", "retro", "postmortem", "lessons learned", "after action review", closes a
+  sprint or project, resolves an incident, or asks how a coding session went.
 metadata:
   author: Mohamed Habbat (https://github.com/HT-Moh)
 ---

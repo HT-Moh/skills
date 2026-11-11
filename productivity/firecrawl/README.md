@@ -50,3 +50,15 @@ handling turns failures into data.
 | `SKILL.md` | The three-step procedure: probe, call what works, report what it cost. |
 | `references/api.md` | Endpoint reference, request/response shapes, failure modes, retry policy. |
 | `scripts/probe.py` | The capability probe. |
+
+## Install
+
+Clone the repo once, link the skill into your personal skills directory, restart Claude Code:
+
+```bash
+git clone https://github.com/HT-Moh/skills.git ~/src/skills
+ln -s ~/src/skills/productivity/firecrawl ~/.claude/skills/firecrawl
+```
+
+A symlink keeps `git pull` as the update path. `cp -r productivity/firecrawl ~/.claude/skills/firecrawl` gives a
+frozen copy instead.

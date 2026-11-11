@@ -1,6 +1,12 @@
 ---
 name: viral-audit
-description: Audits a SaaS's landing page, positioning, pricing, and monetization code against Marc Lou's 32 Principles of a Viral Product, then outputs a terse, actionable fix list. Code is the source of truth — reads the real code first, never trusts marketing copy, and flags where claims diverge from implementation (README says one-time payment, Stripe creates a subscription). Use when the user asks why their app isn't converting or going viral, wants a landing-page/pricing/positioning critique, says "make my SaaS go viral", runs /viral-audit, or names Marc Lou's principles. Takes an optional USP/positioning string (/viral-audit "the fastest way to X"); infers it from the code when omitted, asks only if the code is silent.
+description: >-
+  Audits a SaaS's landing page, positioning, pricing and payment code against Marc Lou's 32
+  Principles of a Viral Product and outputs a terse fix list. Reads the code first and flags where
+  marketing claims diverge from implementation (README says one-time payment, Stripe creates a
+  subscription). Use when the user asks why their app is not converting, wants a landing-page,
+  pricing or positioning critique, or names Marc Lou's principles. Optional USP argument,
+  /viral-audit "the fastest way to X"; inferred from the code when omitted.
 metadata:
   author: Mohamed Habbat (https://github.com/HT-Moh)
 ---

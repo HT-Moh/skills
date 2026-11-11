@@ -1,6 +1,11 @@
 ---
 name: firecrawl
-description: Drives a self-hosted Firecrawl instance (web search, scrape, crawl, batch scrape) over its v2 REST API, and probes which endpoints a given deployment actually serves before relying on them. Use when the user wants to search the web without a browser or CAPTCHA, scrape a page to markdown, crawl a site, or find research papers by topic; when a Firecrawl call returns 403/404/empty and the deployment's real capabilities are unknown; or when another skill needs web content and the local browser path is blocked. Instance URL and token are user-configured via FIRECRAWL_URL / FIRECRAWL_TOKEN — this skill reads them, never hardcodes them.
+description: >-
+  Drives a self-hosted Firecrawl instance (search, scrape, crawl, batch scrape) over its v2 REST
+  API and probes which endpoints a deployment serves before relying on them. Use when the user
+  wants to search the web or scrape a page to markdown without a browser, crawl a site, find
+  papers by topic, or when a Firecrawl call returns 403, 404 or empty. Reads FIRECRAWL_URL and
+  FIRECRAWL_TOKEN from the environment, never hardcodes them.
 metadata:
   author: Mohamed Habbat (https://github.com/HT-Moh)
 ---

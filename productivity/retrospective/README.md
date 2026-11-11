@@ -36,3 +36,15 @@ remote/async/AI-assisted practice. Distilled references ship with the skill
 > prod was down 40 minutes yesterday, let's do a postmortem
 
 > end of the week — quick retro on what I got done in this repo
+
+## Install
+
+Clone the repo once, link the skill into your personal skills directory, restart Claude Code:
+
+```bash
+git clone https://github.com/HT-Moh/skills.git ~/src/skills
+ln -s ~/src/skills/productivity/retrospective ~/.claude/skills/retrospective
+```
+
+A symlink keeps `git pull` as the update path. `cp -r productivity/retrospective ~/.claude/skills/retrospective` gives a
+frozen copy instead.

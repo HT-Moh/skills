@@ -53,3 +53,15 @@ Source: [Marc Lou — 32 Principles of a Viral Product](https://twitter.com/marc
 ## License
 
 MIT
+
+## Install
+
+Clone the repo once, link the skill into your personal skills directory, restart Claude Code:
+
+```bash
+git clone https://github.com/HT-Moh/skills.git ~/src/skills
+ln -s ~/src/skills/marketing/viral-audit ~/.claude/skills/viral-audit
+```
+
+A symlink keeps `git pull` as the update path. `cp -r marketing/viral-audit ~/.claude/skills/viral-audit` gives a
+frozen copy instead.
