@@ -56,11 +56,15 @@ def is_boilerplate(text):
 
 
 def session_name(path):
-    """`<project-dir>/<file>.jsonl` (or the subagent path below the project dir): enough to reopen the file."""
-    root = PROJECTS_ROOT + os.sep
-    if path.startswith(root):
-        return path[len(root):]
-    return os.path.join(os.path.basename(os.path.dirname(path)), os.path.basename(path))
+    """The path below the project dir: `<id>.jsonl`, or `<id>/subagents/agent-<id>.jsonl`.
+
+    The project dir is the working directory with `/` replaced by `-`: a path in clear, and
+    often a 32+ char run that the secret check refuses. A session id is unique, so
+    `~/.claude/projects/*/<name>` finds the file again.
+    """
+    parts = path.split(os.sep)
+    keep = 3 if "subagents" in parts[-2:-1] else 1
+    return os.sep.join(parts[-keep:])
 
 
 class Pop:

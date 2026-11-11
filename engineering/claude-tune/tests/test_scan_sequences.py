@@ -44,7 +44,7 @@ def test_sequence_in_two_sessions_is_below_threshold(tmp_path):
 
 def test_same_sequence_twice_in_one_session_counts_once(tmp_path):
     pop = _scan_many(tmp_path, {"one.jsonl": READ_EDIT_TEST + READ_EDIT_TEST, "two.jsonl": READ_EDIT_TEST})
-    assert pop.patterns.sequences["Read > Edit > Bash:pytest"] == {f"{tmp_path.name}/one.jsonl", f"{tmp_path.name}/two.jsonl"}
+    assert pop.patterns.sequences["Read > Edit > Bash:pytest"] == {"one.jsonl", "two.jsonl"}
 
 
 def test_identical_triple_is_skipped(tmp_path):

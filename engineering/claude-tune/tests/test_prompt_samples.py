@@ -82,6 +82,14 @@ def test_unknown_hash_exits_2_with_one_line(tmp_path):
     assert len(r.stderr.strip().splitlines()) == 1 and "0123456789ab" in r.stderr
 
 
+def test_cluster_files_are_resolved_through_the_project_dir(tmp_path):
+    scan_path = _write_population(tmp_path, {"proj-a/1.jsonl": [_user("deploy to staging")] * 5})
+    rows = json.loads(scan_path.read_text())["interactive"]["repeated_prompts"]
+    assert rows[0]["files"] == ["1.jsonl"]
+    r = _run(scan_path, tmp_path, "--hash", scan_lib.prompt_key("deploy to staging").split(":")[0], "--max", "1")
+    assert r.stdout.splitlines()[0] == "proj-a/1.jsonl:1"
+
+
 def test_sampler_writes_nothing(tmp_path):
     scan_path = _write_population(tmp_path, {"p/1.jsonl": [_user("deploy to staging")] * 5})
     before = sorted(p.name for p in tmp_path.rglob("*"))

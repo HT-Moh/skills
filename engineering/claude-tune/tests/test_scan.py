@@ -116,9 +116,18 @@ def _hash(text):
     return scan_lib.prompt_key(text).split(":")[0]
 
 
-def test_session_name_keeps_project_dir(tmp_path):
-    pop = _scan_sessions(tmp_path, {"proj-a/abc.jsonl": ["hello there"]})
-    assert pop.sessions == {"proj-a/abc.jsonl"}
+def test_session_name_is_relative_to_the_project_dir():
+    assert scan_lib.session_name("/h/.claude/projects/-tmp-x-59a7963b-a3fd/abc.jsonl") == "abc.jsonl"
+    assert scan_lib.session_name("/h/.claude/projects/-tmp-x/sess1/subagents/agent-a1.jsonl") == "sess1/subagents/agent-a1.jsonl"
+
+
+def test_summary_with_uuid_session_files_passes_the_secret_check(tmp_path):
+    import scan
+    project = "-tmp-claude-1000--media-x-59a7963b-a3fd-4185-bfe3-025363697695-scratchpad-skillwork"
+    prompts = ["run the deploy"] * 5
+    pop = _scan_sessions(tmp_path, {f"{project}/7c9e6679-7425-40de-944b-e07fc1f90ae7.jsonl": prompts})
+    scan_lib.write_summary(scan.population_summary(pop), str(tmp_path / "out.json"))
+    assert pop.sessions == {"7c9e6679-7425-40de-944b-e07fc1f90ae7.jsonl"}
 
 
 def test_prompt_cluster_counts_occurrences_inside_one_session(tmp_path):
@@ -127,7 +136,7 @@ def test_prompt_cluster_counts_occurrences_inside_one_session(tmp_path):
     rows = scan.population_summary(pop)["repeated_prompts"]
     assert len(rows) == 1
     row = rows[0]
-    assert row["sessions"] == 1 and row["occurrences"] == 5 and row["files"] == ["p/one.jsonl"]
+    assert row["sessions"] == 1 and row["occurrences"] == 5 and row["files"] == ["one.jsonl"]
     assert row["hash"] == _hash("run the deploy") and row["len"] == 14
 
 
@@ -147,7 +156,7 @@ def test_prompt_cluster_sorted_by_occurrences_and_files_capped_at_five(tmp_path)
     pop = _scan_sessions(tmp_path, sessions)
     rows = scan.population_summary(pop)["repeated_prompts"]
     assert [r["occurrences"] for r in rows] == [9, 7]
-    assert len(rows[1]["files"]) == 5 and all(f.startswith("p/") for f in rows[1]["files"])
+    assert len(rows[1]["files"]) == 5 and all(f.endswith(".jsonl") and "/" not in f for f in rows[1]["files"])
 
 
 def test_print_summary_accepts_cluster_objects(tmp_path, capsys):

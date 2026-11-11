@@ -9,6 +9,7 @@ and how often the user interrupted, so a reader can keep samples from sessions t
 Usage: prompt_samples.py --scan scan.json --hash <h> [--near] [--max 3] [--population interactive]
 """
 import argparse
+import glob
 import json
 import os
 import sys
@@ -108,18 +109,24 @@ def render(text):
     return text if len(text) <= MAX_CHARS else text[:MAX_CHARS] + TRUNCATED
 
 
+def locate(root, name):
+    """`<project-dir>/<name>` under root, or None: session ids are unique, so one glob is enough."""
+    found = glob.glob(os.path.join(root, "*", name))
+    return os.path.relpath(found[0], root) if found else None
+
+
 def print_samples(root, cluster, matches, limit):
     """Print up to `limit` prompts for which `matches(text)` holds, then one stats line per session opened."""
     printed, stats_lines = 0, []
     for name in cluster.get("files", []):
-        path = os.path.join(root, name)
-        if not os.path.isfile(path):
+        rel = locate(root, name)
+        if rel is None:
             stats_lines.append(f"session {name} missing")
             continue
-        stats = SessionStats(name)
-        for line_number, text, stats in stream_session(path, name):
+        stats = SessionStats(rel)
+        for line_number, text, stats in stream_session(os.path.join(root, rel), rel):
             if printed < limit and matches(text):
-                print(f"{name}:{line_number}\n{render(text)}\n")
+                print(f"{rel}:{line_number}\n{render(text)}\n")
                 printed += 1
         stats_lines.append(stats.line())
     for line in stats_lines:
@@ -133,7 +140,7 @@ def main():
     ap.add_argument("--near", action="store_true", help="look the hash up in patterns.near_duplicate_prompts")
     ap.add_argument("--max", type=int, default=3)
     ap.add_argument("--population", default="interactive", choices=("interactive", "headless", "subagent"))
-    ap.add_argument("--root", default=scan_lib.PROJECTS_ROOT, help="directory the cluster's files are relative to")
+    ap.add_argument("--root", default=scan_lib.PROJECTS_ROOT, help="projects directory; files are found at <root>/*/<file>")
     a = ap.parse_args()
     with open(a.scan, encoding="utf-8") as fh:
         scan = json.load(fh)
