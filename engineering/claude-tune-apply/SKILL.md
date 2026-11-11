@@ -1,9 +1,9 @@
 ---
 name: claude-tune-apply
 description: Preview, apply, explain or roll back chosen items of the latest claude-tune plan, selected by id (P1-02), phase (phase1) or risk (safe). Every write is previewed first and bound to a digest, backed up, and undone one item at a time. Run after /claude-tune has produced a plan.
-argument-hint: '[P1-02 ...|phaseN|safe|all] [--dry-run] [--explain ID] [--rollback ID] [--done ID] [--purge-backup ID]'
+argument-hint: '[P1-02 ...|phaseN|safe|all] [--dry-run] [--explain ID] [--rollback ID] [--done ID] [--purge-backup ID] [--page]'
 disable-model-invocation: true
-allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/apply.py *) Read(~/.claude/tune/plans/**) AskUserQuestion
+allowed-tools: Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/apply.py *) Read(~/.claude/tune/plans/**) AskUserQuestion Artifact
 disallowed-tools: Edit Write NotebookEdit
 metadata:
   author: Mohamed Habbat (https://github.com/HT-Moh)
@@ -30,6 +30,11 @@ Selection: `$ARGUMENTS` (empty: show the plan and stop).
    runs the item's post-checks before recording it.
 6. The Artifact page from the audit does not refresh by itself. The script re-renders the
    HTML and Markdown beside the plan after every change; `--list` is the current state.
+   After any change (apply, `--done`, `--rollback`, `--set-page`), run
+   `python3 ${CLAUDE_SKILL_DIR}/scripts/apply.py --page` and publish the `html:` file to the
+   `page:` URL with the Artifact tool (`url` = that link, same file path) so the page shows
+   the new statuses. If it prints `no page recorded`, publish the HTML as a new artifact and
+   record the link with `--set-page <url>`.
 
 ## Current plan
 
@@ -42,8 +47,10 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/apply.py --list
 - **No arguments**: the table above is the answer. Tell the user, in one short paragraph,
   how to select (ids, `phase1`, `safe`), that `--explain ID` shows why, consumers and
   dependencies, and what the `Next:` line suggests. Stop.
+- **`--page`**: run `python3 ${CLAUDE_SKILL_DIR}/scripts/apply.py --page`, open the `page:`
+  link with the Artifact tool (`action: open`) and give the user the link.
 - **`--explain ID`, `--rollback ID...`, `--done ID...`, `--undone ID...`,
-  `--purge-backup ID`, `--render`**: run exactly
+  `--purge-backup ID`, `--render`, `--set-page URL`**: run exactly
   `python3 ${CLAUDE_SKILL_DIR}/scripts/apply.py $ARGUMENTS`. Report every `WARNING` line
   verbatim. For `--rollback`, if the script refuses because a file changed after apply, show
   the message and ask before adding `--force`.

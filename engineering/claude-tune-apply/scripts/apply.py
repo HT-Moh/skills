@@ -26,7 +26,7 @@ import report  # noqa: E402
 import runner  # noqa: E402
 import selection  # noqa: E402
 import tune_ops  # noqa: E402
-from plan_schema import PlanError, effective_risk  # noqa: E402
+from plan_schema import PlanError, effective_risk, validate  # noqa: E402
 from redact import redact  # noqa: E402
 
 
@@ -50,6 +50,8 @@ def parse(argv):
     ap.add_argument("--purge-backup", metavar="ID")
     ap.add_argument("--render", action="store_true")
     ap.add_argument("--migrate", action="store_true")
+    ap.add_argument("--page", action="store_true")
+    ap.add_argument("--set-page", metavar="URL")
     return ap.parse_args(argv)
 
 
@@ -120,6 +122,15 @@ def cmd_purge(plan, plan_path, item_id):
     say(f"{item_id}: backup purged; rollback is no longer possible")
 
 
+def cmd_set_page(plan, plan_path, url):
+    plan["page_url"] = url
+    errors = validate(plan)
+    if errors:
+        raise PlanError("\n".join(errors))
+    plan_store.save_plan(plan, plan_path)
+    say(f"page recorded: {url}")
+
+
 def cmd_migrate(plan, plan_path):
     raised = [it["id"] for it in plan["items"] if it.get("risk") == "safe" and effective_risk(it) == "review"]
     plan_store.save_plan(plan, plan_path)
@@ -133,7 +144,11 @@ def dispatch(a) -> None:
         if item is None:
             raise PlanError(f"no item {a.explain}")
         return say(report.explain(item, plan))
-    if a.rollback:
+    if a.page:
+        return say(report.page_lines(plan, plan_path))
+    if a.set_page:
+        cmd_set_page(plan, plan_path, a.set_page)
+    elif a.rollback:
         cmd_rollback(plan, plan_path, a.rollback, a.force)
     elif a.done:
         cmd_done(plan, plan_path, a.done)

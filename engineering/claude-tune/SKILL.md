@@ -106,7 +106,9 @@ match aborts the skill.
    refused path, precondition failed): fix the op and rerun step 6. `blocked by` lines are
    expected for items behind manual work. If the apply skill is absent, say so in the report.
 8. **Report.** Publish `<plan>.html` with the Artifact tool (icon `checklist`, description
-   "Claude Code tuning plan: tick items, copy the preview and apply commands"). In the
+   "Claude Code tuning plan: tick items, copy the preview and apply commands"). Record the
+   link in the plan so `/claude-tune-apply --page` can find and refresh it:
+   `python3 ${CLAUDE_SKILL_DIR}/../claude-tune-apply/scripts/apply.py --set-page <artifact url> --plan <plan>`. In the
    terminal give only what `reference/report.md` asks for: the summary, the five biggest
    levers, the findings by angle, the unused-features list, the contradiction check, the
    not-verified list, the Artifact link and the line

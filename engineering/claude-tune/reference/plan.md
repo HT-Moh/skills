@@ -11,6 +11,7 @@ Write it to `~/.claude/tune/plans/<YYYY-MM-DD>-<4 chars of session id>.json`, th
   "window_days": 30,
   "claude_version": "2.1.312",
   "summary": "One paragraph: window, sessions by population, the three biggest levers with numbers.",
+  "page_url": "https://claude.ai/artifact/<id>  (optional; apply.py --set-page writes it after the page is published)",
   "items": [
     {
       "id": "P1-02",

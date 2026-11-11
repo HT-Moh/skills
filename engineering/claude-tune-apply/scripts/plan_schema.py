@@ -1,4 +1,4 @@
-"""Plan schema 2: constants, validation, effective risk, dependency order, v1 migration.
+"""Plan schema 2: constants, validation, effective risk, dependency order.
 
 Owned by claude-tune-apply; claude-tune's renderer imports it from here so the two skills
 never drift. Standard library only.
@@ -13,6 +13,7 @@ SCHEMA = 2
 OP_KINDS = ("json_set", "json_delete", "json_append", "json_upsert", "file_create", "file_append",
             "file_replace", "symlink", "file_remove", "manual")
 ID_RE = re.compile(r"P[0-6]-\d{2}")
+PAGE_URL_RE = re.compile(r"^https://claude\.ai/(code/)?artifact/[A-Za-z0-9-]+$")
 RISKS = ("safe", "review", "manual")
 STATUSES = ("proposed", "applied", "done", "needs_user", "rolled_back", "failed", "applied-purged")
 REVERSIBLE = ("full", "setting-only", "none")
@@ -51,7 +52,7 @@ def validate(plan: dict) -> list[str]:
     items = plan.get("items")
     if not isinstance(items, list) or not items:
         return ["items must be a non-empty list"]
-    errors: list[str] = []
+    errors: list[str] = _validate_page_url(plan)
     for n, it in enumerate(items):
         if not isinstance(it, dict):
             errors.append(f"item #{n}: not an object")
@@ -66,6 +67,15 @@ def validate(plan: dict) -> list[str]:
     for it in dict_items:
         errors += _literal_credentials(it)
     return errors
+
+
+def _validate_page_url(plan: dict) -> list[str]:
+    url = plan.get("page_url")
+    if url is None:
+        return []
+    if not isinstance(url, str) or not PAGE_URL_RE.match(url):
+        return ["page_url must be a claude.ai artifact link (https://claude.ai/artifact/<id>)"]
+    return []
 
 
 def _strings(node):
@@ -279,21 +289,3 @@ def topo_order(items: list[dict]) -> list[dict]:
         for deps in pending.values():
             deps[:] = [d for d in deps if d not in ready]
     return ordered
-
-
-def migrate_v1(plan: dict) -> dict:
-    """Upgrade a schema-1 plan in place: prose `verify` becomes a deferred note check."""
-    if plan.get("schema") == 1:
-        for it in plan.get("items") or []:
-            if isinstance(it, dict):
-                _migrate_item(it)
-        plan["schema"] = SCHEMA
-    return plan
-
-
-def _migrate_item(it: dict) -> None:
-    verify = it.pop("verify", "")
-    for key, default in ITEM_DEFAULTS.items():
-        it.setdefault(key, list(default) if isinstance(default, list) else default)
-    if verify and not it["checks"]:
-        it["checks"] = [{"phase": "deferred", "kind": "note", "text": verify}]

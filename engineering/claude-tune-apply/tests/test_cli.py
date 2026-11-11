@@ -174,3 +174,25 @@ def test_rollback_saves_after_each_item(two_item_plan):
     r = run("--rollback", "P6-01", "P9-99")
     assert r.returncode == 1
     assert json.loads(pf.read_text())["items"][1]["status"] == "rolled_back"
+
+
+def test_page_without_recorded_url_says_how_to_record(two_item_plan):
+    r = run("--page")
+    assert r.returncode == 0 and "no page recorded" in r.stdout and "--set-page" in r.stdout
+
+
+def test_set_page_records_url_then_page_prints_it(two_item_plan):
+    url = "https://claude.ai/artifact/F4MKKZG56qTCCZEfLzMGXt"
+    r = run("--set-page", url)
+    assert r.returncode == 0 and url in r.stdout
+    plan = json.loads(two_item_plan[0].read_text())
+    assert plan["page_url"] == url
+    r = run("--page")
+    assert r.returncode == 0 and r.stdout.startswith("page: " + url)
+    assert ".html" in r.stdout
+
+
+def test_set_page_rejects_non_artifact_url(two_item_plan):
+    r = run("--set-page", "https://example.com/x")
+    assert r.returncode == 1 and "page_url" in r.stdout
+    assert "page_url" not in json.loads(two_item_plan[0].read_text())

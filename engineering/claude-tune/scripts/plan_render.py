@@ -16,7 +16,8 @@ import sys
 
 APPLY_SCRIPTS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "claude-tune-apply", "scripts")
 sys.path.insert(0, os.path.realpath(APPLY_SCRIPTS))
-from plan_schema import PHASES, RISKS, effective_risk, migrate_v1, validate  # noqa: E402
+from plan_migrate import migrate_v1  # noqa: E402
+from plan_schema import PHASES, RISKS, effective_risk, validate  # noqa: E402
 from redact import redact  # noqa: E402
 
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "templates", "plan.html")

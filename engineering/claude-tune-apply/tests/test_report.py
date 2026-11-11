@@ -91,3 +91,10 @@ def test_show_preview_lists_every_check(tmp_home):
     previews, _ = runner.dry_run(mkplan(item), [item])
     text = report.show_preview(previews[0], item, mkplan(item))
     assert "checks:" in text and "post: json_equals" in text and "claude --version" in text
+
+
+def test_list_table_shows_page_url_when_recorded():
+    plan = mkplan(mkitem("P1-01", [{"kind": "json_set", "file": SETTINGS, "path": ["a"], "value": 1}]))
+    assert "page:" not in report.list_table(plan)
+    plan["page_url"] = "https://claude.ai/artifact/F4MKKZG56qTCCZEfLzMGXt"
+    assert "page: https://claude.ai/artifact/F4MKKZG56qTCCZEfLzMGXt" in report.list_table(plan)

@@ -2,6 +2,7 @@ import copy
 
 import pytest
 
+import plan_migrate
 import plan_schema
 
 SETTINGS = "~/.claude/settings.json"
@@ -126,7 +127,7 @@ def test_migrate_v1_sets_schema_2_defaults_and_keeps_status():
           "items": [{"id": "P6-01", "phase": 6, "title": "t", "risk": "review", "why": "w", "evidence": "e",
                      "docs": "https://x", "impact": "i", "depends_on": [], "verify": "x", "status": "applied",
                      "ops": [{"kind": "json_set", "file": SETTINGS, "path": ["cleanupPeriodDays"], "value": 90}]}]}
-    out = plan_schema.migrate_v1(copy.deepcopy(v1))
+    out = plan_migrate.migrate_v1(copy.deepcopy(v1))
     it = out["items"][0]
     assert out["schema"] == 2
     assert it["status"] == "applied"
@@ -234,3 +235,15 @@ def test_validate_rejects_cmd_exit_outside_deferred():
     assert any("deferred" in e for e in plan_schema.validate(plan(it)))
     ok = item(checks=[{"phase": "deferred", "kind": "cmd_exit", "argv": ["test", "-d", "/"]}])
     assert plan_schema.validate(plan(ok)) == []
+
+
+def test_validate_accepts_artifact_page_url():
+    p = plan(item())
+    p["page_url"] = "https://claude.ai/artifact/F4MKKZG56qTCCZEfLzMGXt"
+    assert plan_schema.validate(p) == []
+
+
+def test_validate_rejects_page_url_outside_claude_ai():
+    p = plan(item())
+    p["page_url"] = "https://example.com/artifact/x"
+    assert any("page_url" in e for e in plan_schema.validate(p))
