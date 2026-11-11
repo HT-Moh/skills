@@ -90,3 +90,14 @@ def test_page_header_is_one_stats_line_without_summary_or_legend():
     assert 'id="summary"' not in text and 'id="legend"' not in text
     assert "Tick the changes you want" not in text and "days in window" not in text
     assert header.count("<p") <= 1 and 'id="stats"' in header
+
+
+def test_main_prints_warnings_but_still_renders(tmp_path, monkeypatch, capsys):
+    first = mkitem("P0-01", [{"kind": "manual", "text": "use the file from P0-02"}], risk="manual")
+    second = mkitem("P0-02", [{"kind": "manual", "text": "make the file"}], risk="manual", deps=["P0-01"])
+    plan_path = tmp_path / "p.json"
+    plan_path.write_text(json.dumps(mkplan(first, second)))
+    monkeypatch.setattr("sys.argv", ["plan_render.py", str(plan_path), "--md", str(tmp_path / "p.md")])
+    plan_render.main()
+    out = capsys.readouterr().out
+    assert "WARNING: " in out and "P0-02" in out and out.rstrip().endswith("md=" + str(tmp_path / "p.md"))

@@ -16,6 +16,7 @@ import sys
 
 APPLY_SCRIPTS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "claude-tune-apply", "scripts")
 sys.path.insert(0, os.path.realpath(APPLY_SCRIPTS))
+from plan_lint import warnings  # noqa: E402
 from plan_migrate import migrate_v1  # noqa: E402
 from plan_schema import PHASES, RISKS, effective_risk, validate  # noqa: E402
 from redact import redact  # noqa: E402
@@ -125,6 +126,8 @@ def main():
     if errors:
         print("\n".join("INVALID: " + e for e in errors))
         sys.exit(1)
+    for warning in warnings(plan):
+        print("WARNING: " + warning)
     render_files(plan, a.plan, a.md, a.html)
     if a.latest:
         from pathlib import Path

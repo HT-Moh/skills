@@ -2,6 +2,7 @@ import copy
 
 import pytest
 
+import plan_lint
 import plan_migrate
 import plan_schema
 
@@ -247,3 +248,16 @@ def test_validate_rejects_page_url_outside_claude_ai():
     p = plan(item())
     p["page_url"] = "https://example.com/artifact/x"
     assert any("page_url" in e for e in plan_schema.validate(p))
+
+
+def test_warnings_flag_text_that_relies_on_a_dependent_item():
+    first = item(id="P0-01", risk="manual", ops=[{"kind": "manual", "text": "put the new values in the file created by P0-02"}])
+    second = item(id="P0-02", risk="manual", depends_on=["P0-01"], ops=[{"kind": "manual", "text": "create the file"}])
+    warnings = plan_lint.warnings(plan(first, second))
+    assert len(warnings) == 1 and "P0-01" in warnings[0] and "P0-02" in warnings[0]
+
+
+def test_warnings_stay_silent_when_the_mentioned_item_has_no_dependency_back():
+    first = item(id="P0-01", risk="manual", ops=[{"kind": "manual", "text": "then P0-03 deletes the literals"}])
+    third = item(id="P0-03", ops=[{"kind": "json_delete", "file": SETTINGS, "path": ["env", "X"]}], risk="review")
+    assert plan_lint.warnings(plan(first, third)) == []
