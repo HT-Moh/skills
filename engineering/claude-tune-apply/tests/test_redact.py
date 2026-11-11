@@ -1,3 +1,5 @@
+import pytest
+
 import redact
 
 
@@ -129,3 +131,9 @@ def test_env_line_keeps_a_variable_reference_as_value():
 
 def test_env_line_keeps_a_placeholder_as_value():
     assert redact.redact("FIRECRAWL_API_KEY=<paste the new key>") == "FIRECRAWL_API_KEY=<paste the new key>"
+
+
+@pytest.mark.parametrize("value", ["${FIRECRAWL_TOKEN}abcd1234", "$FIRECRAWL_TOKEN-abcd1234", "${FIRECRAWL_TOKEN:-abcd1234efgh}",
+                                   "<x>abcd1234efgh", "{abcd1234efgh"])
+def test_env_line_redacts_values_that_only_start_like_a_reference(value):
+    assert "abcd1234" not in redact.redact(f"export FIRECRAWL_API_KEY={value}")

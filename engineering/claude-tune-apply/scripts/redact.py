@@ -43,6 +43,7 @@ SECRET_VALUE_RES = (
     re.compile(r"(?<![A-Za-z0-9])[0-9a-fA-F]{32,}(?![A-Za-z0-9])"),
     re.compile(r"(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{32,}={1,2}"),
 )
+_REFERENCE_RE = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*\}|\$[A-Za-z_][A-Za-z0-9_]*|<[^<>]*>?|\{\{?[A-Za-z_][A-Za-z0-9_.]*\}?\}")
 _HIGH_ENTROPY_RE = re.compile(r"[A-Za-z0-9_-]{32,}")
 ENTROPY_BITS = 4.5  # 40 random url-safe chars score above 5; English identifiers below 4.2
 
@@ -66,9 +67,12 @@ def _redact_json_pair(m: re.Match) -> str:
 
 
 def is_reference(value: str) -> bool:
-    """A `${VAR}`, `$VAR`, `<placeholder>` or `{template}` stands for a value; it is not one."""
+    """A whole `${VAR}`, `$VAR`, `<placeholder>` or `{{template}}` stands for a value; it is not one.
+
+    Whole means whole: `${VAR}suffix` and `${VAR:-default}` carry a value and are redacted. An
+    unquoted `<paste the key>` reaches here one word at a time, so an unclosed `<word` counts."""
     v = value.strip().strip("\"'`,;")
-    return not v or v.lower() in _PLACEHOLDERS or v.startswith(("<", "$", "{"))
+    return not v or v.lower() in _PLACEHOLDERS or bool(_REFERENCE_RE.fullmatch(v))
 
 
 def _redact_env_line(m: re.Match) -> str:
