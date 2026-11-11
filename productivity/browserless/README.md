@@ -45,3 +45,15 @@ headless browser off the local machine can invoke it the same way.
   a *known* URL; route search through a skill that owns a search API.
 - A failed navigation can return HTTP 200 with Chrome's `neterror` page as the body. The
   skill greps for `id="main-message"` / `ERR_*` and treats a hit as a failed fetch.
+
+## Install
+
+Clone the repo once, link the skill into your personal skills directory, restart Claude Code:
+
+```bash
+git clone https://github.com/HT-Moh/skills.git ~/src/skills
+ln -s ~/src/skills/productivity/browserless ~/.claude/skills/browserless
+```
+
+A symlink keeps `git pull` as the update path. `cp -r productivity/browserless ~/.claude/skills/browserless` gives a
+frozen copy instead.

@@ -58,3 +58,15 @@ cd scripts && python3 -m pytest -q test_local_chrome.py && node --test test_ws_f
 Pass `--http` for the stateless browserless `/function` path (`scripts/linkedin_flow.js`).
 It is subject to the proxy's idle and body limits, takes one image at most, and cannot
 attach documents.
+
+## Install
+
+Clone the repo once, link the skill into your personal skills directory, restart Claude Code:
+
+```bash
+git clone https://github.com/HT-Moh/skills.git ~/src/skills
+ln -s ~/src/skills/social/linkedin-post ~/.claude/skills/linkedin-post
+```
+
+A symlink keeps `git pull` as the update path. `cp -r social/linkedin-post ~/.claude/skills/linkedin-post` gives a
+frozen copy instead.

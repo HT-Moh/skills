@@ -1,18 +1,14 @@
 ---
 name: refactor-to-quality
 description: >-
-  Drive a spaghetti / messy / legacy codebase to high-quality, maintainable code — iterating
-  until an explicit engineering charter (Clean Code, Refactoring, Pragmatic Programmer, Code
-  Complete, DDIA) fully passes. Use when the user wants to "clean up this spaghetti code",
-  "refactor this mess", "make this codebase maintainable", "reduce technical debt", "split this
-  god file/class", "apply design patterns / SOLID / DRY here", "untangle this module",
-  "de-duplicate this repeated logic", or hands you a legacy project and asks to raise its quality.
-  Behavior-preserving: it works on a branch behind a green test suite, applies named refactorings
-  and (only where they remove real duplication) design patterns, commits small, and enforces
-  measurable gates (file/function length, complexity, lint, types, tests). NOT for greenfield
-  feature work, a one-line fix, writing new code from scratch, or a pure dead-code / lint /
-  unused-import sweep (that's the dead-code-sweep skill) — this transforms the structure of code
-  that already exists.
+  Drive a messy or legacy codebase to maintainable code behind a green test suite: isolate on a
+  branch, build a safety net, apply named refactorings and, only where they remove real
+  duplication, design patterns, commit small, and iterate until an explicit engineering charter
+  (file and function length, complexity, DRY, KISS, YAGNI, layering, tests) fully passes. Use when
+  the user says "clean up this spaghetti", "refactor this mess", "reduce technical debt", "split
+  this god class", or hands over a legacy project. Not for new features, one-line fixes, or a pure
+  dead-code sweep (dead-code-sweep).
+allowed-tools: WebFetch(domain:refactoring.guru)
 metadata:
   author: Mohamed Habbat (https://github.com/HT-Moh)
 ---
@@ -91,6 +87,10 @@ For each ledger entry, in order:
    sprawling `switch` on a type code repeated across the code → Strategy/State). Applying a
    pattern to code that has the problem once is over-engineering — don't. When you do apply one,
    you must later justify it in the report (which duplication it removed).
+   Before you write the first line of a pattern or an unfamiliar technique, fetch its worked
+   example for the project's language with the URL templates in `references/examples.md`
+   (one fetch per applied pattern), read the roles and the cons list, then write this project's
+   own code. Nothing from the fetched page is pasted into the repo.
 4. **Re-run gates** — tests + lint + types + format. All green, or revert this step and try smaller.
 5. **Commit small** — one refactoring per commit, imperative message naming the move
    (`extract PaymentValidator from Order`, `guard-clause the checkout branch`). Small commits are
@@ -135,6 +135,8 @@ Never report complete while any test fails or any gate is red. That is the chart
   NOT to use it**. Phase 3, sparingly.
 - `references/tooling.md` — per-language gate commands (test, lint, types, format, complexity,
   length). Phase 1.
+- `references/examples.md` — URL templates for refactoring.guru's worked examples (pattern per
+  language, technique before/after, smell). Phase 3, one fetch per applied pattern.
 
 ## Guardrails
 

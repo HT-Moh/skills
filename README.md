@@ -44,15 +44,16 @@ type their name); `claude-tune` and `claude-tune-apply` are user-invoked only. S
 
 ## Install
 
-Copy a skill folder into your personal skills directory, then restart Claude Code:
+Clone once, then link the skills you want into `~/.claude/skills/` and restart Claude Code:
 
 ```bash
-cp -r productivity/essentialism ~/.claude/skills/essentialism
+git clone https://github.com/HT-Moh/skills.git ~/src/skills
+ln -s ~/src/skills/productivity/essentialism ~/.claude/skills/essentialism
 ```
 
-It loads automatically — `essentialism` will appear in your skills list, and triggers
-when you start a new project, scope starts creeping, or you feel overwhelmed by too many
-things to do. You can also invoke it explicitly with `/essentialism`.
+A symlink keeps `git pull` as the update path; `cp -r` gives a frozen copy. `claude-tune` and
+`claude-tune-apply` import from each other: link or copy both. Each skill's README has its own
+Install section with the exact paths.
 
 ## Structure
 

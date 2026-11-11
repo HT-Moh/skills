@@ -34,6 +34,9 @@ project to raise. **Not** for greenfield features, a one-line fix, or writing ne
 - `references/refactoring-catalog.md` — the named, behavior-preserving moves and their mechanics.
 - `references/design-patterns.md` — the 23 GoF patterns: intent, the smell each answers, and **when
   NOT** to reach for it.
+- `references/examples.md` — URL templates for refactoring.guru's worked examples (pattern per
+  language, technique before/after, smell); the skill fetches one page at the moment it applies a
+  pattern and copies nothing into the repo.
 - `references/tooling.md` — per-language gate commands (test/lint/types/format), how to measure the
   charter thresholds, and how to write characterization tests when the net is missing.
 
@@ -45,3 +48,15 @@ Data-Intensive Applications*.
 
 Structure changes; behavior does not — and a test suite that was green before and after every step
 is the proof. That invariant is the reason the workflow leads with the safety net.
+
+## Install
+
+Clone the repo once, link the skill into your personal skills directory, restart Claude Code:
+
+```bash
+git clone https://github.com/HT-Moh/skills.git ~/src/skills
+ln -s ~/src/skills/engineering/refactor-to-quality ~/.claude/skills/refactor-to-quality
+```
+
+A symlink keeps `git pull` as the update path. `cp -r engineering/refactor-to-quality ~/.claude/skills/refactor-to-quality` gives a
+frozen copy instead.

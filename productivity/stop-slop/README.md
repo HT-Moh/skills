@@ -60,3 +60,15 @@ Below 35/50: revise.
 ## License
 
 MIT. Use freely, share widely.
+
+## Install
+
+Clone the repo once, link the skill into your personal skills directory, restart Claude Code:
+
+```bash
+git clone https://github.com/HT-Moh/skills.git ~/src/skills
+ln -s ~/src/skills/productivity/stop-slop ~/.claude/skills/stop-slop
+```
+
+A symlink keeps `git pull` as the update path. `cp -r productivity/stop-slop ~/.claude/skills/stop-slop` gives a
+frozen copy instead.

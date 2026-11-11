@@ -31,3 +31,15 @@ and read the top PDFs.
   A datacenter IP still gets CAPTCHA'd on Google search itself, so it's not a Google fix.
 - True last-hour freshness needs a real browser, raw Google, or Google CSE. The keyless
   DuckDuckGo fallback only filters down to one day — the skill surfaces that downgrade.
+
+## Install
+
+Clone the repo once, link the skill into your personal skills directory, restart Claude Code:
+
+```bash
+git clone https://github.com/HT-Moh/skills.git ~/src/skills
+ln -s ~/src/skills/productivity/google-power-search ~/.claude/skills/google-power-search
+```
+
+A symlink keeps `git pull` as the update path. `cp -r productivity/google-power-search ~/.claude/skills/google-power-search` gives a
+frozen copy instead.

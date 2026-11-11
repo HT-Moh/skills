@@ -21,3 +21,15 @@ Method, distilled from a real eradication audit (ValRadar PDR-234, 2026-08):
 The acquitted list matters as much as the convicted one: it stops the next
 sweep from re-litigating detector false positives (knip flagging the boot
 migrator, vulture flagging decorator-driven FastAPI handlers).
+
+## Install
+
+Clone the repo once, link the skill into your personal skills directory, restart Claude Code:
+
+```bash
+git clone https://github.com/HT-Moh/skills.git ~/src/skills
+ln -s ~/src/skills/engineering/dead-code-sweep ~/.claude/skills/dead-code-sweep
+```
+
+A symlink keeps `git pull` as the update path. `cp -r engineering/dead-code-sweep ~/.claude/skills/dead-code-sweep` gives a
+frozen copy instead.
