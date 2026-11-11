@@ -102,9 +102,14 @@ the `claude mcp add/remove` command) and system directories.
   `symlink` from `~/.claude/skills/<name>` to `../../.agents/skills/<name>`, when the
   config audit shows that convention. Otherwise `file_create` straight into `~/.claude/skills/`.
   A skill induced from a prompt cluster (brief F) cites the cluster in `evidence` as
-  `(sessions, hash)` from `scan.json`, uses `$ARGUMENTS` for the parts that varied across
-  samples, carries no literal path, branch, host or number from any sample, and has a `post`
-  check `file_contains {file, text: "$ARGUMENTS"}` when the prompts varied at all.
+  `hash, sessions, occurrences` from `scan.json`, uses `$ARGUMENTS` for the parts that varied
+  across samples, carries no literal path, branch, host or number from any sample, and has a
+  `post` check `file_contains {file, text: "$ARGUMENTS"}` when the prompts varied at all.
+- Prompt cluster to change: a cluster of near-identical prompts with no varying part becomes
+  a user-invoked skill (`disable-model-invocation: true`) whose body is the prompt; a cluster
+  whose samples differ in a value (branch, PR number, path) becomes a skill that takes that
+  value as `$ARGUMENTS`; a repeated one-line correction ("use rtk", "run the tests first")
+  becomes a `file_append` to the project `CLAUDE.md`, not a skill.
 - Removing a secret from `settings.json` env: one `manual` item "rotate the key at the
   provider" and one `review` item with `json_delete` that `depends_on` it.
 - A hook: `json_upsert` into `hooks.<Event>` with `match: {"matcher": "Bash"}` replaces that

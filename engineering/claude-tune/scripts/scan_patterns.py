@@ -9,6 +9,7 @@ import hashlib
 import re
 
 import scan_commands
+import scan_sequences
 
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 LOOK_TOOLS = ("Read", "Grep", "Glob", "Bash", "Agent", "Skill", "WebFetch", "WebSearch")
@@ -77,6 +78,37 @@ def dangerous_forms(words):
     return out
 
 
+CLUSTER_MIN_SESSIONS = 3
+CLUSTER_MIN_OCCURRENCES = 5
+CLUSTER_FILES_KEPT = 5
+CLUSTER_ROWS_KEPT = 15
+
+
+class PromptCluster:
+    """Every message that hashes to one key: how many, in how many sessions, and where to look."""
+
+    def __init__(self):
+        self.sessions = set()
+        self.occurrences = 0
+        self.files = []
+
+    def add(self, session_name):
+        self.occurrences += 1
+        if session_name not in self.sessions and len(self.files) < CLUSTER_FILES_KEPT:
+            self.files.append(session_name)
+        self.sessions.add(session_name)
+
+    def is_recurring(self):
+        return len(self.sessions) >= CLUSTER_MIN_SESSIONS or self.occurrences >= CLUSTER_MIN_OCCURRENCES
+
+
+def cluster_rows(clusters):
+    """JSON-ready rows for the recurring clusters, most occurrences first, top 15."""
+    kept = sorted(((c.occurrences, k) for k, c in clusters.items() if c.is_recurring()), reverse=True)
+    return [{"hash": k, "sessions": len(clusters[k].sessions), "occurrences": n, "files": list(clusters[k].files)}
+            for n, k in kept[:CLUSTER_ROWS_KEPT]]
+
+
 class Patterns:
     """Per-population counters; every value is a count, a ratio or a hash."""
 
@@ -93,12 +125,13 @@ class Patterns:
         self.tool_wait_s = collections.Counter()
         self.tool_wait_n = collections.Counter()
         self.nudges = 0
-        self.near_prompts = collections.defaultdict(set)
+        self.near_prompts = collections.defaultdict(PromptCluster)
         self.done_claims = 0
         self.done_without_verify = 0
         self.interrupt_before = collections.Counter()
         self.orphaned_agents = 0
         self.cache_miss_ratio = []
+        self.sequences = collections.defaultdict(set)
 
 
 class Session:
@@ -117,6 +150,7 @@ class Session:
         self.agents = set()
         self.cache_creation = 0
         self.cache_read = 0
+        self.recent_tools = scan_sequences.new_window()
 
 
 def on_user_text(text, sess, pat):
@@ -147,6 +181,7 @@ def on_tool_use(block, sess, pat):
     if sess.first_tool is None:
         sess.first_tool = name
     sess.last_tool = name
+    scan_sequences.record(scan_sequences.token_of(name, inp), sess.recent_tools, sess.name, pat.sequences)
     if name == "Agent":
         sess.agents.add(block.get("id"))
     if name in EDIT_TOOLS:
@@ -218,7 +253,6 @@ def _pct(values, q):
 
 def summary(pat, n_sessions):
     """JSON-ready view; hashes and counts only."""
-    near = sorted(((len(s), k) for k, s in pat.near_prompts.items() if len(s) >= 3), reverse=True)[:15]
     waits = {k: (int(pat.tool_wait_s[k]), pat.tool_wait_n[k], round(pat.tool_wait_s[k] / pat.tool_wait_n[k], 1))
              for k, _ in pat.tool_wait_s.most_common(20)}
     return {
@@ -229,8 +263,9 @@ def summary(pat, n_sessions):
         "duplicate_reads": pat.duplicate_reads, "duplicate_read_chars": pat.duplicate_read_chars,
         "oversized_results_over_20k": pat.oversized_results.most_common(),
         "tool_wait_seconds_total_n_mean": waits,
-        "nudge_prompts": pat.nudges, "near_duplicate_prompts_sessions": [(n, k) for n, k in near],
+        "nudge_prompts": pat.nudges, "near_duplicate_prompts": cluster_rows(pat.near_prompts),
         "done_claims": pat.done_claims, "done_without_verify": pat.done_without_verify,
         "interrupt_before_tool": pat.interrupt_before.most_common(10), "orphaned_agents": pat.orphaned_agents,
         "cache_miss_ratio_median": _pct(pat.cache_miss_ratio, 0.5), "cache_miss_ratio_p90": _pct(pat.cache_miss_ratio, 0.9),
+        "recurring_tool_sequences": scan_sequences.rows(pat.sequences),
     }
