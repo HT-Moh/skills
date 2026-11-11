@@ -1,0 +1,22 @@
+[
+{"query":"we're about to cut v3 of the billing-api repo. can you go through src/ and tell me what we can actually delete? unused exports, orphaned files, packages in package.json nobody imports. I want a list with file:line and proof, not just knip output pasted in","should_trigger":true},
+{"query":"run vulture and ruff F401/F841 on the ingest_pipeline python package, then check each hit by hand before telling me it's safe to remove. last time a 'unused' function was loaded by name from a registry dict and prod broke","should_trigger":true},
+{"query":"audit our README and docs/ folder against the code. a bunch of them mention env vars like REDIS_URL_PRIMARY and a worker called 'mailer-v1' and I'm pretty sure those are gone. also check every env var the code reads is set in docker-compose.prod.yml and the k8s manifests","should_trigger":true},
+{"query":"gap analysis on the monorepo before the handover: dead files, stale comments saying 'single-writer' when we moved to a queue months ago, config that's set but never read. verdict per item pls (delete / fix / keep)","should_trigger":true},
+{"query":"whats safe to rm in apps/web/lib? tons of old helpers, i think half arent imported anywhere any more. dont delete yet just show me","should_trigger":true},
+{"query":"our dockerfile runs scripts/boot-migrate.js and knip says its unused. is it really? go through the whole repo and sort out which of knip's flagged files are false positives and which are genuinely orphaned","should_trigger":true},
+{"query":"comments in the auth module say tokens are stored in memcached but we switched to postgres sessions in march. find every comment or doc across the repo that lies about how the code works and give me the corrections","should_trigger":true},
+{"query":"after the acme-checkout merge there's leftover feature-flag branches that can never run since the flags are hardcoded true. hunt them all down across services/ and propose removals with evidence","should_trigger":true},
+{"query":"cleanup audit please. the repo has grown for 4 years, i suspect lots of unused TypeScript types, barrel re-exports nobody uses, and deps in package.json that nothing requires. produce a report, blocking issues first, then confirmed dead stuff, then what you cleared","should_trigger":true},
+{"query":"ok the audit report is approved. now actually delete the confirmed-dead items from section 2, run tsc and the jest suite after, and rerun knip to show the count dropped","should_trigger":true},
+{"query":"this legacy orders-service is a spaghetti mess. split the 1800-line OrderManager god class into smaller modules, add tests first, and get it under our 30-line function limit. everything stays in use","should_trigger":false},
+{"query":"run eslint --fix and prettier across packages/ui and commit the formatting changes. don't touch any logic","should_trigger":false},
+{"query":"add a new endpoint POST /v2/invoices/export to the billing-api that streams a CSV, with tests and openapi docs","should_trigger":false},
+{"query":"bump react from 17 to 18 and next from 12 to 14 in apps/web, fix the breaking changes and get the build green. also update the lockfile","should_trigger":false},
+{"query":"do a security audit of the auth middleware and the file upload handler in services/gateway. look for injection, path traversal, and leaked secrets in the repo history","should_trigger":false},
+{"query":"run npm audit and tell me which vulnerable dependencies i should upgrade first, then open the upgrade PRs for the critical ones","should_trigger":false},
+{"query":"the utils/dates.py module has duplicated logic in 6 places, pull it into one function and rename the confusing variables. nothing is dead, just ugly","should_trigger":false},
+{"query":"write a README section for the ingest_pipeline package explaining the env vars it needs and how to run it locally with docker-compose","should_trigger":false},
+{"query":"tests are failing on CI for the cron worker after yesterday's merge, TypeError in scheduler.ts line 88. debug it and fix","should_trigger":false},
+{"query":"set up a GitHub Actions workflow that runs knip and ruff on every PR and fails the build if new unused exports show up. config only, i'm not asking you to clean anything now","should_trigger":false}
+]

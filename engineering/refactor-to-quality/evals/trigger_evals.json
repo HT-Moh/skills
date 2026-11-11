@@ -1,0 +1,22 @@
+[
+{"query":"we have billing/invoice_engine.py at like 2,400 lines and nobody on the team dares touch it. every PR that goes near it breaks something in payroll. can you get it into a shape where a new hire could change it safely? tests are thin","should_trigger":true},
+{"query":"clean up this spaghetti in src/orders/OrderService.java. its a god class with 40 methods mixing db calls and discount logic. split it up but dont change behavior","should_trigger":true},
+{"query":"our legacy php checkout app at acme-shop/ has copy pasted shipping rules in 9 places and no tests. make it maintainable, write whatever tests you need first, commit in small steps on a branch","should_trigger":true},
+{"query":"reduce technical debt in the reports/ package. functions over 100 lines, 7 args on some, nested ifs 6 deep. keep going until its all within sane limits","should_trigger":true},
+{"query":"every time we touch lib/sync/worker.ts something unrelated breaks. 1,800 lines, one giant function with a switch on event type repeated in 4 files. help me untangle it without changing what it does","should_trigger":true},
+{"query":"inherited this django monolith from a contractor, views.py does validation, SQL and email sending all in one. restructure into sensible layers, tests green the whole way","should_trigger":true},
+{"query":"refactor this mess: utils.js is 900 lines of unrelated helpers and half the repo imports from it. split by feature and make sure the jest suite stays green","should_trigger":true},
+{"query":"can you take the go service in cmd/ledger and bring it up to our engineering standards (file length, function length, DRY, layering)? check each rule at the end and tell me which ones pass","should_trigger":true},
+{"query":"old Rails app, models/user.rb has 1,200 lines. I want it broken into smaller objects using proper refactorings, only adding patterns where we actually have duplicated branching. branch + small commits pls","should_trigger":true},
+{"query":"this C# payment module has the same type-code switch in 6 places and no unit tests. pin current behavior with tests and then clean it up step by step","should_trigger":true},
+{"query":"find everything unused in the repo: dead exports, orphan files, unused npm deps, stale comments. give me a list of what we can delete with evidence","should_trigger":false},
+{"query":"users get a 500 on /api/cart when quantity is 0. its the check in cart_service.py line 88, uses > instead of >=. fix it","should_trigger":false},
+{"query":"add a CSV export button to the reports page. the ReportsController is a mess but i just need the export working, dont restructure anything","should_trigger":false},
+{"query":"run eslint --fix and prettier across the whole src/ folder and commit the formatting changes, nothing else","should_trigger":false},
+{"query":"rename the variable tmp to retryDelayMs in scheduler.py","should_trigger":false},
+{"query":"review PR #412 on our payments repo and tell me whats wrong with the structure. dont change any code, just leave me comments","should_trigger":false},
+{"query":"design the architecture for a brand new inventory service from scratch, node + postgres. no code exists yet, give me module layout and data model","should_trigger":false},
+{"query":"add multi-currency support to the checkout flow in shop/checkout.py. the file is ugly but just bolt it on, I'll deal with cleanup later","should_trigger":false},
+{"query":"upgrade our python from 3.9 to 3.12 and fix whatever breaks in the test suite, dependencies in requirements.txt","should_trigger":false},
+{"query":"our pytest suite takes 14 minutes. profile it and speed it up, parallelize or fix slow fixtures","should_trigger":false}
+]

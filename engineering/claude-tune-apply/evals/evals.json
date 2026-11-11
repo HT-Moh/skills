@@ -1,0 +1,40 @@
+{
+  "skill_name": "claude-tune-apply",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/claude-tune-apply",
+      "expected_output": "The plan table and one short paragraph on how to select items. No file changes.",
+      "files": [],
+      "expectations": [
+        "No apply.py call without --list or --dry-run is made",
+        "The reply names the three selection forms: ids, a phase token like phase1, and safe",
+        "No file under ~/.claude is modified"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/claude-tune-apply safe",
+      "expected_output": "Every unapplied safe item is previewed with --dry-run, then applied without asking, and the summary names each changed file, its backup directory and the rollback command.",
+      "files": [],
+      "expectations": [
+        "apply.py --dry-run safe runs before apply.py safe",
+        "No AskUserQuestion is raised when the selection contains only safe items",
+        "The summary names, per applied item, the changed file, the backup directory and the exact /claude-tune-apply --rollback ID command",
+        "The summary states that settings, hooks and CLAUDE.md changes take effect in the next session",
+        "No secret value is printed; key names only"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/claude-tune-apply P0-03 P1-01",
+      "expected_output": "Dry run of both items; the review item P0-03 is shown as a diff and confirmed with the user before anything is applied; a refused item is reported with the script's reason verbatim.",
+      "files": [],
+      "expectations": [
+        "The dry run output for the review item is shown to the user and AskUserQuestion is used before applying it",
+        "An item refused by apply.py (missing dependency, failed precondition, digest mismatch) is left alone and its reason is quoted",
+        "No settings.json, CLAUDE.md, skill or hook file is edited by any tool other than apply.py"
+      ]
+    }
+  ]
+}

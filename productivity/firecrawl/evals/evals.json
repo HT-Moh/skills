@@ -1,0 +1,44 @@
+{
+  "skill_name": "firecrawl",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "my scrape call to our self-hosted instance returns 404 on /v2/scrape from a python script. FIRECRAWL_URL and FIRECRAWL_TOKEN are set in the env. Work out which endpoints this deployment serves, then scrape https://docs.example.com/guide to guide.md.",
+      "expected_output": "Agent probes the deployment, reports each endpoint state, and uses a working route for the scrape, naming any fallback.",
+      "files": [],
+      "expectations": [
+        "FIRECRAWL_URL and FIRECRAWL_TOKEN are read from the environment and never appear literally",
+        "Endpoint availability is probed (scripts/probe.py or equivalent) before the main call",
+        "Each endpoint is classified as works, empty, forbidden, missing or failed",
+        "The v2 endpoint path is used",
+        "Any fallback route is named in the final report"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "crawl our competitor's blog at acmeanalytics.io/blog, grab every post as markdown into ./competitor_posts/, and give me a table of titles and dates. Env vars FIRECRAWL_URL and FIRECRAWL_TOKEN are exported.",
+      "expected_output": "Agent confirms crawl availability, runs an async v2 crawl, polls the job, and writes posts as markdown files plus a summary table.",
+      "files": [],
+      "expectations": [
+        "Credentials come from FIRECRAWL_URL and FIRECRAWL_TOKEN and are not hardcoded",
+        "POST /v2/crawl is used and the job is polled until completion",
+        "The success field is checked on every response, not only the HTTP status",
+        "Results are written as markdown under ./competitor_posts/",
+        "The report states which endpoints were used and how many pages came back"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "find recent papers on speculative decoding for LLM inference, top 15 with abstracts, save to notes/papers.md. Our firecrawl instance gives 403 on /v2/search/research/papers.",
+      "expected_output": "Agent recognises the forbidden papers route, falls back to /v2/search with categories research, writes notes/papers.md, and says the fallback searches web pages not a paper index.",
+      "files": [],
+      "expectations": [
+        "The 403 on the papers endpoint is treated as non-retryable, not retried in a loop",
+        "Fallback uses /v2/search with categories [\"research\"]",
+        "The report explicitly states the fallback searches web pages rather than a paper index",
+        "Results are written to notes/papers.md as markdown",
+        "FIRECRAWL_TOKEN is read from the environment and never appears literally"
+      ]
+    }
+  ]
+}

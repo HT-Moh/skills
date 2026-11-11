@@ -1,0 +1,44 @@
+{
+  "skill_name": "stop-slop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Clean this paragraph so it reads like a person wrote it: \"In today's fast-paced digital landscape, it's not just about writing code \u2014 it's about crafting solutions. Our team of 12 engineers leverages cutting-edge tools to delve into complex problems, streamline workflows, and unlock innovation. Here's the thing: the results speak for themselves. We cut deploy time from 40 minutes to 6 minutes at Brightwell. It truly is a game-changer.\"",
+      "expected_output": "A shorter plain paragraph that keeps the 12 engineers, Brightwell and the 40-to-6 minute figures, with no em-dashes, no contrast construction and no jargon.",
+      "files": [],
+      "expectations": [
+        "The output contains no em-dash",
+        "No sentence uses the 'it's not X, it's Y' construction",
+        "The words 'delve', 'landscape', 'leverage' and 'game-changer' do not appear",
+        "The figures 12, 40 minutes and 6 minutes and the name Brightwell are preserved",
+        "The phrase 'Here's the thing' does not appear"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Rewrite this for my newsletter intro, it sounds like ChatGPT: \"Welcome back to another edition. This week, we explore a rich tapestry of ideas that stand as a testament to the power of curiosity. Writers, designers, and founders are all navigating an ever-evolving world. Let that sink in. The truth is, great work is never accidental. It is truly transformative to see 3,200 of you reading each Friday.\"",
+      "expected_output": "A tighter intro in active voice that keeps the 3,200 readers and Friday schedule, without tapestry or testament phrasing or a three-item list.",
+      "files": [],
+      "expectations": [
+        "The words 'tapestry', 'testament', 'navigating' and 'transformative' do not appear",
+        "'Let that sink in' and 'The truth is' do not appear",
+        "The output has no list of exactly three parallel items such as 'Writers, designers, and founders'",
+        "The figure 3,200 and the Friday schedule are preserved",
+        "The output is no longer than the input"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Make this README intro sound human: \"Our library seamlessly empowers developers to build robust applications. It is designed to be fast, flexible, and easy to use. The configuration is handled by a single file. Errors are logged automatically and can be reviewed later. It's not a framework, it's a toolkit. Whether you're a beginner or an expert, ParseKit has something for everyone. Installation is performed via pip install parsekit.\"",
+      "expected_output": "A plain README intro with active voice that keeps the ParseKit name and the pip install parsekit command and drops the contrast and filler.",
+      "files": [],
+      "expectations": [
+        "The command 'pip install parsekit' and the name ParseKit are preserved exactly",
+        "No sentence uses the 'it's not X, it's Y' construction",
+        "The words 'seamlessly', 'empowers' and 'robust' do not appear",
+        "No sentence is in the passive voice, for example 'is handled' or 'are logged' or 'is performed'",
+        "The output contains no em-dash"
+      ]
+    }
+  ]
+}

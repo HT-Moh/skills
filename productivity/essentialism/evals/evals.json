@@ -2,36 +2,90 @@
   "skill_name": "essentialism",
   "evals": [
     {
-      "id": 0,
-      "name": "classic-feature-explosion",
+      "id": 1,
       "prompt": "I want to build a habit tracker app. Thinking streaks, a social feed, an AI coach, gamification, an Apple Watch app, leaderboards, and maybe a Notion integration. Where do I start?",
       "expected_output": "Refuses to start building all of it. Forces a single essential intent (the one thing the habit tracker must do), scores the proposed features against it with the 90% rule, keeps only 9-10s, parks the rest. Produces ESSENTIAL_INTENT.md with intent, vital few, non-goals, parked list.",
       "files": [],
-      "assertions": []
-    },
-    {
-      "id": 1,
-      "name": "mid-build-scope-creep",
-      "prompt": "The todo CLI works great. While we're at it let's also add tags, due dates, recurring tasks, a web UI, and cloud sync. Sound good?",
-      "expected_output": "Detects the scope creep trip wires ('while we're at it', 'also add'). Re-anchors to the essential intent. Scores each new feature, pushes back on the non-essential ones, parks them rather than agreeing to all. Does not just say 'sounds good' and pile them on.",
-      "files": [],
-      "assertions": []
+      "expectations": [
+        "No feature is built before one essential intent with a done-when is stated",
+        "Each of the seven proposed features is scored with the 90% rule and only 9s and 10s are kept",
+        "Parked features are listed as parked, not deleted",
+        "An ESSENTIAL_INTENT.md file is written with the intent, the done-when and the parked list"
+      ]
     },
     {
       "id": 2,
-      "name": "vague-kickoff",
-      "prompt": "Help me make a SaaS for freelancers.",
-      "expected_output": "Does not immediately sprawl into a big feature list / tech stack. Forces clarity on the single essential outcome and who it's for before any building. Asks the essential-intent questions, narrows to one sharp sentence.",
+      "prompt": "The todo CLI works great. While we're at it let's also add tags, due dates, recurring tasks, a web UI, and cloud sync. Sound good?",
+      "expected_output": "Detects the scope creep trip wires ('while we're at it', 'also add'). Re-anchors to the essential intent. Scores each new feature, pushes back on the non-essential ones, parks them rather than agreeing to all. Does not just say 'sounds good' and pile them on.",
       "files": [],
-      "assertions": []
+      "expectations": [
+        "The scope-creep phrases ('while we're at it', 'also add') are named as the trigger",
+        "The reply re-states the existing essential intent before scoring the five additions",
+        "At least one of the five additions is pushed back on and parked",
+        "The reply does not agree to all five additions"
+      ]
     },
     {
       "id": 3,
-      "name": "tangled-brain-dump",
+      "prompt": "Help me make a SaaS for freelancers.",
+      "expected_output": "Does not immediately sprawl into a big feature list / tech stack. Forces clarity on the single essential outcome and who it's for before any building. Asks the essential-intent questions, narrows to one sharp sentence.",
+      "files": [],
+      "expectations": [
+        "No feature list or tech stack is proposed before the essential outcome is clear",
+        "The reply asks who the single user is and what one problem the SaaS solves",
+        "The intent is narrowed to one sentence with a done-when before anything is built"
+      ]
+    },
+    {
+      "id": 4,
       "prompt": "ok so i have this idea, kind of a marketplace but also a community, for like home cooks? or maybe meal preppers. people could sell food, or share recipes, maybe do subscriptions, and i want reviews and a map and messaging and maybe AI meal plans. idk where to even start, my brain is everywhere on this.",
       "expected_output": "Recognizes a disorganized tangle. Does NOT start building or list features. Grills with a few sharp, convergence-forcing questions (one person/one problem, done-when, two-week ultimatum), pushes back on mush, narrows to one essential intent with a done-when, defines a smallest shippable slice and a single next action, names the biggest obstacle, parks the rest.",
       "files": [],
-      "assertions": []
+      "expectations": [
+        "The reply asks at most a few convergence-forcing questions (one person, one problem, done-when, two-week ultimatum)",
+        "No feature list and no code is produced before the essential intent is fixed",
+        "Vague answers are pushed back on rather than accepted",
+        "The result is one essential intent with a done-when, the rest parked"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "ok so i'm a solo founder and i want to build a 'all-in-one workspace for freelancers': invoicing, time tracking, contracts, a client portal, proposals, expense scanning, calendar sync, a mobile app, ai email drafts, a marketplace for leads, tax estimates, and team chat. i have maybe 10 hrs a week and a laptop. where do i even start",
+      "expected_output": "The agent grills the founder with a few sharp questions, locks one essential intent with a done-when, scores the twelve features with the 90% rule and parks the non-essential ones, then defines one smallest slice and one next action.",
+      "files": [],
+      "expectations": [
+        "The agent asks at most three focused clarifying questions about one user, one problem, and an observable outcome before proposing a build plan",
+        "A single essential intent sentence is stated and it contains an explicit done-when condition",
+        "Features from the list are each given a 0-10 score and anything below 9 is placed in a Parked list rather than deleted",
+        "An ESSENTIAL_INTENT.md file is written with sections for smallest shippable slice, next action, vital few, non-goals and parked",
+        "The output ends with exactly one concrete next action, not a menu of options"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "The todo CLI in ~/src/tdo works great now. While we're at it let's also add tags, due dates, recurring tasks, a web UI and cloud sync. I'd like to get all of it into the 1.0 release on Dec 15.",
+      "expected_output": "The agent recognizes the scope-creep trip wires, restates the existing intent, scores tags, due dates, recurring tasks, web UI and cloud sync against it, and parks the sub-9 items instead of agreeing to all of them.",
+      "files": [],
+      "expectations": [
+        "The agent explicitly flags that the request adds scope beyond the working CLI and re-anchors to an intent statement",
+        "Each of the five proposed features receives a 0-10 score with a one-line reason",
+        "Features scoring below 9 are parked with their score, not silently dropped and not built",
+        "The agent does not simply agree to add all five features to the 1.0 release",
+        "The response names a single smallest slice or next action for the release"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "i have 5 side projects going (a chrome extension, a podcast, a newsletter, a rust game engine, and an etsy shop) plus a full-time job and i'm honestly overwhelmed. nothing is getting finished. help me figure out what to do",
+      "expected_output": "The agent applies the loop to commitments: asks what the one outcome matters most, ranks the five projects against it, picks one priority to advance this week, and parks or declines the rest with a captured list.",
+      "files": [],
+      "expectations": [
+        "The agent asks a sharp clarifying question to force a decision (for example which one project matters most or what finished looks like) instead of listing generic productivity tips",
+        "All five side projects are scored or ranked against one stated outcome, with only a clear 9-10 kept active",
+        "The non-selected projects are recorded in a parked list, not discarded",
+        "Exactly one project and one concrete next action for this week are named",
+        "The agent identifies one obstacle to remove first or adds a time buffer to the plan"
+      ]
     }
   ]
 }

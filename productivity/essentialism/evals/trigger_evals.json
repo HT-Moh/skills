@@ -1,0 +1,82 @@
+[
+  {
+    "query": "ok so i'm a solo founder and i want to build a 'all-in-one workspace for freelancers': invoicing, time tracking, contracts, a client portal, proposals, expense scanning, calendar sync, a mobile app, ai email drafts, a marketplace for leads, tax estimates, and team chat. i have maybe 10 hrs a week and a laptop. where do i even start",
+    "should_trigger": true
+  },
+  {
+    "query": "The todo CLI in ~/src/tdo works great now. While we're at it let's also add tags, due dates, recurring tasks, a web UI and cloud sync. I'd like to get all of it into the 1.0 release on Dec 15.",
+    "should_trigger": true
+  },
+  {
+    "query": "i have 5 side projects going (a chrome extension, a podcast, a newsletter, a rust game engine, and an etsy shop) plus a full-time job and i'm honestly overwhelmed. nothing is getting finished. help me figure out what to do",
+    "should_trigger": true
+  },
+  {
+    "query": "Starting a brand new project tomorrow: a recipe-sharing site for my local climbing gym community. I've got a ton of ideas (meal plans, grocery lists, ratings, comments, video uploads, nutrition scoring) and I don't want to end up with a half-built monster like my last two repos. Help me kick it off properly.",
+    "should_trigger": true
+  },
+  {
+    "query": "our backlog on the billing-service repo is at 214 tickets and it grows every sprint. as team lead I need a way to figure out what actually matters this quarter and what we just stop pretending we'll do",
+    "should_trigger": true
+  },
+  {
+    "query": "I keep adding stuff to my personal finance dashboard: budgets, crypto, net worth graphs, bill reminders, receipt OCR, shared household mode... it's been 4 months and nothing is deployable. can you help me get this thing to actually ship?",
+    "should_trigger": true
+  },
+  {
+    "query": "brainstorm with me: I want to turn my woodworking youtube channel into a business. Courses, merch, a membership community, a tool-review affiliate site, in-person workshops, a podcast. I can't do all of these obviously, so help me turn this into one concrete plan I can start on Monday",
+    "should_trigger": true
+  },
+  {
+    "query": "we're a 3 person team building a scheduling tool for dental clinics. PM just sent a wishlist of 18 features for the next release (due in 6 weeks) and everything is marked P1. I need to turn that into a plan we can actually deliver",
+    "should_trigger": true
+  },
+  {
+    "query": "every time I ask my agent to help with the mobile app it comes back with 20 new ideas, an analytics layer, and a plugin system. I only wanted a way for my dog walker clients to book a walk. can we reset and decide what we're actually building before writing any code?",
+    "should_trigger": true
+  },
+  {
+    "query": "planning my wedding, a house move and a career switch all in the next 6 months and I'm drowning in commitments. I'm not a dev, just need to figure out what the one thing to push this week is and what to say no to",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a dark mode toggle to the settings page of our React app. The theme tokens are already in src/theme.ts, it just needs the toggle, persisting to localStorage, and applying the class on <html>.",
+    "should_trigger": false
+  },
+  {
+    "query": "we just finished sprint 14 on the checkout rewrite. can you run a retro with me? what went well, what didn't, and action items for sprint 15",
+    "should_trigger": false
+  },
+  {
+    "query": "getting a TypeError: cannot read properties of undefined (reading 'map') in OrderList.tsx line 42 after the API started returning null for empty carts. can you fix it and add a test?",
+    "should_trigger": false
+  },
+  {
+    "query": "write a README for my open source repo `pgqueue`, a small Postgres-backed job queue for Python. include install, quickstart, config options, and a contributing section",
+    "should_trigger": false
+  },
+  {
+    "query": "the scope for the invoice export feature is locked: CSV and PDF export of a single invoice from the invoice detail page. can you estimate effort in story points and give me a rough timeline for 2 devs?",
+    "should_trigger": false
+  },
+  {
+    "query": "what are the main criticisms of McKeown's Essentialism book? I'm writing a short lit review and want to compare it with Newport's Deep Work and Covey's First Things First",
+    "should_trigger": false
+  },
+  {
+    "query": "this PR touches 47 files: a db migration, a refactor of the auth middleware, and a new settings page. help me split it into smaller reviewable commits without breaking the build at each step",
+    "should_trigger": false
+  },
+  {
+    "query": "how do I stop procrastinating in the mornings? I work from home, wake at 7, and keep wasting the first two hours on email and news. looking for a few concrete time blocking techniques",
+    "should_trigger": false
+  },
+  {
+    "query": "we need a design doc for migrating our Rails monolith's job processing from Sidekiq to a Kafka-based pipeline. cover the data flow, failure modes, and rollout plan",
+    "should_trigger": false
+  },
+  {
+    "query": "generate a 12 week training plan for my first half marathon, I run 3 times a week now and can do about 8km comfortably",
+    "should_trigger": false
+  }
+]

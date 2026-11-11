@@ -1,0 +1,82 @@
+[
+  {
+    "query": "put this on linkedin for monday 9am. text is in ~/drafts/hiring-update.md, we just closed our seed round and i want the announcement live before the team standup",
+    "should_trigger": true
+  },
+  {
+    "query": "queue these three updates on LI across the week: tuesday 8:30, thursday 8:30, saturday 10:00. drafts are in ~/content/li-week/1.txt, 2.txt, 3.txt. I'm a solo consultant so keep my voice, dont rewrite",
+    "should_trigger": true
+  },
+  {
+    "query": "publish the launch announcement in ~/drafts/launch.md to my profile. attach ~/assets/launch-hero.png as the image. show me what it will look like first",
+    "should_trigger": true
+  },
+  {
+    "query": "Please schedule a LinkedIn post natively for 2026-12-03 at 09:00 using the text in /tmp/post.txt. I want LinkedIn's own scheduler so it fires even if my laptop is off.",
+    "should_trigger": true
+  },
+  {
+    "query": "do a dry run only of my linkedin post in ~/drafts/layoff-lessons.md, I want to see the preview screenshots, don't publish anything yet",
+    "should_trigger": true
+  },
+  {
+    "query": "I got laid off last week and wrote up what I learned, ~/drafts/lessons.md. can you post it to my linkedin tonight? I'll confirm when I see the preview",
+    "should_trigger": true
+  },
+  {
+    "query": "share our whitepaper ~/docs/state-of-ai-2026.pdf as a swipeable document post on linkedin with the caption 'State of AI 2026'. text in ~/drafts/whitepaper-post.txt",
+    "should_trigger": true
+  },
+  {
+    "query": "post this to linkedin: 'Shipped v2.0 today. Three things I would do differently...' full draft in ~/drafts/v2.md. my chrome profile for linkedin is already logged in",
+    "should_trigger": true
+  },
+  {
+    "query": "write and publish a short linkedin post about our webinar next Thursday, founder voice, schedule it for tomorrow 8am. use the browserless instance from my env",
+    "should_trigger": true
+  },
+  {
+    "query": "li post for the conference talk, text in ~/talks/devcon-post.md, pdf slides at ~/talks/devcon.pdf. schedule for nov 20 at 10:15 and tell me if you move the link into the first comment",
+    "should_trigger": true
+  },
+  {
+    "query": "post this announcement to X and Bluesky too: 'We just open-sourced our scheduler.' draft is in ~/drafts/oss-announce.md, thread it if it's over 280 chars",
+    "should_trigger": false
+  },
+  {
+    "query": "tighten the draft in ~/drafts/founder-story.md for LinkedIn, cut the AI-sounding phrases and make the hook stronger. I'm not posting it yet, just want clean copy back",
+    "should_trigger": false
+  },
+  {
+    "query": "scrape the job listings from linkedin.com/jobs for 'staff data engineer' in Berlin, 200 results, save title, company, salary and url to jobs.csv",
+    "should_trigger": false
+  },
+  {
+    "query": "my linkedin headline is 'Marketing Manager | Passionate | Team Player' and I'm job hunting in fintech. rewrite my headline and about section so recruiters find me",
+    "should_trigger": false
+  },
+  {
+    "query": "write a LinkedIn Marketing API client in python that pulls ad campaign spend and CTR by day for account 508123456, with OAuth refresh and retries",
+    "should_trigger": false
+  },
+  {
+    "query": "send a linkedin DM to everyone who commented on my last post offering the free audit. messages should be personalised using their first name from the comment list in ~/data/commenters.csv",
+    "should_trigger": false
+  },
+  {
+    "query": "export my linkedin connections to CSV with name, company and title, then dedupe against ~/crm/contacts.csv and show who's new",
+    "should_trigger": false
+  },
+  {
+    "query": "pull impressions and reactions for my last 30 linkedin posts and chart engagement by weekday, I want to know when to post",
+    "should_trigger": false
+  },
+  {
+    "query": "draft five LinkedIn post ideas for a B2B SaaS founder about onboarding churn, with hooks and angles. just a brainstorm doc in ~/ideas/li-ideas.md, nothing gets published",
+    "should_trigger": false
+  },
+  {
+    "query": "write a twitter thread of 8 tweets from my blog post at ~/blog/pricing-lessons.md and post it to my X account tomorrow at 9am with the scheduler",
+    "should_trigger": false
+  }
+]
