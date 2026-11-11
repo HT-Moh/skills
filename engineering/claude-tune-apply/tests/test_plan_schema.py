@@ -287,3 +287,9 @@ def test_validate_rejects_steps_that_are_not_a_list():
 def test_validate_rejects_odd_step_lang():
     errs = plan_schema.validate(plan(manual_with_steps([{"text": "x", "code": "y", "lang": "Bash Shell"}])))
     assert any("lang" in e for e in errs)
+
+
+def test_warnings_stay_silent_for_ordering_words_before_a_dependent():
+    first = item(id="P0-01", risk="manual", ops=[{"kind": "manual", "text": "Do this before P0-03 and P0-04; it unblocks P0-10."}])
+    deps = [item(id=i, risk="manual", depends_on=["P0-01"], ops=[{"kind": "manual", "text": "x"}]) for i in ("P0-03", "P0-04", "P0-10")]
+    assert plan_lint.warnings(plan(first, *deps)) == []
