@@ -9,6 +9,7 @@ import hashlib
 import re
 
 import scan_commands
+import scan_sequences
 
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 LOOK_TOOLS = ("Read", "Grep", "Glob", "Bash", "Agent", "Skill", "WebFetch", "WebSearch")
@@ -130,6 +131,7 @@ class Patterns:
         self.interrupt_before = collections.Counter()
         self.orphaned_agents = 0
         self.cache_miss_ratio = []
+        self.sequences = collections.defaultdict(set)
 
 
 class Session:
@@ -148,6 +150,7 @@ class Session:
         self.agents = set()
         self.cache_creation = 0
         self.cache_read = 0
+        self.recent_tools = scan_sequences.new_window()
 
 
 def on_user_text(text, sess, pat):
@@ -178,6 +181,7 @@ def on_tool_use(block, sess, pat):
     if sess.first_tool is None:
         sess.first_tool = name
     sess.last_tool = name
+    scan_sequences.record(scan_sequences.token_of(name, inp), sess.recent_tools, sess.name, pat.sequences)
     if name == "Agent":
         sess.agents.add(block.get("id"))
     if name in EDIT_TOOLS:
@@ -263,4 +267,5 @@ def summary(pat, n_sessions):
         "done_claims": pat.done_claims, "done_without_verify": pat.done_without_verify,
         "interrupt_before_tool": pat.interrupt_before.most_common(10), "orphaned_agents": pat.orphaned_agents,
         "cache_miss_ratio_median": _pct(pat.cache_miss_ratio, 0.5), "cache_miss_ratio_p90": _pct(pat.cache_miss_ratio, 0.9),
+        "recurring_tool_sequences": scan_sequences.rows(pat.sequences),
     }

@@ -110,6 +110,7 @@ def print_summary(out):
         print(f"   patterns: done_claims={pt['done_claims']} unverified={pt['done_without_verify']} interrupt_before={pt['interrupt_before_tool'][:4]} "
               f"orphan_agents={pt['orphaned_agents']} cache_miss_med={pt['cache_miss_ratio_median']}")
         print(f"   patterns: tool_wait(total_s,n,mean)={dict(list(pt['tool_wait_seconds_total_n_mean'].items())[:6])}")
+        print(f"   patterns: sequences={[(r['sequence'], r['sessions']) for r in pt['recurring_tool_sequences'][:4]]}")
     print(f"== subagent types (meta): {out['subagent_types_from_meta'][:12]}")
     print(f"== files={out['files']} skipped_over_max_mb={out['skipped_over_max_mb']}")
 
