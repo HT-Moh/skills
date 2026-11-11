@@ -1,8 +1,6 @@
 <title>Claude Tune Plan</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" media="(prefers-color-scheme: light)">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <style>
 /* Layout: one column of phase groups; each item is a row that opens inline; sticky footer builds the three commands. */
@@ -46,6 +44,11 @@ p { margin: 0; max-width: 68ch; }
 .detail a { color: var(--accent); }
 .ops { display: grid; gap: 6px; }
 .op { font: 12.5px/1.5 var(--mono); background: var(--chip-bg); border-radius: 6px; padding: 6px 10px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* highlight.js token colors, inline: the artifact viewer blocks third-party stylesheets */
+.hljs-comment, .hljs-quote { color: var(--muted); font-style: italic; }
+.hljs-keyword, .hljs-built_in, .hljs-selector-tag, .hljs-meta { color: var(--accent); font-weight: 500; }
+.hljs-string, .hljs-attr, .hljs-template-variable { color: var(--safe); }
+.hljs-number, .hljs-literal, .hljs-variable, .hljs-subst, .hljs-title { color: var(--review); }
 .op .steps { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 8px; font: 14px/1.5 var(--font); white-space: normal; }
 .op pre { margin: 4px 0 0; padding: 8px 10px; border-radius: 6px; background: var(--bg); overflow-x: auto; }
 .op pre code { font: 12.5px/1.5 var(--mono); white-space: pre; background: transparent; padding: 0; }

@@ -120,3 +120,5 @@ def test_template_renders_steps_and_pins_the_highlighter_version():
     assert 'class="steps"' in tpl or '"steps"' in tpl
     assert re.search(r"cdnjs\.cloudflare\.com/ajax/libs/highlight\.js/\d+\.\d+\.\d+/highlight\.min\.js", tpl)
     assert "window.hljs" in tpl
+    links = [line for line in tpl.splitlines() if line.startswith("<link")]
+    assert all("fonts.googleapis.com" in line for line in links), "the artifact viewer blocks third-party stylesheets"
