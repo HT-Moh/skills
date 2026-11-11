@@ -44,7 +44,13 @@ type their name); `claude-tune` and `claude-tune-apply` are user-invoked only. S
 
 ## Install
 
-Clone once, then link the skills you want into `~/.claude/skills/` and restart Claude Code:
+As a plugin, all twelve skills in one step (Claude Code 2.1.275 or later):
+
+```
+/plugin install skills --marketplace HT-Moh/skills
+```
+
+Or clone once, then link only the skills you want into `~/.claude/skills/` and restart Claude Code:
 
 ```bash
 git clone https://github.com/HT-Moh/skills.git ~/src/skills
@@ -53,7 +59,8 @@ ln -s ~/src/skills/productivity/essentialism ~/.claude/skills/essentialism
 
 A symlink keeps `git pull` as the update path; `cp -r` gives a frozen copy. `claude-tune` and
 `claude-tune-apply` import from each other: link or copy both. Each skill's README has its own
-Install section with the exact paths.
+Install section with the exact paths. Use one method, not both: a skill installed as a plugin
+and linked into `~/.claude/skills/` loads twice.
 
 ## Structure
 
