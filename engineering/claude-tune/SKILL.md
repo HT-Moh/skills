@@ -52,7 +52,7 @@ Reference files. Read all six with the Read tool before step 1; paste `schema.md
 into every agent brief:
 - `${CLAUDE_SKILL_DIR}/reference/schema.md`: paths, event schema, signal strings, populations
 - `${CLAUDE_SKILL_DIR}/reference/docs.md`: pages to fetch and the feature checklist to grade
-- `${CLAUDE_SKILL_DIR}/reference/briefs.md`: the nine agent briefs and the adversarial pass
+- `${CLAUDE_SKILL_DIR}/reference/briefs.md`: the ten agent briefs (A–K) and the adversarial pass
 - `${CLAUDE_SKILL_DIR}/reference/traps.md`: mistakes earlier audits made; check each against the draft
 - `${CLAUDE_SKILL_DIR}/reference/plan.md`: the `plan.json` schema, op kinds, preconditions, checks, patterns
 - `${CLAUDE_SKILL_DIR}/reference/report.md`: the report structure
@@ -67,18 +67,24 @@ match aborts the skill.
    (the script creates the directory).
    Grep those files for every setting you later recommend. Run `claude --help` once;
    the installed version decides which flags exist.
-2. **Scan.** `python3 ${CLAUDE_SKILL_DIR}/scripts/scan.py --days $days --projects "$projects" --out ~/.claude/tune/work/${CLAUDE_SESSION_ID}/scan.json`.
+2. **Scan.** First the inventory of what is installed:
+   `python3 ${CLAUDE_SKILL_DIR}/scripts/skill_inventory.py --out ~/.claude/tune/work/${CLAUDE_SESSION_ID}/inventory.json --projects "$PWD"`
+   (`--projects` takes absolute repo paths, comma-separated: add the checkouts of the other
+   audited projects when you know them; it reads their `.claude/skills` and `.mcp.json`).
+   Then `python3 ${CLAUDE_SKILL_DIR}/scripts/scan.py --days $days --projects "$projects" --inventory ~/.claude/tune/work/${CLAUDE_SESSION_ID}/inventory.json --out ~/.claude/tune/work/${CLAUDE_SESSION_ID}/scan.json`.
    It prints per-population totals, denials, hook blocks, waits, slow commands,
    prompt clusters (`repeated_prompts`, `patterns.near_duplicate_prompts`: hash, sessions,
    occurrences and up to 5 session files, never the text; brief F reads samples with
    `scripts/prompt_samples.py`), recurring 3-step tool sequences
    (`patterns.recurring_tool_sequences`), agents and skills used, and the structural patterns
    listed in `reference/schema.md` (reverts, dangerous forms, churn, duplicate reads,
-   unverified done claims). Treat its numbers as the baseline
+   unverified done claims) and the coverage keys (skills matched by a prompt but never
+   invoked, MCP servers configured but never called). Treat its numbers as the baseline
    every agent must stay consistent with.
-3. **Agents.** Launch the briefs in `reference/briefs.md` (A–I) with the Agent tool, all in
+3. **Agents.** Launch the briefs in `reference/briefs.md` (A–K) with the Agent tool, all in
    one message, each with the header, `reference/schema.md`, the scan summary, the window
-   and the project list. Choose `model: sonnet` for the counting angles (A, C, D, E, H, I)
+   and the project list; K also gets the inventory totals and the coverage keys. Choose
+   `model: sonnet` for the counting angles (A, C, D, E, H, I, K)
    and the main model for B, F, G. If `$focus` is set, run only the angles that serve it plus
    F and H. Wait for every report (rule 7).
 4. **Synthesis.** Turn the findings into plan items per `reference/plan.md`: id, phase,
@@ -108,6 +114,6 @@ match aborts the skill.
 
 ## Scale guidance
 
-Nine agents over 30 days of a heavy user cost roughly 600k–900k tokens in total.
+Ten agents over 30 days of a heavy user cost roughly 650k–1M tokens in total.
 Under `focus=cost|speed|...` run the subset. If the inventory shows fewer than 20
 interactive sessions, skip brief B's timing analysis and say so.
