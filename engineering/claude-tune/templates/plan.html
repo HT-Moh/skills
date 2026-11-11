@@ -22,11 +22,8 @@ h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px
 h2 { font-size: 15px; font-weight: 600; margin: 0; display: flex; gap: 10px; align-items: baseline; }
 h2 small { color: var(--muted); font-weight: 400; }
 p { margin: 0; max-width: 68ch; }
-.lead { color: var(--muted); }
-.stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; font-size: 13px; color: var(--muted); }
 .stats b { color: var(--fg); font-variant-numeric: tabular-nums; }
-.legend, .stale { font-size: 13px; color: var(--muted); margin-top: 8px; }
-.legend .chip { margin-right: 4px; }
 .phase { display: grid; gap: 10px; }
 .phase-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .phase-head button { font: 500 12px var(--font); color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; }
@@ -69,11 +66,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 <main>
   <header>
     <h1>Claude Tune Plan</h1>
-    <p class="lead" id="summary"></p>
     <div class="stats" id="stats"></div>
-    <p class="legend" id="legend"></p>
-    <p class="hint" style="margin-top:10px">Tick the changes you want. Preview first, then apply with the digest the preview prints; every file is backed up and each item rolls back on its own. Manual items are yours to do, then record them with the third command.</p>
-    <p class="stale" id="stale"></p>
+    <p class="hint" id="stale"></p>
   </header>
   <div id="phases"></div>
 </main>
@@ -106,7 +100,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   var riskOf = function (it) { return it.risk_effective || it.risk; };
 
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
-  function stat(label, value) { var s = el("span"); s.appendChild(el("b", null, String(value))); s.appendChild(document.createTextNode(" " + label)); return s; }
+  function stat(label, value, tip) { var s = el("span"); if (tip) s.title = tip; s.appendChild(el("b", null, String(value))); s.appendChild(document.createTextNode(" " + label)); return s; }
   function blockers(it) {
     return (it.depends_on || []).filter(function (d) { var dep = byId[d]; return !dep || !(dep.status === "applied" || dep.status === "done"); })
       .map(function (d) { var dep = byId[d] || {}; return d + (dep.risk === "manual" ? " (manual, not done)" : " (" + (dep.status || "proposed") + ")"); });
@@ -187,16 +181,16 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   Array.prototype.forEach.call(document.querySelectorAll("[data-copy]"), function (btn) { btn.onclick = function () { copyFrom(btn.getAttribute("data-copy"), btn); }; });
   document.getElementById("selSafe").onclick = function () { plan.items.forEach(function (it) { if (riskOf(it) === "safe" && !closed(it)) selected[it.id] = true; }); render(); };
   document.getElementById("clear").onclick = function () { selected = {}; render(); };
-  document.getElementById("summary").textContent = plan.summary || "";
   var counts = { safe: 0, review: 0, manual: 0, closed: 0 };
   plan.items.forEach(function (it) { counts[riskOf(it)] = (counts[riskOf(it)] || 0) + 1; if (closed(it)) counts.closed++; });
   var stats = document.getElementById("stats");
-  [["changes", plan.items.length], ["safe", counts.safe], ["review", counts.review], ["manual", counts.manual], ["applied or done", counts.closed], ["days in window", plan.window_days || "?"]]
-    .forEach(function (pair) { stats.appendChild(stat(pair[0], pair[1])); });
-  var legend = document.getElementById("legend");
-  [["safe", "reversible, no judgement needed"], ["review", "read the diff: deletes, env, permissions, hooks, instruction files"], ["manual", "only you can do it; record it with --done"]]
-    .forEach(function (pair) { legend.appendChild(el("span", "chip " + pair[0], pair[0])); legend.appendChild(document.createTextNode(pair[1] + "  ")); });
-  document.getElementById("stale").textContent = "Rendered " + (planEl.getAttribute("data-rendered-at") || "?") + " from the plan saved " + (planEl.getAttribute("data-plan-mtime") || "?") + ". Statuses here do not refresh: after applying, run /claude-tune-apply --list or --render.";
+  [["changes", plan.items.length - counts.closed, (plan.window_days || "?") + "-day window, plan of " + (plan.generated || "").slice(0, 10)],
+   ["safe", counts.safe, "reversible, no judgement needed"],
+   ["review", counts.review, "read the diff: deletes, env, permissions, hooks, instruction files"],
+   ["manual", counts.manual, "only you can do it; record it with --done"],
+   ["done", counts.closed, "applied or recorded with --done"]]
+    .forEach(function (row) { stats.appendChild(stat(row[0], row[1], row[2])); });
+  document.getElementById("stale").textContent = "Rendered " + (planEl.getAttribute("data-rendered-at") || "?") + ". Statuses do not refresh here: after applying, run /claude-tune-apply --list.";
   render();
 })();
 </script>

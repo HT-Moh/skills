@@ -82,3 +82,11 @@ def test_html_embeds_effective_risk_per_item():
     assert '"risk_effective": "review"' in html
     tpl = TEMPLATE.read_text(encoding="utf-8")
     assert "risk_effective" in tpl and 'it.risk === "safe"' not in tpl
+
+
+def test_page_header_is_one_stats_line_without_summary_or_legend():
+    text = TEMPLATE.read_text(encoding="utf-8")
+    header = text.split("<header>", 1)[1].split("</header>", 1)[0]
+    assert 'id="summary"' not in text and 'id="legend"' not in text
+    assert "Tick the changes you want" not in text and "days in window" not in text
+    assert header.count("<p") <= 1 and 'id="stats"' in header
