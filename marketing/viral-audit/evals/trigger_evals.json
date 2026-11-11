@@ -1,0 +1,82 @@
+[
+ {
+  "query": "signups have been flat for 6 weeks on my SaaS. repo is ~/src/invoicepilot (Next.js, Stripe). can you go through the landing page, pricing and checkout code and tell me what's killing conversion? give me a ranked list of fixes",
+  "should_trigger": true
+ },
+ {
+  "query": "run Marc Lou's 32 principles of a viral product against ~/src/shipkit-clone and give me the score",
+  "should_trigger": true
+ },
+ {
+  "query": "is my pricing page scaring people off? three tiers at $9/$29/$99 monthly, there's also a free plan. code is in app/pricing/page.tsx and lib/stripe.ts. be blunt",
+  "should_trigger": true
+ },
+ {
+  "query": "/viral-audit \"the fastest way to turn a Figma file into a Tailwind landing page\" on the repo in the current folder",
+  "should_trigger": true
+ },
+ {
+  "query": "my README says lifetime deal $149 one-time but a customer emailed saying they got billed again in month 2. check the code vs what the landing page promises and tell me where they disagree",
+  "should_trigger": true
+ },
+ {
+  "query": "im an indie hacker, launched pdf-redactor 3 months ago, 4k visitors and 11 paying. look at the hero, CTA buttons, og image and footer in /home/me/src/pdf-redactor and tell me what to change first",
+  "should_trigger": true
+ },
+ {
+  "query": "why is nobody buying? landing page is at src/app/(marketing)/page.tsx, testimonials component exists but is empty, and I have 5 different buttons above the fold. please review positioning and give me top 5 things to do",
+  "should_trigger": true
+ },
+ {
+  "query": "can you critique the positioning of my B2B scheduling tool before I post on Product Hunt? repo: github.com/acme-dev/slotly. I want a terse fix list not an essay",
+  "should_trigger": true
+ },
+ {
+  "query": "we're a small team with a CLI tool that has a docs-only landing site (docs/index.html). does it follow the viral product principles? grep for og:image, pricing in the header and whether we even have a comparison table vs competitors",
+  "should_trigger": true
+ },
+ {
+  "query": "before I hire a CRO consultant, run a quick conversion teardown of my Stripe-backed SaaS code: does signup come before payment, is there a free tier, are the CTAs vague? repo ~/src/notely",
+  "should_trigger": true
+ },
+ {
+  "query": "write the hero headline and subheadline for my new habit tracker app called Streakly. target audience is ADHD adults, tone playful. give me 5 options plus a pricing section blurb",
+  "should_trigger": false
+ },
+ {
+  "query": "implement Stripe Checkout in my Next.js app at ~/src/pagehop: one-time $49 payment, webhook at /api/stripe/webhook that marks the user as paid in Postgres, and a success page",
+  "should_trigger": false
+ },
+ {
+  "query": "do keyword research for my SaaS invoicing tool aimed at freelancers in Germany. I want 30 long-tail keywords with intent and difficulty, grouped into clusters for blog posts",
+  "should_trigger": false
+ },
+ {
+  "query": "run a WCAG 2.2 AA accessibility audit on the pricing page and checkout flow in ~/src/orbit-app. check contrast, focus order, aria labels on the plan toggle and form errors",
+  "should_trigger": false
+ },
+ {
+  "query": "security review of my payment code in src/billing/: webhook signature verification, idempotency, any place a user could grant themselves a paid plan. list vulns with severity",
+  "should_trigger": false
+ },
+ {
+  "query": "I'm building a developer API for geocoding and haven't written any code yet. help me design a pricing model from scratch: usage tiers, free quota, overage rates, and what margins I need at 10M requests a month",
+  "should_trigger": false
+ },
+ {
+  "query": "can you do a code review of my PR that refactors src/lib/subscriptions.ts into smaller modules? check naming, function length, error handling and test coverage",
+  "should_trigger": false
+ },
+ {
+  "query": "write a LinkedIn post announcing that my SaaS hit $5k MRR after 8 months. include the lessons I learned, keep it under 200 words, no hashtag spam",
+  "should_trigger": false
+ },
+ {
+  "query": "do a full technical SEO audit of https://www.taskloom.io: crawlability, canonical tags, schema markup, core web vitals, and internal linking. prioritise by traffic impact",
+  "should_trigger": false
+ },
+ {
+  "query": "write a twitter thread announcing the launch of my SaaS formflow. $39 one-time, 3 screenshots, mention the 14-day refund. make the first tweet a strong hook and add a CTA to formflow.app",
+  "should_trigger": false
+ }
+]

@@ -1,0 +1,82 @@
+[
+  {
+    "query": "my scrape call to our self-hosted instance returns 404 on /v2/scrape from a python script. FIRECRAWL_URL is set, token works for /v2/search. figure out which endpoints this deployment actually serves and tell me what to use instead",
+    "should_trigger": true
+  },
+  {
+    "query": "turn the whole docs site at https://docs.fastapi-example.dev into markdown files under ./docs_md/, one file per page. we have a firecrawl box, env vars FIRECRAWL_URL and FIRECRAWL_TOKEN are exported",
+    "should_trigger": true
+  },
+  {
+    "query": "crawl our competitor's blog at acmeanalytics.io/blog, grab every post as markdown, and give me a table of titles + dates + word counts. google keeps throwing captchas at me so skip browsers",
+    "should_trigger": true
+  },
+  {
+    "query": "find me recent papers on speculative decoding for LLM inference, top 15, with titles and abstracts, save to notes/papers.md",
+    "should_trigger": true
+  },
+  {
+    "query": "i have a list of 50 product page urls in urls.txt, batch scrape them all to markdown and write each result to out/ named by slug. poll until done and tell me which ones failed",
+    "should_trigger": true
+  },
+  {
+    "query": "search the web for 'postgres 17 logical replication slots failover' and scrape the top 5 results into one markdown summary. use the scraping api not a browser",
+    "should_trigger": true
+  },
+  {
+    "query": "firecrawl /v2/research/papers gives me 403 on our deployment, is it disabled? check what else works and use the closest route to get papers about diffusion transformers",
+    "should_trigger": true
+  },
+  {
+    "query": "probe our firecrawl deployment and generate capabilities.json plus a client guide so the team knows which endpoints work, which are empty and which are forbidden",
+    "should_trigger": true
+  },
+  {
+    "query": "map every url on stripe-clone-docs.example.com then crawl only the /api/ section and dump it to markdown. google blocked my usual scraper so need something w/o chrome",
+    "should_trigger": true
+  },
+  {
+    "query": "scrape returned success:false but http 200 for https://news.example.org/story/123 and my script treated it as data. help me fix the error handling and rerun on the 20 urls in links.csv",
+    "should_trigger": true
+  },
+  {
+    "query": "take a screenshot of https://example.com/pricing as a full-page PNG and save it to shots/pricing.png",
+    "should_trigger": false
+  },
+  {
+    "query": "use puppeteer to render our React dashboard at localhost:3000, wait for the charts and give me the final HTML",
+    "should_trigger": false
+  },
+  {
+    "query": "google search filetype:pdf site:nih.gov 'long covid' from the last week and summarize the top PDFs",
+    "should_trigger": false
+  },
+  {
+    "query": "curl the github api at api.github.com/repos/anthropics/anthropic-sdk-python/releases and list the last 5 tags with dates",
+    "should_trigger": false
+  },
+  {
+    "query": "upgrade our self-hosted firecrawl docker compose stack to the latest image and fix the redis healthcheck that keeps failing, then redeploy",
+    "should_trigger": false
+  },
+  {
+    "query": "write a python scraper library with retries, rate limiting and a pluggable parser for scraping job listings from several sites. include pytest tests",
+    "should_trigger": false
+  },
+  {
+    "query": "i already downloaded page.html from a competitor site, parse it with beautifulsoup and pull out all product names and prices into prices.csv",
+    "should_trigger": false
+  },
+  {
+    "query": "generate a PDF of https://example.com/invoice/8841 with A4 layout and background graphics, save to invoices/8841.pdf",
+    "should_trigger": false
+  },
+  {
+    "query": "write the terraform for a firecrawl self-host on hetzner with caddy and set the NUM_WORKERS_PER_QUEUE env var in the compose file",
+    "should_trigger": false
+  },
+  {
+    "query": "use google dorks site:reddit.com intitle:'homelab' after:2026-10-01 to find threads about nas builds and list the top results",
+    "should_trigger": false
+  }
+]

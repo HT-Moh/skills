@@ -2,36 +2,90 @@
   "skill_name": "linkedin-post",
   "evals": [
     {
-      "id": 0,
-      "name": "schedule-with-time",
+      "id": 1,
       "prompt": "Schedule this on my LinkedIn for next Tuesday at 9am: \"Most retros die at the action step. 1-3 owned actions, or it didn't happen.\"",
       "expected_output": "Preflights BROWSERLESS_URL/TOKEN and li_at freshness. Writes the post text to a file. Runs scripts/post_linkedin.py with --at (next Tuesday 09:00, local tz) as a DRY RUN first, reads the schedule_filled/schedule_review screenshots to confirm text and time, then asks the user to confirm before re-running with --confirm. Reports the scheduled local time. Never runs --confirm unprompted.",
       "files": [],
-      "assertions": []
-    },
-    {
-      "id": 1,
-      "name": "post-now",
-      "prompt": "post this to linkedin right now: We just open-sourced our retrospective skill. Link in comments.",
-      "expected_output": "Recognizes an immediate post (no schedule time). Notes that in-body links suppress reach and offers/handles the first-comment strategy. Dry-runs first (composed.jpg), gets confirmation, then --confirm. Verifies via the returned stage=posted, does not claim success on any other stage.",
-      "files": [],
-      "assertions": []
+      "expectations": [
+        "BROWSERLESS_URL and BROWSERLESS_TOKEN presence and li_at cookie freshness are checked before any browser action",
+        "The post text is written to a file and scripts/post_linkedin.py runs with --at for next Tuesday 09:00 local time as a dry run first",
+        "The schedule screenshots are read to confirm text and time before confirming",
+        "Nothing is scheduled before the user confirms the preview"
+      ]
     },
     {
       "id": 2,
-      "name": "dead-session",
-      "prompt": "put a post on linkedin for me",
-      "expected_output": "During preflight, checks li_at expiry. If the cookie file is missing/expired, stops and explains the session must be re-exported from a browser — does NOT attempt a password login and does NOT fabricate a success. If session is live, proceeds to compose + dry-run. (Also acceptable: asks what the post should say before doing anything.)",
+      "prompt": "post this to linkedin right now: We just open-sourced our retrospective skill. Link in comments.",
+      "expected_output": "Recognizes an immediate post (no schedule time). Notes that in-body links suppress reach and offers/handles the first-comment strategy. Dry-runs first (composed.jpg), gets confirmation, then --confirm. Verifies via the returned stage=posted, does not claim success on any other stage.",
       "files": [],
-      "assertions": []
+      "expectations": [
+        "The reply notes that in-body links suppress reach and offers the first-comment approach",
+        "A dry run produces a composed preview before any publish",
+        "The publish runs only after explicit confirmation and with --confirm",
+        "Success is claimed only from the returned stage=posted result"
+      ]
     },
     {
       "id": 3,
-      "name": "wrong-network",
+      "prompt": "put a post on linkedin for me",
+      "expected_output": "During preflight, checks li_at expiry. If the cookie file is missing/expired, stops and explains the session must be re-exported from a browser — does NOT attempt a password login and does NOT fabricate a success. If session is live, proceeds to compose + dry-run. (Also acceptable: asks what the post should say before doing anything.)",
+      "files": [],
+      "expectations": [
+        "Preflight checks li_at expiry before composing",
+        "If the cookie is missing or expired the flow stops and explains the session must be re-exported from a browser",
+        "No password login is attempted and no success is fabricated"
+      ]
+    },
+    {
+      "id": 4,
       "prompt": "schedule a tweet for tomorrow morning",
       "expected_output": "Recognizes this is X/Twitter, not LinkedIn, and does not run the linkedin-post flow. Says this skill is LinkedIn-only (even though x.json cookies exist in the same folder), rather than posting to the wrong network.",
       "files": [],
-      "assertions": []
+      "expectations": [
+        "The reply states this skill is LinkedIn-only and does not run the linkedin-post flow",
+        "No post is made to X/Twitter even though x.json cookies exist",
+        "The user is pointed to the right tool for X"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "put this on linkedin for monday 9am. text is in ~/drafts/hiring-update.md, we just closed our seed round and i want the announcement live before the team standup",
+      "expected_output": "Skill runs a dry-run for a LinkedIn schedule at next Monday 09:00, shows preview screenshots and the exact text, and waits for explicit confirmation before re-running with --confirm.",
+      "files": [],
+      "expectations": [
+        "Preflight checks that the local Chrome profile env vars ($LINKEDIN_LOCAL_CHROME, $LINKEDIN_CHROME_PROFILE) or browserless env vars are set, reading them from env and not hardcoding them",
+        "The post text from ~/drafts/hiring-update.md is placed in a file and used verbatim",
+        "post_linkedin.py is run without --confirm first, with --at set to the Monday 09:00 time the user asked for",
+        "The screenshots (composed.jpg, schedule_review.jpg) are read and the 'Posting at' line is compared with the requested date and time",
+        "Nothing is published or scheduled with --confirm until the user explicitly approves the preview",
+        "No password is requested or typed"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "publish the launch announcement in ~/drafts/launch.md to my profile. attach ~/assets/launch-hero.png as the image. show me what it will look like first",
+      "expected_output": "Skill dry-runs a post-now with the launch image attached via --media, shows the preview, and does not publish until the user confirms.",
+      "files": [],
+      "expectations": [
+        "A dry-run preview of the exact post text and the attached image is shown before anything is published",
+        "The image is passed with --media ~/assets/launch-hero.png and no --document flag is used in the same run",
+        "If the draft has a link in the first line, the skill moves it to the first comment and tells the user",
+        "The final run with --confirm happens only after an explicit user go-ahead",
+        "The report states the returned stage (posted or failed) and does not claim success on any other stage"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "share our whitepaper ~/docs/state-of-ai-2026.pdf as a swipeable document post on linkedin with the caption 'State of AI 2026'. text in ~/drafts/whitepaper-post.txt",
+      "expected_output": "Skill posts a PDF as a LinkedIn document post using --document with the given title, dry-run first, rejecting nothing valid and not mixing media.",
+      "files": [],
+      "expectations": [
+        "The PDF is passed with --document and --document-title 'State of AI 2026'",
+        "The skill does not combine --document with --media",
+        "A dry-run preview is produced and shown before any --confirm run",
+        "Nothing is published without explicit confirmation from the user",
+        "Cookies and profile paths are not printed in the output, and no password is requested"
+      ]
     }
   ]
 }

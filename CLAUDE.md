@@ -25,6 +25,11 @@ single lowercase word.
 - Every skill ships a `README.md` with an `## Install` section (clone, symlink, restart).
 - A model-invoked `description` stays under 600 characters. `tests/test_repo_skills.py` enforces
   these rules; run `python3 -m pytest -q tests` before committing a skill.
+- Every skill ships `evals/evals.json` (skill-creator schema: at least 3 cases, each with 3+
+  checkable `expectations`). A model-invoked skill also ships `evals/trigger_evals.json`: 20
+  queries, 10 `should_trigger` true and 10 near-miss false. Measure triggering with the
+  skill-creator plugin's `run_eval.py` from an empty project folder with `--num-workers 1`
+  (parallel workers write competing probes into one `.claude/commands/` and corrupt the rate).
 - Each bucket folder has a `README.md` listing its skills, one line each, name linked to
   the skill's `SKILL.md`.
 

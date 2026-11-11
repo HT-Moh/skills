@@ -1,0 +1,43 @@
+{
+  "skill_name": "claude-tune",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/claude-tune 14",
+      "expected_output": "A ranked tuning plan for the last 14 days: plan.json under ~/.claude/tune/plans/, a Markdown report, a checklist page, and a terminal summary. Nothing outside ~/.claude/tune/ is changed.",
+      "files": [],
+      "expectations": [
+        "docs_fetch.sh and scan.py run before any agent is launched",
+        "Every agent brief A to I is launched in one message and every report is awaited before synthesis",
+        "Every plan item has id, phase, risk, why, evidence with a count and a path, a docs URL or UNVERIFIED, impact, reversible, checks and ops",
+        "plan_render.py prints valid: and apply.py --dry-run all prints no ERROR line",
+        "No secret value appears in the plan, the report or the terminal output; key names and paths only",
+        "No file outside ~/.claude/tune/ is created or modified"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/claude-tune 30 valradar,mindmeld cost",
+      "expected_output": "A plan focused on cost for the two named projects over 30 days, with only the cost-serving angles plus F and H run.",
+      "files": [],
+      "expectations": [
+        "scan.py is called with --days 30 and --projects valradar,mindmeld",
+        "Only the briefs that serve the cost focus plus F and H are launched",
+        "Interactive, headless and subagent populations are reported as separate numbers, never summed",
+        "Every recommended setting is grepped in the fetched docs or marked UNVERIFIED"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/claude-tune",
+      "expected_output": "A 30-day plan for the five busiest projects, published as an Artifact, with the terminal report limited to what reference/report.md asks for.",
+      "files": [],
+      "expectations": [
+        "The window defaults to 30 days and the project list to the five busiest from the inventory",
+        "The adversarial brief J runs on the full draft before the plan file is written",
+        "The terminal report ends with the line: Pick items on the page, or run /claude-tune-apply --dry-run safe",
+        "Each Bash call is one simple command with no &&, ||, ; or |"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+[
+  {
+    "query": "my blog draft at drafts/why-we-moved-to-postgres.md reads like a robot wrote it. 'in today's fast-paced world' opener, three-item lists everywhere. rewrite it so it sounds like me, a tired backend dev",
+    "should_trigger": true
+  },
+  {
+    "query": "tighten this newsletter before I send it to 4k subscribers: newsletter.md. It's mostly weekly tips for freelance illustrators and the intro is bloated and full of em-dashes",
+    "should_trigger": true
+  },
+  {
+    "query": "Clean this paragraph, my editor says it sounds generated: \"It's not just a tool \u2014 it's a paradigm shift. Teams can streamline workflows, boost productivity, and unlock innovation. Let's delve into why this matters.\"",
+    "should_trigger": true
+  },
+  {
+    "query": "Draft a 600-word post for our engineering blog about the Redis migration. It must not sound like ChatGPT. Audience is senior engineers, tone dry and specific.",
+    "should_trigger": true
+  },
+  {
+    "query": "go through README.md and cut the marketing fluff and the 'seamlessly leverage' type phrases. keep every command and config key as is",
+    "should_trigger": true
+  },
+  {
+    "query": "can you review this guest post my coworker sent (guest_post_v2.docx.md) and flag every spot where the prose feels machine-written? list the lines, then suggest rewrites",
+    "should_trigger": true
+  },
+  {
+    "query": "rewrite the body of this commit message so it stops sounding like a press release: 'This commit robustly enhances the caching layer, ensuring seamless, scalable, and reliable performance.'",
+    "should_trigger": true
+  },
+  {
+    "query": "cover letter in letters/acme_pm.md is too polished and generic, sounds like everybody's cover letter. strip the cliches and make it sound like an actual person with opinions",
+    "should_trigger": true
+  },
+  {
+    "query": "My about page says 'We are passionate about crafting innovative, user-centric solutions that empower businesses.' ugh. Rewrite about.md in plain active voice, no filler, short sentences",
+    "should_trigger": true
+  },
+  {
+    "query": "polish docs/launch-post.md for the product hunt launch, but dont use copy-editing rules, I just want the AI-sounding stuff removed: the 'here's the thing' openers, rhetorical setups, tidy endings",
+    "should_trigger": true
+  },
+  {
+    "query": "translate blog/pricing-update.md into Spanish and Portuguese, keep the markdown headings intact",
+    "should_trigger": false
+  },
+  {
+    "query": "fix grammar and spelling in the comments inside src/parser.py only, don't touch the code",
+    "should_trigger": false
+  },
+  {
+    "query": "write a LinkedIn post announcing our Series A and publish it to my profile, 3 hashtags max",
+    "should_trigger": false
+  },
+  {
+    "query": "my professor suspects this student essay was written by ChatGPT. run through essays/student_14.txt and tell me how likely it is AI-generated and which passages look suspicious",
+    "should_trigger": false
+  },
+  {
+    "query": "summarize this 40-page report on EU battery regulation (reports/battery.pdf) into 10 bullet points for the exec team",
+    "should_trigger": false
+  },
+  {
+    "query": "make the copy in landing/hero.md punchier and more salesy, we need higher click-through. Bold claims, urgency, a strong CTA",
+    "should_trigger": false
+  },
+  {
+    "query": "convert docs/guide.md to HTML with a table of contents and syntax highlighting for code blocks",
+    "should_trigger": false
+  },
+  {
+    "query": "rewrite the terms in policies/refund.md in formal legal language suitable for a contract, with numbered clauses",
+    "should_trigger": false
+  },
+  {
+    "query": "run a spell check and fix the heading hierarchy in notes/meeting-2024-03.md, nothing about style",
+    "should_trigger": false
+  },
+  {
+    "query": "write a cold email sequence of 4 emails for selling our SOC2 audit service to CTOs at startups",
+    "should_trigger": false
+  }
+]

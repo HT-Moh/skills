@@ -1,0 +1,22 @@
+[
+{"query":"the pricing page at https://app.northwind-metrics.io/plans is all client-side React, curl just gives me an empty <div id=root>. I have a browserless box set in BROWSERLESS_URL, pull the rendered HTML and extract the three plan prices from .plan-card .price into a json file","should_trigger":true},
+{"query":"my CI runner is a slim alpine container with no Chrome. need a full-page PNG screenshot of https://staging.acme-shop.dev/checkout after each deploy, saved to artifacts/checkout.png. we have a remote headless chrome service, token is in BROWSERLESS_TOKEN","should_trigger":true},
+{"query":"generate an A4 PDF with backgrounds of our grafana dashboard at https://grafana.internal.example.com/d/abc123/api-latency?kiosk from inside a docker job that has no browser installed, write it to reports/latency.pdf","should_trigger":true},
+{"query":"use the browserless instance to scrape every .titleline a on https://news.ycombinator.com and give me titles + hrefs as a table","should_trigger":true},
+{"query":"i have this puppeteer snippet that logs in, clicks #export and returns the page title. dont install puppeteer here, run it remotely on our hosted chrome with the /function endpoint and show me what it returns","should_trigger":true},
+{"query":"wget on https://www.trailmaps.example/routes returns just a loading spinner script. can you render it with the remote headless browser, wait for .route-list li to appear, and save the final html to /tmp/routes.html","should_trigger":true},
+{"query":"cant run chrome on this serverless box, but I need to snapshot https://status.example-cloud.com as a jpeg and check that the incident banner (.banner--critical) is not present. we have BROWSERLESS_URL configured","should_trigger":true},
+{"query":"google-power-search needs a real browser to fetch results but this machine is headless. route it through the browserless endpoint instead and fetch the rendered HTML of https://example.com/archive?page=3 first to confirm it works","should_trigger":true},
+{"query":"download the csv that https://reports.example.org/q3 generates when the Export button is clicked, using the remote chrome instance rather than my machine, then tell me how many rows it has","should_trigger":true},
+{"query":"scrape product names and prices off a JS-rendered catalog, https://shop.example.net/catalog?cat=lamps. selectors are h2.name and span.price. use browserless not firecrawl, firecrawl doesnt render this one properly and the token is already exported","should_trigger":true},
+{"query":"convert https://docs.example.com/guides/getting-started into clean markdown and also crawl the whole /guides section, about 40 pages, so I can feed it to an LLM","should_trigger":false},
+{"query":"search the web for the latest benchmarks comparing Bun and Node for http servers and give me the top 8 sources with summaries","should_trigger":false},
+{"query":"I'm watching my own Chrome window right now. open https://github.com/settings/tokens in it, click Generate new token and fill the note field with 'ci-deploy' so I can see it happen","should_trigger":false},
+{"query":"fetch https://api.exchangerate.example.com/v1/latest?base=EUR with curl, pipe it through jq and write the GBP and USD rates to rates.json. its a plain static json api","should_trigger":false},
+{"query":"write playwright end-to-end tests for our signup flow in tests/e2e/signup.spec.ts: fill #email, #password, click the submit button, assert the dashboard heading shows. add it to the github actions workflow too","should_trigger":false},
+{"query":"install google chrome stable on my ubuntu 22.04 laptop via apt and set up chromedriver so selenium works locally, make sure the versions match","should_trigger":false},
+{"query":"find PDFs from the last week about transformer quantization using filetype:pdf and site:arxiv.org operators, then summarize the three newest","should_trigger":false},
+{"query":"draft a LinkedIn post announcing our v2.0 release and publish it to our company page, include the changelog highlights and two hashtags","should_trigger":false},
+{"query":"our playwright test suite in e2e/ is flaky on the checkout page. debug why page.waitForSelector('.order-confirm') times out in CI and fix the spec","should_trigger":false},
+{"query":"use firecrawl to map all URLs under https://blog.example.com and tell me which posts mention 'kubernetes'","should_trigger":false}
+]

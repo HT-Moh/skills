@@ -1,6 +1,13 @@
 ---
 name: stop-slop
-description: Remove AI writing patterns from prose. Use when drafting, editing, or reviewing text to eliminate predictable AI tells.
+description: >-
+  Remove AI writing patterns from prose: inflated vocabulary, rule-of-three padding, em-dash
+  chains, "it's not X, it's Y", hollow openers and closers. Use when drafting, editing or
+  reviewing text that must read as human-written: the user says it sounds like ChatGPT, robotic or
+  generated, asks to humanize, tighten or de-AI a draft, blog post, newsletter, README or email,
+  or wants a new piece written that must not sound like AI. Not for writing sales or marketing
+  copy from scratch, translation, summarizing, detecting whether a text is AI-written, or
+  publishing to a network (linkedin-post).
 metadata:
   trigger: Writing prose, editing drafts, reviewing content for AI patterns
   author: Hardik Pandya (https://hvpandya.com)

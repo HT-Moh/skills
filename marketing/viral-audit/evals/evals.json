@@ -1,0 +1,45 @@
+{
+  "skill_name": "viral-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "signups have been flat for 6 weeks on my SaaS. repo is ~/src/invoicepilot (Next.js, Stripe). can you go through the landing page, pricing and checkout code and tell me what's killing conversion? give me a ranked list of fixes",
+      "expected_output": "A three-block terse report (VIRAL SCORE, LIES, FAILS, DO NEXT) grounded in file:line evidence from the invoicepilot repo, with a confirmed USP line and a top-5 ranked action list.",
+      "files": [],
+      "expectations": [
+        "The model greps/globs the marketing and monetization surface (landing, pricing, stripe, signup, og:image) before scoring any principle.",
+        "A USP line is shown (inferred from the code or taken from the user) before the audit blocks, and no unrelated prose surrounds the blocks.",
+        "The output starts with 'VIRAL SCORE: <passes>/<applicable> applicable' followed by the FAILS and DO NEXT blocks in that order.",
+        "Each FAILS line names a principle number, a file:line citation and a one-line fix.",
+        "DO NEXT contains at most 5 numbered actions, each with a file:line and an effort estimate.",
+        "No files are edited during the audit."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "my README says lifetime deal $149 one-time but a customer emailed saying they got billed again in month 2. check the code vs what the landing page promises and tell me where they disagree",
+      "expected_output": "A report whose LIES block lists the one-time claim versus the Stripe subscription mode found in code, with file:line, placed before the FAILS block and including principle 27.",
+      "files": [],
+      "expectations": [
+        "The code (Stripe mode/recurring settings) is read before any claim is judged, and the code is treated as the source of truth.",
+        "The LIES block appears before FAILS and each entry has the form claim -> file:line what the code actually does.",
+        "Every flagged divergence between marketing claim and implementation cites a file path and line.",
+        "Principle #27 (one-time over subscription) is referenced with the Stripe mode evidence.",
+        "The output contains no praise or concluding summary paragraph."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "is my pricing page scaring people off? three tiers at $9/$29/$99 monthly, there's also a free plan. code is in app/pricing/page.tsx and lib/stripe.ts. be blunt",
+      "expected_output": "A terse audit focused on pricing principles (1, 8, 12, 16, 27, 32) that flags the free plan as a tradeoff in one line instead of ordering its removal, and ends with a ranked fix list.",
+      "files": [],
+      "expectations": [
+        "app/pricing/page.tsx and lib/stripe.ts are read (via targeted grep or read) before verdicts are given.",
+        "The free plan is flagged under principle #1 with a single line naming the growth-loop tradeoff, rather than an unconditional order to remove it.",
+        "Principle #12 (three tiers) is marked PASS with evidence citing the tier definitions in code.",
+        "Each finding names the principle number it maps to and a file:line.",
+        "The output is a fix list in which each DO NEXT line is one action."
+      ]
+    }
+  ]
+}

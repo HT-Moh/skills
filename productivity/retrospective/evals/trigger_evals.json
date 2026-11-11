@@ -1,0 +1,22 @@
+[
+{"query":"sprint 14 just closed for the payments squad. we planned 11 stories, shipped 6, and 3 of those carried over from sprint 13 too. can you run the team through what happened and what we change next time? 5 people, all remote","should_trigger":true},
+{"query":"the checkout outage from nov 3 is fixed and we're back to normal. we're not sure what to take from it. timeline was roughly 40 min of 500s after a config push to the api-gateway repo. help us write up what we learn and who owns follow-ups","should_trigger":true},
+{"query":"how did this coding session go, be honest. we spent 3 hours on the auth refactor, I reverted twice and you rewrote the same middleware a few times. look at the git history and tell me what went wrong and what to do differently","should_trigger":true},
+{"query":"we shipped the v2 onboarding project last friday after 5 months. before we move on to the next thing, I want to capture what worked, what didn't, and what we carry forward. team of 8, tracker is in Linear","should_trigger":true},
+{"query":"can you do a solo retro over my last 30 commits in the dotfiles-infra repo? I want to know where I keep thrashing","should_trigger":true},
+{"query":"lessons learned session for the data warehouse migration (q3). 6 months of history, couple of rough milestones. need a facilitator-style run sheet and a doc at the end","should_trigger":true},
+{"query":"after action review for yesterday's failed deploy. rollback worked but took 25 min. nobody got hurt, no customer data lost. blameless please, I want contributing factors and 2 or 3 actions with owners","should_trigger":true},
+{"query":"friday, wrapping up. review my week in this repo, what went well, what dragged, what should i change monday","should_trigger":true},
+{"query":"our team keeps saying the same stuff every sprint end and nothing changes. run a retro for sprint 22 but use something different from start/stop/continue, and check whether last sprint's actions got done first","should_trigger":true},
+{"query":"hey the db outage is resolved (users table locked during a migration, ~40min). my manager will probably sit in on the debrief tomorrow. help me prep it so people actually speak up and we end with real fixes","should_trigger":true},
+{"query":"plan sprint 15 for the payments squad. we have 9 stories in the backlog, velocity around 20 points, and two people on vacation the second week. pick what goes in and what we cut","should_trigger":false},
+{"query":"prod is down RIGHT NOW, the orders service is returning 503s since 14:10. help me find the cause in the logs and the last deploy diff, we need to get it back up","should_trigger":false},
+{"query":"write release notes for v2.4.0 of our cli from the git history since the v2.3.0 tag. group by features, fixes, breaking changes, user-facing language","should_trigger":false},
+{"query":"I need to write Dana's mid-year performance review. here are her 6 months of PRs and the feedback from her peers. draft strengths, growth areas and a rating justification","should_trigger":false},
+{"query":"review PR #482 on the billing-service repo. it changes the proration logic and I want to know about correctness bugs, missing tests and anything risky before I approve","should_trigger":false},
+{"query":"draft the customer-facing status page update for the nov 3 checkout outage. it's resolved, ~40 min of errors, keep it short, honest, no internal jargon, and a follow-up line for the investigation","should_trigger":false},
+{"query":"give me a summary of what got committed to the main branch in the last two weeks in the web-app repo, grouped by author, just a list of what changed. no analysis needed","should_trigger":false},
+{"query":"we're starting the q1 roadmap. use essentialism to help me decide which 3 of these 12 initiatives deserve our focus and what to explicitly say no to","should_trigger":false},
+{"query":"run a security review of the incident response runbook for our k8s cluster and tell me which steps are missing. we have an on-call rotation of 6 and pagerduty is already set up","should_trigger":false},
+{"query":"write a changelog entry plus a short blog post announcing that we shipped the v2 onboarding project. tone upbeat, mention the 5 months of work and the top 3 features","should_trigger":false}
+]

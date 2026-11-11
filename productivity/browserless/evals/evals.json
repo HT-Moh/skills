@@ -1,0 +1,44 @@
+{
+  "skill_name": "browserless",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "the pricing page at https://app.northwind-metrics.io/plans is all client-side React, curl just gives me an empty <div id=root>. I have a browserless instance configured via env vars. Pull the rendered HTML, wait for .plan-card to appear, and save it to /tmp/plans.html, then tell me the three plan prices.",
+      "expected_output": "Agent POSTs to the /content endpoint with waitForSelector, saves the HTML, runs the empty-body and Chrome error-page check, then reports the prices from the real page.",
+      "files": [],
+      "expectations": [
+        "The instance URL and token are read from BROWSERLESS_URL and BROWSERLESS_TOKEN and never appear as literal values in a command",
+        "The /content endpoint (or /scrape with selectors) is called with the target URL via POST with a JSON body and token as query parameter",
+        "The request body sets waitForSelector for .plan-card",
+        "The output is written to /tmp/plans.html and its size or markup is checked for an empty body or Chrome error page before use",
+        "No local Chrome or Puppeteer install is attempted"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "My CI runner is an alpine container with no Chrome. I need a full-page PNG screenshot of https://staging.acme-shop.dev/checkout saved to artifacts/checkout.png and an A4 PDF of the same page saved to artifacts/checkout.pdf. The remote headless chrome token is in the environment.",
+      "expected_output": "Agent calls /screenshot with fullPage and /pdf with format A4 using curl -sf, writes both files to the named paths, and confirms their types with file.",
+      "files": [],
+      "expectations": [
+        "A preflight check or explicit statement verifies BROWSERLESS_URL and BROWSERLESS_TOKEN are set, and the values are not hardcoded",
+        "The /screenshot endpoint is called with options fullPage true and type png",
+        "The /pdf endpoint is called with format A4 and printBackground",
+        "Outputs are written to artifacts/checkout.png and artifacts/checkout.pdf, and curl uses -f so HTTP errors are not saved as artifacts",
+        "The file types are confirmed (for example with the file command) before reporting success"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use browserless to unblock https://news.ycombinator.com past any bot wall and give me the rendered HTML. Our instance is the self-hosted open-source image.",
+      "expected_output": "Agent probes /unblock, sees 404 on the self-hosted instance, does not retry or vary the path, reports that it is cloud-only, and falls back to /content with stealth while verifying the result.",
+      "files": [],
+      "expectations": [
+        "The agent probes the /unblock endpoint and checks the HTTP status code before relying on it",
+        "On a 404 the agent does not retry or try path variants, and tells the user /unblock is cloud-only and unavailable on this instance",
+        "Any fallback to /content uses stealth launch and blockAds, and is not presented as an /unblock result",
+        "The fallback HTML is checked for a Chrome error page, empty body, or bot-wall text before being summarized",
+        "Credentials are read from environment variables and never appear literally"
+      ]
+    }
+  ]
+}

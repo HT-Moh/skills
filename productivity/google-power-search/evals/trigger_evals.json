@@ -1,0 +1,82 @@
+[
+  {
+    "query": "i'm a policy analyst. pull every pdf the site:ftc.gov domain posted in the last 24 hours about data brokers and tell me what each one actually says",
+    "should_trigger": true
+  },
+  {
+    "query": "Need recent slide decks (ppt or pdf) on zero trust architecture from the past week, skip anything from vendors like cisco.com or microsoft.com, and summarize the two most useful ones for my security briefing",
+    "should_trigger": true
+  },
+  {
+    "query": "find me papers on retrieval augmented generation evaluation that went up in the last hour, pdf only, and read the top 3 for me",
+    "should_trigger": true
+  },
+  {
+    "query": "I'm a lawyer prepping a brief. Find court filings in PDF on 'qualified immunity' AND 'drone' from site:.gov within the past month, exclude news sites, then open the best two and pull out the holdings.",
+    "should_trigger": true
+  },
+  {
+    "query": "whats new on sec.gov this week that mentions 'cybersecurity incident' in an 8-K exhibit? give me the links with dates and read the newest one",
+    "should_trigger": true
+  },
+  {
+    "query": "build me a google dork for exposed .env files on my own company domain acme-corp.com, run it, and tell me what turns up so I can lock it down",
+    "should_trigger": true
+  },
+  {
+    "query": "search google for intitle:\"annual report\" filetype:pdf site:.edu 2026 sustainability and give me a ranked list w/ dates, then summarize the first result",
+    "should_trigger": true
+  },
+  {
+    "query": "firecrawl can crawl but i dont know the URLs yet. i need the latest PDFs on lithium battery recycling regulation from the last 7 days, only EU sites, find them and read them",
+    "should_trigger": true
+  },
+  {
+    "query": "which sites link to or look like huggingface.co? use the related: operator and check the top results, then fetch one of their about pages and describe it",
+    "should_trigger": true
+  },
+  {
+    "query": "find spreadsheets (xlsx or csv) with 'municipal budget 2026' published this month on .gov sites, exclude pinterest and scribd, and tell me what columns the top file has",
+    "should_trigger": true
+  },
+  {
+    "query": "crawl all of docs.stripe.com and save every page as markdown into ./docs",
+    "should_trigger": false
+  },
+  {
+    "query": "scrape https://www.nist.gov/cyberframework to markdown and pull out the function names",
+    "should_trigger": false
+  },
+  {
+    "query": "take a screenshot of google.com/search?q=cats at 1280x800 with browserless",
+    "should_trigger": false
+  },
+  {
+    "query": "what does the filetype: operator do in google and why would anyone use it? just explain, i know how to search",
+    "should_trigger": false
+  },
+  {
+    "query": "I already downloaded ~/Downloads/gdpr_guidance.pdf. summarize the key obligations for data processors in 10 bullets",
+    "should_trigger": false
+  },
+  {
+    "query": "which keywords should my pottery shop target? pull search volume and difficulty for 'handmade ceramic mugs' and related terms",
+    "should_trigger": false
+  },
+  {
+    "query": "look at my Search Console data for the last 28 days and tell me which queries lost clicks on the blog",
+    "should_trigger": false
+  },
+  {
+    "query": "write a Python module that calls the Google Custom Search JSON API with an api key, handles pagination and retries on 429, with pytest tests",
+    "should_trigger": false
+  },
+  {
+    "query": "use firecrawl_search to get the top 5 results for 'vector database benchmarks' and give me the raw json",
+    "should_trigger": false
+  },
+  {
+    "query": "explain the difference between site: and inurl: in terms of how search engines index pages, i'm writing a blog post about it",
+    "should_trigger": false
+  }
+]

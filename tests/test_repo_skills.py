@@ -66,3 +66,21 @@ def test_marketplace_lists_the_root_plugin():
     assert market["name"] and market["owner"]["name"] and market["description"]
     entries = {e["name"]: e for e in market["plugins"]}
     assert entries[plugin["name"]]["source"] == "./"
+
+
+@pytest.mark.parametrize("skill", SKILLS, ids=IDS)
+def test_evals_file_matches_skill_and_has_expectations(skill):
+    evals = json.loads((skill.parent / "evals" / "evals.json").read_text(encoding="utf-8"))
+    assert evals["skill_name"] == skill.parent.name
+    assert len(evals["evals"]) >= 3
+    for case in evals["evals"]:
+        assert case["prompt"].strip() and len(case["expectations"]) >= 3, case["id"]
+
+
+@pytest.mark.parametrize("skill", SKILLS, ids=IDS)
+def test_model_invoked_skill_has_balanced_trigger_evals(skill):
+    if frontmatter(skill).get("disable-model-invocation") == "true":
+        return
+    queries = json.loads((skill.parent / "evals" / "trigger_evals.json").read_text(encoding="utf-8"))
+    positives = sum(1 for q in queries if q["should_trigger"])
+    assert len(queries) == 20 and positives == 10, (len(queries), positives)
