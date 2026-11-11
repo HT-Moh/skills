@@ -5,7 +5,9 @@ description: >-
   API and probes which endpoints a deployment serves before relying on them. Use when the user
   wants to search the web or scrape a page to markdown without a browser, crawl a site, find
   papers by topic, or when a Firecrawl call returns 403, 404 or empty. Reads FIRECRAWL_URL and
-  FIRECRAWL_TOKEN from the environment, never hardcodes them.
+  FIRECRAWL_TOKEN from the environment, never hardcodes them. Not for screenshots, PDFs of a page
+  or Puppeteer logic (browserless), nor Google operator searches with filetype:/site:/time windows
+  (google-power-search).
 metadata:
   author: Mohamed Habbat (https://github.com/HT-Moh)
 ---
