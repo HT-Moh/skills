@@ -24,7 +24,10 @@ Population `cli` with 4+ real user messages. Time from each request to the next
 user message by task type (deploy, CI fix, refactor, content, debugging, research);
 model time vs tool time vs user think time (drop gaps over 30 min). Session length,
 compactions per session, crash/resume openers. Prompts typed in 3+ sessions.
-Tool sequences of 3+ steps that recur and are not a skill yet (name the commands).
+Tool sequences of 3+ steps that recur and are not a skill yet: start from
+`patterns.recurring_tool_sequences` (3-grams of argument-free tool tokens with the number of
+sessions each appears in); for each sequence in 5+ sessions, read two sessions to name the
+task it serves and say whether an installed skill already covers it (brief F has the list).
 Interrupts and the action right before each: start from `patterns.interrupt_before_tool`
 and `patterns.repeated_bash` in the scan, then label each interrupt with one of: missing
 context or correction, slow or excessive action, user takes the next step, requirement
@@ -73,16 +76,22 @@ imported; contradictions between loaded files (quote both with path:line); grep
 compliance of 10 checkable rules; user corrections that no rule records (session,
 paraphrase, proposed rule, destination file).
 
-Skill candidates from repeated prompts. The scan gives `repeated_prompts_sessions` (exact)
-and `patterns.near_duplicate_prompts_sessions` (numbers, paths and quoted spans replaced).
-For each cluster in 3+ sessions: grep the hash back to 3 sample prompts (hash the user text
-the same way: lower-case, whitespace-collapsed sha256[:12]; for near-duplicates also
-replace quoted spans, then `/`-containing words, then digits), keep only samples from
-sessions that ended in a commit, a merged PR or an explicit user confirmation, and write
-the skill: the fixed steps as the body, the parts that differed across samples as
-`$ARGUMENTS` or named placeholders, a one-line `description`. A cluster whose sessions
-mostly failed becomes a CLAUDE.md lesson ("when X, do not Y"), never a skill. Report
-cluster size, the proposed name and the destination path.
+Skill candidates from repeated prompts. The scan gives `repeated_prompts` (exact) and
+`patterns.near_duplicate_prompts` (numbers, paths and quoted spans replaced); each entry is
+`{hash, sessions, occurrences, files}` (`reference/schema.md`, "Prompt clusters"). For each
+cluster, run
+`python3 ${CLAUDE_SKILL_DIR}/scripts/prompt_samples.py --scan <scan.json> --hash <hash> --max 3`
+(add `--near` for a near-duplicate hash, `--population headless` for that population). It
+prints the samples and, per session, `commits=` and `interrupts=`: keep only samples from
+sessions with a commit, a merged PR or an explicit user confirmation and no interrupt
+right after the prompt. Never hash transcripts yourself and never paste a
+`[redacted: secret-shaped]` sample anywhere. Then write the skill: the fixed steps as the
+body, the parts that differed across samples as `$ARGUMENTS` or named placeholders, a
+one-line `description`; the skill carries no literal path, branch, host, number or name from
+any sample. A cluster with `sessions: 1` and high `occurrences` is one session's loop:
+propose a `/loop` or a rule, not a skill. A cluster whose sessions mostly failed becomes a
+CLAUDE.md lesson ("when X, do not Y"), never a skill. Report cluster size (`sessions`,
+`occurrences`), the proposed name and the destination path.
 
 ## G. Quality
 Read-only `gh run list --limit 200`, `gh pr list --state all --limit 100`,

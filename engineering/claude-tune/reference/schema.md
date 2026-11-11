@@ -81,11 +81,29 @@ and the brief that interprets it:
 | `oversized_results_over_20k` | tool results above 20,000 chars, by tool | I |
 | `tool_wait_seconds_total_n_mean` | result minus use for non-Bash tools (includes permission wait); top 20 by total | D |
 | `nudge_prompts` | whole-message prompts such as `proceed`, `continue`, `yes` | B, F |
-| `near_duplicate_prompts_sessions` | prompts equal after numbers, paths and quoted spans are replaced; `(sessions, hash)`, 3+ sessions | B, F |
+| `near_duplicate_prompts` | prompts equal after numbers, paths and quoted spans are replaced; cluster objects, see below | B, F |
 | `done_claims`, `done_without_verify` | assistant text claiming tests pass or work complete; the subset with no test/lint command since the last user prompt | G |
 | `interrupt_before_tool` | tool called right before each `[Request interrupted by user` | B |
 | `orphaned_agents` | Agent calls with no tool_result before the file ends | E |
 | `cache_miss_ratio_median`, `_p90` | per session, `cache_creation / (cache_creation + cache_read)` | I |
+| `recurring_tool_sequences` | 3 consecutive tool calls as argument-free tokens (`Bash:<prefix>`, `Skill:<name>`, `Agent:<type>`, else the tool name) seen in 3+ sessions; `{sequence: "A > B > C", sessions}`, top 15; a triple of one repeated tool is skipped | B |
 
-Also in the population summary: `write_edit_ratio` (Write calls per Edit call) and
-`ask_interrupt_ratio` (AskUserQuestion calls per interrupt).
+Also in the population summary: `write_edit_ratio` (Write calls per Edit call),
+`ask_interrupt_ratio` (AskUserQuestion calls per interrupt) and `repeated_prompts` (exact
+prompt clusters, same object shape as `patterns.near_duplicate_prompts` plus `len`).
+
+## Prompt clusters and sample prompts
+
+`repeated_prompts` (exact: lower-cased, whitespace-collapsed sha256[:12]) and
+`patterns.near_duplicate_prompts` (the same after quoted spans, `/`-containing words and
+digits are replaced) are lists of `{hash, len (exact only), sessions, occurrences, files}`.
+`occurrences` counts every message in the cluster, so a prompt typed six times in one session
+shows as `sessions: 1, occurrences: 6`. A cluster is listed when `sessions >= 3` or
+`occurrences >= 5`; the list is sorted by `occurrences` and cut at 15. `files` holds up to 5
+session file names below their project dir (`<session-id>.jsonl`, or
+`<session-id>/subagents/agent-<id>.jsonl`); the project dir is a path in clear and stays out,
+`ls ~/.claude/projects/*/<name>` finds the file. No prompt text is stored. To read samples, run
+`python3 scripts/prompt_samples.py --scan scan.json --hash <hash> [--near] [--max 3]
+[--population interactive]`: it opens only the listed files, prints `file:line` and the text
+(600 chars, a secret-shaped prompt prints as `[redacted: secret-shaped]`), then one line per
+session with its `git commit` count and interrupt count. Exit 2 when the hash is not in the scan.

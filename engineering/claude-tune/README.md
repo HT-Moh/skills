@@ -11,6 +11,13 @@ companion skill `claude-tune-apply` applies the items you pick.
 What the scan measures is documented in `reference/schema.md`; the agent briefs are in
 `reference/briefs.md`; the plan format in `reference/plan.md`.
 
+The scan also finds prompts you keep typing (`repeated_prompts`, `near_duplicate_prompts`:
+the same text across 3+ sessions or 5+ times in total, stored as hashes with the session
+files they came from) and 3-step tool sequences you run by hand in 3+ sessions
+(`recurring_tool_sequences`). `scripts/prompt_samples.py --scan scan.json --hash <h>` reads
+sample prompts back from those files (secret-shaped text is redacted) so the config angle can
+propose a skill, a `$ARGUMENTS` skill or a CLAUDE.md line for each cluster.
+
 ## Usage
 
 ```
