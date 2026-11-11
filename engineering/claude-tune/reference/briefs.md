@@ -128,19 +128,21 @@ coverage keys at the end of each population summary in `scan.json`
 `mcp_servers_configured`, `mcp_servers_used`, `mcp_servers_unused`). Interactive population
 first; headless and subagent only when they invoke skills at all.
 
-A `missed_skill_sessions` entry means: a user prompt in that session contained 3+ trigger
-terms of an installed, model-invoked skill, and the session never called that skill. A keyword
-match is a hint, not a finding: a skill about "linkedin posts" matching a prompt that merely
-mentions LinkedIn is a false positive. For each of the top skills read every listed location
+A `missed_skill_sessions` entry means: the skill was among the two best-matching installed,
+model-invoked skills for a user prompt (3 trigger terms, plus one per 600 chars of prompt),
+either in two distinct prompts of that session or in one prompt under 300 chars, and the
+session never called it (thresholds in `reference/schema.md`). A keyword match is still a hint,
+not a finding: a skill about "linkedin posts" matching a prompt that merely mentions LinkedIn
+is a false positive. For each of the top skills read every listed location
 with `sed -n '<line>p' ~/.claude/projects/<project-dir>/<file>` (the location names the
 transcript; never read the whole file) and decide whether invoking the skill would have changed
 the result: a procedure the user then did by hand, a check the skill enforces that the session
 skipped, a rule the user restated. Count real misses versus coincidences per skill and report
-both numbers. Two artefacts to discard before reading: in the headless population, hundreds
-of sessions flagging the same skills at the same line number are one automation prompt
-repeated (schema population 4), one miss at most; a location shared by 4+ skills is one long
-prompt or pasted brief that matched everything, read it once and keep at most the skill it is
-about. Then produce items:
+both numbers. One artefact to discard before reading: in the headless population, many
+sessions flagging the same skill at the same line number are one automation prompt repeated
+across sessions (schema population 4), one miss at most. The scanner already drops the third
+and lower matches per prompt and single matches in long prompts, so a remaining shared location
+is two skills that both fit; read it once and keep the one the task was about. Then produce items:
 
 (a) a `review` item that extends the skill's `description` so it fires on the phrasing the user
     actually typed: `file_replace` on its `SKILL.md` (`path` in `inventory.json`), only for

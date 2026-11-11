@@ -1,16 +1,20 @@
 """Skill and MCP coverage: what was installed versus what each session invoked.
 
-Fed from `inventory.json` (written by `skill_inventory.py`). A prompt is scored against every
-model-invoked skill by the distinct trigger terms it contains; a skill that scores high in a
-session and is never invoked there is a missed skill. Only skill names, server names, file
-basenames and line numbers leave this module: no prompt text.
+Fed from `inventory.json` (written by `skill_inventory.py`). Each distinct prompt is scored
+against every model-invoked skill by the distinct trigger terms it contains; the threshold grows
+with prompt length and only the two best skills per prompt survive. A skill matched by two
+prompts of a session, or by one short prompt, and never invoked there is a missed skill. Only
+skill names, server names, transcript paths and line numbers leave this module: no prompt text.
 """
 import collections
 import json
 import re
 
 MIN_PROMPT_CHARS = 40
+SHORT_PROMPT_CHARS = 300  # a short prompt that names the task is a strong signal on its own
 CANDIDATE_SCORE = 3
+CHARS_PER_EXTRA_TERM = 600  # a 1200-char prompt needs 5 distinct terms
+BEST_PER_PROMPT = 2
 PHRASE_WEIGHT = 2
 MAX_LOCATIONS = 5
 TOP_MISSED = 15
@@ -65,6 +69,36 @@ def score(lower_text, words, skill_terms):
     return len(word_terms & words) + PHRASE_WEIGHT * sum(1 for p in phrase_terms if p in lower_text)
 
 
+def prompt_identity(text):
+    """Same normalisation as `scan_lib.prompt_key`: lower-cased, whitespace collapsed. In-memory only."""
+    return " ".join(text.lower().split())
+
+
+def best_matches(index, text):
+    """Skills whose score reaches the length-scaled threshold, cut to the two best scores (ties kept)."""
+    lower = text.lower()
+    words = frozenset(WORD_RE.findall(lower))
+    threshold = CANDIDATE_SCORE + len(text.strip()) // CHARS_PER_EXTRA_TERM
+    scored = sorted(((score(lower, words, terms), skill) for skill, terms in index.skills.items()), reverse=True)
+    kept = [(s, skill) for s, skill in scored if s >= threshold]
+    if len(kept) <= BEST_PER_PROMPT:
+        return [skill for _, skill in kept]
+    cutoff = kept[BEST_PER_PROMPT - 1][0]
+    return [skill for s, skill in kept if s >= cutoff]
+
+
+class Match:
+    """What one session saw of one skill: how many distinct prompts matched, the first line, a short one."""
+
+    def __init__(self, line, short):
+        self.prompts = 1
+        self.line = line
+        self.short = short
+
+    def is_candidate(self):
+        return self.prompts >= 2 or self.short
+
+
 class Coverage:
     """Population-level counters plus the state of the session being streamed."""
 
@@ -77,27 +111,35 @@ class Coverage:
         self.line = 0
         self._location = ""
         self._invoked = set()
-        self._candidates = {}
+        self._matches = {}
+        self._seen_prompts = set()
 
     def begin_session(self, path):
         self.line = 0
         self._location = project_location(path)
         self._invoked = set()
-        self._candidates = {}
+        self._matches = {}
+        self._seen_prompts = set()
 
     def on_prompt(self, text, line=None):
-        """Score one non-boilerplate user prompt; remember the first matching line per skill.
+        """Score one non-boilerplate user prompt once per distinct text; keep the first matching line per skill.
 
         `line` defaults to `self.line`, which the streaming loop sets before each event.
         """
         if self.index is None or len(text.strip()) < MIN_PROMPT_CHARS:
             return
-        lower = text.lower()
-        words = frozenset(WORD_RE.findall(lower))
+        identity = prompt_identity(text)
+        if identity in self._seen_prompts:
+            return
+        self._seen_prompts.add(identity)
+        short = len(text.strip()) < SHORT_PROMPT_CHARS
         line = self.line if line is None else line
-        for skill, terms in self.index.skills.items():
-            if skill not in self._candidates and score(lower, words, terms) >= CANDIDATE_SCORE:
-                self._candidates[skill] = line
+        for skill in best_matches(self.index, text):
+            if skill in self._matches:
+                self._matches[skill].prompts += 1
+                self._matches[skill].short |= short
+            else:
+                self._matches[skill] = Match(line, short)
 
     def on_tool_use(self, name, inp):
         if name == "Skill":
@@ -107,13 +149,13 @@ class Coverage:
 
     def end_session(self):
         self.skills_used |= self._invoked
-        for skill, line in self._candidates.items():
-            if skill in self._invoked:
+        for skill, match in self._matches.items():
+            if skill in self._invoked or not match.is_candidate():
                 continue
             self.missed[skill] += 1
             if len(self.missed_locations[skill]) < MAX_LOCATIONS:
-                self.missed_locations[skill].append([self._location, line])
-        self._candidates = {}
+                self.missed_locations[skill].append([self._location, match.line])
+        self._matches = {}
 
 
 def summary(cov):

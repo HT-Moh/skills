@@ -125,6 +125,61 @@ def test_scan_file_records_location_line_number(tmp_path):
     assert out["mcp_servers_used"] == {"firecrawl": 1}
 
 
+FILLER = "the quick brown fox jumps over the lazy dog again and again without any hurry at all. "
+LONG_THREE_HITS = ("find keyword ideas with search volume for the pricing page. " + FILLER * 8).strip()
+LONG_FOUR_HITS = ("find keyword ideas with search volume and intent for the pricing page. " + FILLER * 4).strip()
+
+
+def test_long_prompt_needs_one_more_term_per_600_chars():
+    assert 600 < len(LONG_THREE_HITS) < 1200
+    cov = _coverage()
+    cov.on_prompt(LONG_THREE_HITS, 1)
+    cov.on_prompt("another " + LONG_THREE_HITS, 2)
+    cov.end_session()
+    assert cov.missed == {}
+
+
+def test_only_two_best_scoring_skills_kept_per_prompt():
+    inventory = {"skills": [
+        {"name": "best", "model_invoked": True, "terms": ["alpha", "beta", "gamma", "delta", "epsilon"]},
+        {"name": "second", "model_invoked": True, "terms": ["alpha", "beta", "gamma", "delta"]},
+        {"name": "third", "model_invoked": True, "terms": ["alpha", "beta", "gamma"]},
+    ], "mcp_servers": []}
+    cov = scan_coverage.Coverage(scan_coverage.Index(inventory))
+    cov.begin_session("/p/-proj/s.jsonl")
+    cov.on_prompt("alpha beta gamma delta epsilon: a short prompt naming it all", 1)
+    cov.end_session()
+    assert set(cov.missed) == {"best", "second"}
+
+
+def test_single_long_prompt_match_not_counted_two_distinct_prompts_counted():
+    assert 300 <= len(LONG_FOUR_HITS) < 600
+    one = _coverage()
+    one.on_prompt(LONG_FOUR_HITS, 1)
+    one.end_session()
+    assert one.missed == {}
+    two = _coverage()
+    two.on_prompt(LONG_FOUR_HITS, 1)
+    two.on_prompt("second round: " + LONG_FOUR_HITS, 9)
+    two.end_session()
+    assert two.missed["keyword-research"] == 1 and two.missed_locations["keyword-research"] == [["-src-app/abc.jsonl", 1]]
+
+
+def test_identical_long_prompt_repeated_counts_once():
+    cov = _coverage()
+    cov.on_prompt(LONG_FOUR_HITS, 1)
+    cov.on_prompt("  " + LONG_FOUR_HITS.upper() + " ", 5)
+    cov.end_session()
+    assert cov.missed == {}
+
+
+def test_short_prompt_single_match_is_a_candidate():
+    cov = _coverage()
+    cov.on_prompt(MATCHING_PROMPT, 4)
+    cov.end_session()
+    assert cov.missed["keyword-research"] == 1
+
+
 def test_pop_without_inventory_keeps_empty_coverage_keys():
     import scan
     out = scan.population_summary(scan_lib.Pop())
