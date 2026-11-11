@@ -58,3 +58,11 @@ def test_refactor_to_quality_fetches_examples_on_demand():
     assert (skill / "references" / "examples.md").exists()
     assert "WebFetch(domain:refactoring.guru)" in frontmatter(skill / "SKILL.md")["allowed-tools"]
     assert "references/examples.md" in (skill / "SKILL.md").read_text()
+
+
+def test_marketplace_lists_the_root_plugin():
+    plugin = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text())
+    market = json.loads((ROOT / ".claude-plugin" / "marketplace.json").read_text())
+    assert market["name"] and market["owner"]["name"] and market["description"]
+    entries = {e["name"]: e for e in market["plugins"]}
+    assert entries[plugin["name"]]["source"] == "./"

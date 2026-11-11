@@ -19,6 +19,9 @@ single lowercase word.
   vendored from someone else keeps *their* `author` — add `upstream:` (repo + license) and
   `maintainer:` instead. Never overwrite a third party's attribution.
 - Every skill must be listed in the top-level `README.md` and in `.claude-plugin/plugin.json`.
+- `.claude-plugin/marketplace.json` lists the root plugin (`source: "./"`), so the repo doubles as a
+  marketplace: `/plugin install skills --marketplace HT-Moh/skills`. Run `claude plugin validate .`
+  after touching either manifest.
 - Every skill ships a `README.md` with an `## Install` section (clone, symlink, restart).
 - A model-invoked `description` stays under 600 characters. `tests/test_repo_skills.py` enforces
   these rules; run `python3 -m pytest -q tests` before committing a skill.
