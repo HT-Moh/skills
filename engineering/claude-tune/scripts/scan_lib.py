@@ -13,6 +13,7 @@ import os
 import re
 import sys
 
+import scan_coverage
 import scan_patterns
 from scan_commands import hook_key, prefix  # noqa: F401  (re-exported for callers and tests)
 
@@ -68,9 +69,9 @@ def session_name(path):
 
 
 class Pop:
-    """One population: interactive, headless or subagent."""
+    """One population: interactive, headless or subagent. `inventory` is a `scan_coverage.Index` or None."""
 
-    def __init__(self):
+    def __init__(self, inventory=None):
         self.sessions = set()
         self.user_msgs = 0
         self.fresh = 0
@@ -95,6 +96,7 @@ class Pop:
         self.prompts = collections.defaultdict(scan_patterns.PromptCluster)
         self.msg_ids = set()
         self.patterns = scan_patterns.Patterns()
+        self.coverage = scan_coverage.Coverage(inventory)
 
 
 def classify_line(raw, pop):
@@ -137,6 +139,7 @@ def record_user(ev, pop, sess, when):
             pop.user_msgs += 1
             if not is_boilerplate(text):
                 pop.prompts[prompt_key(text)].add(sess.name)
+                pop.coverage.on_prompt(text)
             if not is_boilerplate(text) or text.lstrip().lower().startswith("[request interrupted"):
                 scan_patterns.on_user_text(text, sess, pop.patterns)
 
@@ -189,6 +192,7 @@ def _record_tool_use(block, pop, sess, when):
         pop.agents[str(inp.get("subagent_type", "general-purpose"))] += 1
     if name == "Bash" and WAIT_RE.search(str(inp.get("command", ""))):
         pop.waits += 1
+    pop.coverage.on_tool_use(name, inp)
     sess.pending[block.get("id")] = (when, name, inp)
     scan_patterns.on_tool_use(block, sess, pop.patterns)
 
@@ -207,8 +211,10 @@ def scan_file(path, pop_for, max_bytes, cutoff=0.0):
     pop = pop_for(_entrypoint(path), path)
     sess = scan_patterns.Session(session_name(path))
     pop.sessions.add(sess.name)
+    pop.coverage.begin_session(path)
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
-        for raw in fh:
+        for lineno, raw in enumerate(fh, 1):
+            pop.coverage.line = lineno
             classify_line(raw, pop)
             ev = _parse(raw, pop)
             if ev is None:
@@ -218,6 +224,7 @@ def scan_file(path, pop_for, max_bytes, cutoff=0.0):
                 continue
             _dispatch(ev, pop, sess, when)
     scan_patterns.finish_session(sess, pop.patterns)
+    pop.coverage.end_session()
     return "ok"
 
 
