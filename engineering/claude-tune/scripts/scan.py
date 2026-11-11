@@ -3,7 +3,7 @@
 
 Read-only. Standard library only. Prints no message bodies, no command arguments and no
 prompt text: commands become `tool subcommand`, prompts become a hash and a length.
-Usage: scan.py --days 30 [--projects a,b] [--out summary.json] [--max-mb 800]
+Usage: scan.py --days 30 [--projects a,b] [--out summary.json] [--max-mb 800] [--inventory inventory.json]
 """
 import argparse
 import collections
@@ -82,6 +82,7 @@ def population_summary(p):
         "write_edit_ratio": ratio(p.tools["Write"], p.tools["Edit"]),
         "ask_interrupt_ratio": ratio(p.tools["AskUserQuestion"], p.sig["interrupts"]),
         "patterns": scan_lib.scan_patterns.summary(p.patterns, len(p.sessions)),
+        **scan_lib.scan_coverage.summary(p.coverage),
     }
 
 
@@ -111,20 +112,29 @@ def print_summary(out):
               f"orphan_agents={pt['orphaned_agents']} cache_miss_med={pt['cache_miss_ratio_median']}")
         print(f"   patterns: tool_wait(total_s,n,mean)={dict(list(pt['tool_wait_seconds_total_n_mean'].items())[:6])}")
         print(f"   patterns: sequences={[(r['sequence'], r['sessions']) for r in pt['recurring_tool_sequences'][:4]]}")
+        print(f"   coverage: skills_available={d['skills_available']} used_distinct={d['skills_used_distinct']} "
+              f"missed_top={[(m['skill'], m['sessions']) for m in d['missed_skill_sessions'][:5]]} "
+              f"mcp_unused={d['mcp_servers_unused'][:8]}")
     print(f"== subagent types (meta): {out['subagent_types_from_meta'][:12]}")
     print(f"== files={out['files']} skipped_over_max_mb={out['skipped_over_max_mb']}")
 
 
-def main():
+def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--projects", default="")
     ap.add_argument("--out", default="")
     ap.add_argument("--max-mb", type=int, default=800)
-    a = ap.parse_args()
+    ap.add_argument("--inventory", default="", help="inventory.json from skill_inventory.py; enables coverage keys")
+    return ap.parse_args()
+
+
+def main():
+    a = parse_args()
     cutoff = time.time() - a.days * 86400
     want = [p for p in a.projects.split(",") if p]
-    pops = {"interactive": scan_lib.Pop(), "headless": scan_lib.Pop(), "subagent": scan_lib.Pop()}
+    index = scan_lib.scan_coverage.Index.from_file(a.inventory) if a.inventory else None
+    pops = {name: scan_lib.Pop(index) for name in ("interactive", "headless", "subagent")}
 
     def pop_for(entrypoint, path):
         if "/subagents/" in path:

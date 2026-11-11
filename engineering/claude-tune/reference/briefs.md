@@ -121,6 +121,49 @@ On the 3 largest interactive sessions: compaction count, `preTokens` before each
 same path and their cost, tool results over 20k chars by tool, and the first-request
 size of a fresh session in the same project (the fixed overhead).
 
+## K. Skill and tool coverage
+Input: `inventory.json` (what is installed: `skills`, `mcp_servers`, `agents`) and the six
+coverage keys at the end of each population summary in `scan.json`
+(`skills_available`, `skills_used_distinct`, `missed_skill_sessions`,
+`mcp_servers_configured`, `mcp_servers_used`, `mcp_servers_unused`). Interactive population
+first; headless and subagent only when they invoke skills at all.
+
+A `missed_skill_sessions` entry means: the skill was among the two best-matching installed,
+model-invoked skills for a user prompt (3 trigger terms, plus one per 600 chars of prompt),
+either in two distinct prompts of that session or in one prompt under 300 chars, and the
+session never called it (thresholds in `reference/schema.md`). A keyword match is still a hint,
+not a finding: a skill about "linkedin posts" matching a prompt that merely mentions LinkedIn
+is a false positive. For each of the top skills read every listed location: a location is
+`<hash>/<file>` plus a line; `python3 ${CLAUDE_SKILL_DIR}/scripts/scan_coverage.py --resolve <hash>`
+prints the project dir, then `sed -n '<line>p' ~/.claude/projects/<project-dir>/<file>` (never
+read the whole file). Decide whether invoking the skill would have changed
+the result: a procedure the user then did by hand, a check the skill enforces that the session
+skipped, a rule the user restated. Count real misses versus coincidences per skill and report
+both numbers. One artefact to discard before reading: in the headless population, many
+sessions flagging the same skill at the same line number are one automation prompt repeated
+across sessions (schema population 4), one miss at most. The scanner already drops the third
+and lower matches per prompt and single matches in long prompts, so a remaining shared location
+is two skills that both fit; read it once and keep the one the task was about. Then produce items:
+
+(a) a `review` item that extends the skill's `description` so it fires on the phrasing the user
+    actually typed: `file_replace` on its `SKILL.md` (`path` in `inventory.json`), only for
+    `source: user` or `source: project`. A plugin file is not editable: make a `manual` item
+    "report upstream to <plugin>" or a `file_create` copy under `~/.claude/skills/<name>/` with
+    the wider description, and name the duplicate it creates in `consumers`.
+(b) a `review` `file_append` to the project `CLAUDE.md` naming the skill to use for that task
+    family ("for keyword work, invoke `/keyword-research` before drafting").
+(c) for each name in `mcp_servers_unused`: a `manual` item with `claude mcp remove <name>`
+    (user or project-local scope; `~/.claude.json` is never edited by the apply skill) or
+    the `.mcp.json` / plugin to disable for `project` and `plugin:` sources. State the cost as
+    UNVERIFIED unless you measured the server's tool-definition tokens in a first request.
+    A server whose name differs from its tool prefix (plugin servers are
+    `plugin_<plugin>_<server>`) counts as used when any `mcp__<prefix>__*` call exists.
+(d) skills installed but never invoked in the window are already brief F's inventory finding;
+    do not duplicate them here. Report only skills that were matched and not invoked.
+
+Evidence per item: the skill name, `sessions` from `missed_skill_sessions`, the locations you
+read, and the real-miss count. Never quote the prompt text.
+
 ## J. Adversarial review (after the draft)
 Give the full draft and ask: which disabled item is used (counts)? which rule misses
 the real command form? which hook can loop or block on old errors or break in a
@@ -132,4 +175,5 @@ artefact? what breaks out of order; what is irreversible? For the pattern counte
 a quoted rule or a plan rather than the assistant's own report? does a Read of
 `.env.example` count as a credential read (it must not)? is a near-duplicate cluster the
 same task or two tasks that share a sentence shape? does a proposed skill contain a path,
-token or name from a sample prompt that must not be in a skill file?
+token or name from a sample prompt that must not be in a skill file? is a
+`missed_skill_sessions` entry a keyword coincidence? read the location before keeping it.

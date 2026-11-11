@@ -12,7 +12,9 @@ file. Numbers carry units and their source. No metaphors.
    2 instruction files · 3 skills, rules and scripts · 4 pipelines · 5 habits · 6 later.
    Every id you mention exists in `plan.json`; never describe a change that has no item.
 4. **Features from the docs the user does not use**, each with the use case taken
-   from their own transcripts.
+   from their own transcripts; plus skills installed but never matched or invoked, skills
+   matched but not invoked (brief K, with the real-miss count after reading the locations),
+   and MCP servers configured but never called.
 5. **Suggested prompts, skills and rules**: a `SKILL.md` draft per repeated workflow
    (frontmatter, under 60 lines, inline `` !`cmd || true` `` for state); one-line
    rules for repeated corrections with the destination file; a `STATE.md` +

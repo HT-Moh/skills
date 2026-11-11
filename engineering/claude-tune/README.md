@@ -2,9 +2,12 @@
 
 Audits your Claude Code usage over the last N days and produces a ranked, evidence-backed tuning
 plan. It streams your session transcripts (`~/.claude/projects/**/*.jsonl`), reads your settings,
-hooks, plugins, skills and instruction files, fetches the official docs, and runs nine read-only
+hooks, plugins, skills and instruction files, fetches the official docs, and runs ten read-only
 analysis agents (headless runs, interactive workflow, waits, permissions, subagents, config,
-quality, security, context) plus an adversarial pass. The result is one `plan.json` under
+quality, security, context, skill and tool coverage) plus an adversarial pass. The coverage
+angle lists every installed skill, MCP server and agent (`scripts/skill_inventory.py`) and
+reports the skills a prompt matched but the session never invoked, and the MCP servers
+configured but never called. The result is one `plan.json` under
 `~/.claude/tune/plans/`, a Markdown report and a checklist page. It changes nothing; the
 companion skill `claude-tune-apply` applies the items you pick.
 
@@ -26,7 +29,7 @@ propose a skill, a `$ARGUMENTS` skill or a CLAUDE.md line for each cluster.
 /claude-tune 30 valradar,mindmeld cost
 ```
 
-The run costs roughly 600k to 900k tokens for nine agents over 30 days of a heavy user.
+The run costs roughly 650k to 1M tokens for ten agents over 30 days of a heavy user.
 
 ## Install
 

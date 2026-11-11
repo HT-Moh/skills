@@ -107,3 +107,32 @@ session file names below their project dir (`<session-id>.jsonl`, or
 [--population interactive]`: it opens only the listed files, prints `file:line` and the text
 (600 chars, a secret-shaped prompt prints as `[redacted: secret-shaped]`), then one line per
 session with its `git commit` count and interrupt count. Exit 2 when the hash is not in the scan.
+
+## Coverage: installed versus invoked (`scripts/skill_inventory.py` + `scan.py --inventory`)
+
+`skill_inventory.py --out inventory.json --projects <repo,...>` lists what the model could have
+used. Names and descriptions only; MCP `env`, `headers` and `url` values are never read into
+the output. Paths verified against the docs on 2026-11-11:
+
+| Key | Content | Source paths | Docs |
+|---|---|---|---|
+| `skills[]` | `name`, `source` (`user`, `plugin:<name>`, `project`), `path` (real path; a symlink keeps its link name), `model_invoked` (false for `disable-model-invocation: true` or a `skillOverrides` `"off"` entry), `description_chars`, `terms` (max 40: quoted phrases, then words of 4+ chars minus stopwords) | `~/.claude/skills/*/SKILL.md`; enabled plugins' `skills/*/SKILL.md`; `<repo>/.claude/skills/*/SKILL.md` | https://code.claude.com/docs/en/skills.md |
+| `mcp_servers[]` | `name`, `source` (`user`, `project-local`, `project`, `plugin:<name>`); plugin servers are named `plugin_<plugin>_<server>`, the segment that appears in their tool names | `~/.claude.json` `mcpServers` and `projects.<repo>.mcpServers`; `<repo>/.mcp.json`; plugin `.mcp.json` | https://code.claude.com/docs/en/mcp.md |
+| `agents[]` | `name`, `source` | `~/.claude/agents/*.md`; enabled plugins' `agents/*.md` | https://code.claude.com/docs/en/plugins.md |
+| `totals` | `skills`, `skills_model_invoked`, `mcp_servers`, `agents`, `skill_overrides` (key count only) | `~/.claude/settings.json` `enabledPlugins` (`"plugin@marketplace": true/false`), `skillOverrides` | https://code.claude.com/docs/en/settings.md |
+
+Enabled plugins resolve to `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`, the
+`installPath` recorded in `~/.claude/plugins/installed_plugins.json`
+(https://code.claude.com/docs/en/plugins/loading.md).
+
+`scan.py --inventory inventory.json` appends six keys to the end of every population summary
+(`scripts/scan_coverage.py`); without the flag they are present and empty:
+
+| Key | Measures | Brief |
+|---|---|---|
+| `skills_available` | skills in the inventory | K |
+| `skills_used_distinct` | distinct `Skill` calls, `plugin:` prefix stripped | K |
+| `missed_skill_sessions` | top 15 `{skill, sessions, locations}`. Each distinct prompt (identical text counted once per session) of 40+ chars is scored per model-invoked skill by distinct trigger terms (a quoted phrase counts 2); a skill matches when its score reaches `3 + prompt_chars // 600` (a 1200-char prompt needs 5) and it is among the 2 best-scoring skills for that prompt (ties kept). A skill is missed in a session when it matched 2+ distinct prompts, or one prompt under 300 chars, and the session never invoked it. `locations` are up to 5 `[<hash>/<file>, line]` pairs of the first matching prompt, no text; `<hash>` is `sha256(<project-dir>)[:12]` (`scan_patterns.path_key`, the same hash the other counters use) and `python3 scripts/scan_coverage.py --resolve <hash>` prints the directory name | K, J |
+| `mcp_servers_configured` | names from the inventory | K |
+| `mcp_servers_used` | name → calls, from tool names `mcp__<server>__<tool>` | K |
+| `mcp_servers_unused` | configured names with zero calls in the window | K |
