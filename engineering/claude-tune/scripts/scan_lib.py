@@ -16,6 +16,7 @@ import sys
 import scan_patterns
 from scan_commands import hook_key, prefix  # noqa: F401  (re-exported for callers and tests)
 
+PROJECTS_ROOT = os.path.join(os.path.expanduser("~"), ".claude", "projects")
 APPLY_SCRIPTS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "claude-tune-apply", "scripts")
 sys.path.insert(0, os.path.realpath(APPLY_SCRIPTS))
 from redact import has_secret  # noqa: E402
@@ -54,6 +55,14 @@ def is_boilerplate(text):
     return text.lstrip().lower().startswith(BOILERPLATE_PREFIXES)
 
 
+def session_name(path):
+    """`<project-dir>/<file>.jsonl` (or the subagent path below the project dir): enough to reopen the file."""
+    root = PROJECTS_ROOT + os.sep
+    if path.startswith(root):
+        return path[len(root):]
+    return os.path.join(os.path.basename(os.path.dirname(path)), os.path.basename(path))
+
+
 class Pop:
     """One population: interactive, headless or subagent."""
 
@@ -79,7 +88,7 @@ class Pop:
         self.errors = 0
         self.secret_hits = 0
         self.malformed = 0
-        self.prompts = collections.defaultdict(set)
+        self.prompts = collections.defaultdict(scan_patterns.PromptCluster)
         self.msg_ids = set()
         self.patterns = scan_patterns.Patterns()
 
@@ -192,7 +201,7 @@ def scan_file(path, pop_for, max_bytes, cutoff=0.0):
     if os.path.getsize(path) > max_bytes:
         return "skipped"
     pop = pop_for(_entrypoint(path), path)
-    sess = scan_patterns.Session(os.path.basename(path))
+    sess = scan_patterns.Session(session_name(path))
     pop.sessions.add(sess.name)
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
         for raw in fh:

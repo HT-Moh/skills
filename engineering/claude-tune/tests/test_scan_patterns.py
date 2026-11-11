@@ -122,7 +122,7 @@ def test_near_duplicates_grouped_across_sessions(tmp_path):
         f = tmp_path / f"{n}.jsonl"
         f.write_text(json.dumps(user_text(f"merge PR {n}")) + "\n")
         scan_lib.scan_file(str(f), lambda e, p: pop, 10 ** 9, cutoff=0)
-    assert max(len(s) for s in pop.patterns.near_prompts.values()) == 3
+    assert max(len(c.sessions) for c in pop.patterns.near_prompts.values()) == 3
 
 
 def test_done_claim_without_test_run_since_last_prompt(tmp_path):
@@ -164,3 +164,23 @@ def test_pattern_functions_are_short():
     import inspect
     for name, fn in inspect.getmembers(scan_patterns, inspect.isfunction):
         assert len(inspect.getsource(fn).splitlines()) <= 30, name
+
+
+def test_near_duplicate_clusters_are_objects_with_files_and_occurrences(tmp_path):
+    pop = scan(tmp_path, [user_text("merge PR 12"), user_text("merge PR 13")], "a.jsonl")
+    for n in ("77", "4567"):
+        f = tmp_path / f"{n}.jsonl"
+        f.write_text(json.dumps(user_text(f"merge PR {n}")) + "\n")
+        scan_lib.scan_file(str(f), lambda e, p: pop, 10 ** 9, cutoff=0)
+    rows = scan_patterns.summary(pop.patterns, len(pop.sessions))["near_duplicate_prompts"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["hash"] == scan_patterns.near_key("merge PR 1") and "len" not in row
+    assert row["sessions"] == 3 and row["occurrences"] == 4 and len(row["files"]) == 3
+    assert all(f.endswith(".jsonl") for f in row["files"])
+
+
+def test_near_duplicate_cluster_from_five_occurrences_in_one_session(tmp_path):
+    pop = scan(tmp_path, [user_text(f"merge PR {n}") for n in range(5)])
+    rows = scan_patterns.summary(pop.patterns, len(pop.sessions))["near_duplicate_prompts"]
+    assert [(r["sessions"], r["occurrences"]) for r in rows] == [(1, 5)]
