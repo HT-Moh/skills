@@ -8,8 +8,13 @@ skill names, server names, transcript paths and line numbers leave this module: 
 """
 import collections
 import json
+import os
 import re
+import sys
 
+import scan_patterns
+
+PROJECTS_ROOT = os.path.join(os.path.expanduser("~"), ".claude", "projects")
 MIN_PROMPT_CHARS = 40
 SHORT_PROMPT_CHARS = 300  # a short prompt that names the task is a strong signal on its own
 CANDIDATE_SCORE = 3
@@ -35,12 +40,24 @@ def mcp_server_of(tool_name):
 
 
 def project_location(path):
-    """The transcript path relative to `~/.claude/projects`: `<project-dir>/<file>`, or
-    `<project-dir>/<session>/subagents/<file>` for a subagent transcript."""
+    """The transcript path relative to `~/.claude/projects` with the project dir hashed:
+    `<path_key(project-dir)>/<file>` or `<hash>/<session>/subagents/<file>`.
+
+    The project dir is hashed because a long UUID-bearing dir name trips the secret filter
+    that guards the summary; `resolve_project_dir` maps the hash back for the reader.
+    """
     parts = path.replace("\\", "/").split("/")
-    if "projects" in parts and parts.index("projects") + 1 < len(parts) - 1:
-        return "/".join(parts[parts.index("projects") + 1:])
-    return "/".join(parts[-2:]) if len(parts) >= 2 else parts[-1]
+    start = parts.index("projects") + 1 if "projects" in parts and parts.index("projects") + 1 < len(parts) - 1 else max(len(parts) - 2, 0)
+    return "/".join([scan_patterns.path_key(parts[start])] + parts[start + 1:])
+
+
+def resolve_project_dir(digest, root):
+    """The directory name under `root` whose `path_key` is `digest`, or '' when none matches."""
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return ""
+    return next((n for n in sorted(names) if scan_patterns.path_key(n) == digest), "")
 
 
 class Index:
@@ -171,3 +188,11 @@ def summary(cov):
         "missed_skill_sessions": missed, "mcp_servers_configured": cov.index.mcp_names,
         "mcp_servers_used": used, "mcp_servers_unused": [n for n in cov.index.mcp_names if n not in used],
     }
+
+
+if __name__ == "__main__":
+    # `scan_coverage.py --resolve <hash>` prints the project dir a location's hash stands for.
+    if len(sys.argv) == 3 and sys.argv[1] == "--resolve":
+        print(resolve_project_dir(sys.argv[2], PROJECTS_ROOT) or f"no project dir hashes to {sys.argv[2]}")
+    else:
+        print("usage: scan_coverage.py --resolve <12-char hash from a missed_skill_sessions location>")

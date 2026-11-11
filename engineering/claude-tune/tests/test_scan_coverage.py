@@ -2,6 +2,10 @@ import json
 
 import scan_coverage
 import scan_lib
+import scan_patterns
+
+APP = scan_patterns.path_key("-src-app")
+PROJ = scan_patterns.path_key("-proj")
 
 INVENTORY = {
     "skills": [
@@ -25,7 +29,7 @@ def test_prompt_with_three_terms_is_a_missed_skill_with_location():
     cov.on_prompt(MATCHING_PROMPT, 7)
     cov.end_session()
     assert cov.missed["keyword-research"] == 1
-    assert cov.missed_locations["keyword-research"] == [["-src-app/abc.jsonl", 7]]
+    assert cov.missed_locations["keyword-research"] == [[f"{APP}/abc.jsonl", 7]]
 
 
 def test_prompt_with_two_terms_is_not_a_candidate():
@@ -64,10 +68,24 @@ def test_short_prompt_ignored():
     assert cov.missed == {}
 
 
-def test_location_keeps_subagent_path_under_project_dir():
-    assert scan_coverage.project_location("/h/.claude/projects/-src-app/abc.jsonl") == "-src-app/abc.jsonl"
-    assert scan_coverage.project_location("/h/.claude/projects/-src-app/abc/subagents/agent-1.jsonl") == "-src-app/abc/subagents/agent-1.jsonl"
-    assert scan_coverage.project_location("/elsewhere/x/s.jsonl") == "x/s.jsonl"
+def test_location_hashes_project_dir_and_keeps_subagent_path():
+    assert scan_coverage.project_location("/h/.claude/projects/-src-app/abc.jsonl") == f"{APP}/abc.jsonl"
+    assert scan_coverage.project_location("/h/.claude/projects/-src-app/abc/subagents/agent-1.jsonl") == f"{APP}/abc/subagents/agent-1.jsonl"
+    assert scan_coverage.project_location("/elsewhere/x/s.jsonl") == f"{scan_patterns.path_key('x')}/s.jsonl"
+
+
+def test_long_uuid_bearing_project_dir_survives_the_secret_filter():
+    import redact
+    name = "-tmp-claude-1000--media-user-dell-laptop-src-59a7963b-a3fd-4185-bfe3-025363697695-scratchpad-skillwork-proj-x"
+    assert redact.has_secret(name)
+    assert not redact.has_secret(scan_coverage.project_location(f"/h/.claude/projects/{name}/9a5a43e6-8d28-4b18-950d-1d8c4b18950d.jsonl"))
+
+
+def test_resolve_project_dir_finds_the_hashed_name(tmp_path):
+    (tmp_path / "-src-app").mkdir()
+    (tmp_path / "-other").mkdir()
+    assert scan_coverage.resolve_project_dir(APP, str(tmp_path)) == "-src-app"
+    assert scan_coverage.resolve_project_dir("000000000000", str(tmp_path)) == ""
 
 
 def test_mcp_server_parsed_from_tool_name():
@@ -95,7 +113,7 @@ def test_missed_locations_capped_at_five_and_sorted_by_sessions():
         cov.on_prompt(MATCHING_PROMPT, i)
         cov.end_session()
     top = scan_coverage.summary(cov)["missed_skill_sessions"]
-    assert top == [{"skill": "keyword-research", "sessions": 7, "locations": [[f"-proj/s{i}.jsonl", i] for i in range(5)]}]
+    assert top == [{"skill": "keyword-research", "sessions": 7, "locations": [[f"{PROJ}/s{i}.jsonl", i] for i in range(5)]}]
 
 
 def test_summary_without_inventory_is_empty():
@@ -121,7 +139,7 @@ def test_scan_file_records_location_line_number(tmp_path):
     pop = scan_lib.Pop(scan_coverage.Index(INVENTORY))
     scan_lib.scan_file(str(f), lambda e, p: pop, 10 ** 9, cutoff=0)
     out = scan_coverage.summary(pop.coverage)
-    assert out["missed_skill_sessions"][0]["locations"] == [["-src-app/sess.jsonl", 2]]
+    assert out["missed_skill_sessions"][0]["locations"] == [[f"{APP}/sess.jsonl", 2]]
     assert out["mcp_servers_used"] == {"firecrawl": 1}
 
 
@@ -162,7 +180,7 @@ def test_single_long_prompt_match_not_counted_two_distinct_prompts_counted():
     two.on_prompt(LONG_FOUR_HITS, 1)
     two.on_prompt("second round: " + LONG_FOUR_HITS, 9)
     two.end_session()
-    assert two.missed["keyword-research"] == 1 and two.missed_locations["keyword-research"] == [["-src-app/abc.jsonl", 1]]
+    assert two.missed["keyword-research"] == 1 and two.missed_locations["keyword-research"] == [[f"{APP}/abc.jsonl", 1]]
 
 
 def test_identical_long_prompt_repeated_counts_once():

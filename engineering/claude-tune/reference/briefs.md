@@ -133,9 +133,10 @@ model-invoked skills for a user prompt (3 trigger terms, plus one per 600 chars 
 either in two distinct prompts of that session or in one prompt under 300 chars, and the
 session never called it (thresholds in `reference/schema.md`). A keyword match is still a hint,
 not a finding: a skill about "linkedin posts" matching a prompt that merely mentions LinkedIn
-is a false positive. For each of the top skills read every listed location
-with `sed -n '<line>p' ~/.claude/projects/<project-dir>/<file>` (the location names the
-transcript; never read the whole file) and decide whether invoking the skill would have changed
+is a false positive. For each of the top skills read every listed location: a location is
+`<hash>/<file>` plus a line; `python3 ${CLAUDE_SKILL_DIR}/scripts/scan_coverage.py --resolve <hash>`
+prints the project dir, then `sed -n '<line>p' ~/.claude/projects/<project-dir>/<file>` (never
+read the whole file). Decide whether invoking the skill would have changed
 the result: a procedure the user then did by hand, a check the skill enforces that the session
 skipped, a rule the user restated. Count real misses versus coincidences per skill and report
 both numbers. One artefact to discard before reading: in the headless population, many
