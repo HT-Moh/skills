@@ -119,3 +119,13 @@ def test_has_secret_fails_closed_for_short_literal_under_credential_key():
     assert redact.has_secret("X_TOKEN=abcd")
     assert redact.has_secret('"apiKey": "zzzz"')
     assert not redact.has_secret("X_TOKEN=${X}")
+
+
+def test_env_line_keeps_a_variable_reference_as_value():
+    text = "claude mcp add -e 'FIRECRAWL_API_KEY=${FIRECRAWL_TOKEN}' firecrawl -- npx x"
+    assert redact.redact(text) == text
+    assert redact.redact("export FIRECRAWL_API_KEY=${FIRECRAWL_TOKEN}") == "export FIRECRAWL_API_KEY=${FIRECRAWL_TOKEN}"
+
+
+def test_env_line_keeps_a_placeholder_as_value():
+    assert redact.redact("FIRECRAWL_API_KEY=<paste the new key>") == "FIRECRAWL_API_KEY=<paste the new key>"

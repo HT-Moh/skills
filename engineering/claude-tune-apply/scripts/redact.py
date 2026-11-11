@@ -65,20 +65,29 @@ def _redact_json_pair(m: re.Match) -> str:
     return m.group(1) + REDACTED + m.group(m.lastindex)
 
 
+def is_reference(value: str) -> bool:
+    """A `${VAR}`, `$VAR`, `<placeholder>` or `{template}` stands for a value; it is not one."""
+    v = value.strip().strip("\"'`,;")
+    return not v or v.lower() in _PLACEHOLDERS or v.startswith(("<", "$", "{"))
+
+
 def _redact_env_line(m: re.Match) -> str:
-    return m.group(1) + REDACTED if key_is_sensitive(m.group(2)) else m.group(0)
+    if key_is_sensitive(m.group(2)) and not is_reference(m.group(3)):
+        return m.group(1) + REDACTED
+    return m.group(0)
 
 
 def _redact_quoted_assign(m: re.Match) -> str:
-    return m.group(1) + REDACTED + m.group(3) if key_is_sensitive(m.group(2)) else m.group(0)
+    if key_is_sensitive(m.group(2)) and not is_reference(m.group(4)):
+        return m.group(1) + REDACTED + m.group(3)
+    return m.group(0)
 
 
 def real_looking(value: str) -> bool:
     """Fail closed: any credential-shaped value counts unless it is a placeholder or a reference."""
-    v = value.strip().strip("\"'`,;")
-    if not v or v.lower() in _PLACEHOLDERS or v.startswith(("<", "$", "{")):
+    if is_reference(value):
         return False
-    return bool(_VALUE_SHAPE_RE.fullmatch(v))
+    return bool(_VALUE_SHAPE_RE.fullmatch(value.strip().strip("\"'`,;")))
 
 
 def _redact_spaced_assign(m: re.Match) -> str:
