@@ -27,9 +27,9 @@ single lowercase word.
   these rules; run `python3 -m pytest -q tests` before committing a skill.
 - Every skill ships `evals/evals.json` (skill-creator schema: at least 3 cases, each with 3+
   checkable `expectations`). A model-invoked skill also ships `evals/trigger_evals.json`: 20
-  queries, 10 `should_trigger` true and 10 near-miss false. Measure triggering with the
-  skill-creator plugin's `run_eval.py` from an empty project folder with `--num-workers 1`
-  (parallel workers write competing probes into one `.claude/commands/` and corrupt the rate).
+  queries, 10 `should_trigger` true and 10 near-miss false. Measure triggering only when you
+  add or change a `description`: run the skill-creator plugin's `run_eval.py` on that file from
+  an empty project folder. Not a per-commit step.
 - Each bucket folder has a `README.md` listing its skills, one line each, name linked to
   the skill's `SKILL.md`.
 
