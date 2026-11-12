@@ -1,6 +1,7 @@
 <title>Claude Tune Plan</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <style>
 /* Layout: one column of phase groups; each item is a row that opens inline; sticky footer builds the three commands. */
 :root {
@@ -43,6 +44,14 @@ p { margin: 0; max-width: 68ch; }
 .detail a { color: var(--accent); }
 .ops { display: grid; gap: 6px; }
 .op { font: 12.5px/1.5 var(--mono); background: var(--chip-bg); border-radius: 6px; padding: 6px 10px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* highlight.js token colors, inline: the artifact viewer blocks third-party stylesheets */
+.hljs-comment, .hljs-quote { color: var(--muted); font-style: italic; }
+.hljs-keyword, .hljs-built_in, .hljs-selector-tag, .hljs-meta { color: var(--accent); font-weight: 500; }
+.hljs-string, .hljs-attr, .hljs-template-variable { color: var(--safe); }
+.hljs-number, .hljs-literal, .hljs-variable, .hljs-subst, .hljs-title { color: var(--review); }
+.op .steps { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 8px; font: 14px/1.5 var(--font); white-space: normal; }
+.op pre { margin: 4px 0 0; padding: 8px 10px; border-radius: 6px; background: var(--bg); overflow-x: auto; }
+.op pre code { font: 12.5px/1.5 var(--mono); white-space: pre; background: transparent; padding: 0; }
 .item.disabled .row { opacity: 0.6; }
 .hint { font-size: 13px; color: var(--muted); }
 footer { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
@@ -112,6 +121,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     var v = op.value !== undefined ? " = " + JSON.stringify(op.value) : (op.values ? " += " + JSON.stringify(op.values) : "");
     return op.kind + " " + op.file + p + v;
   }
+  function codeBlock(step) {
+    var pre = el("pre"); var code = el("code", "language-" + (step.lang || "bash"), step.code); pre.appendChild(code);
+    if (window.hljs) { try { hljs.highlightElement(code); } catch (e) { /* unhighlighted code is still readable */ } }
+    return pre;
+  }
+  function opNode(op) {
+    var node = el("div", "op", opLine(op));
+    if (op.kind !== "manual" || !(op.steps || []).length) return node;
+    var ol = el("ol", "steps");
+    op.steps.forEach(function (step) { var li = el("li", null, step.text); if (step.code) li.appendChild(codeBlock(step)); ol.appendChild(li); });
+    node.appendChild(ol); return node;
+  }
   function checkLines(it) { return (it.checks || []).map(function (c) { return c.phase + ": " + c.kind + " " + (c.text || c.file || (c.argv || []).join(" ")); }).join("\n"); }
   function detail(it) {
     var d = el("div", "detail"); var dl = el("dl");
@@ -124,7 +145,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     rows.forEach(function (pair) { if (!pair[1]) return; dl.appendChild(el("dt", null, pair[0])); var dd = el("dd", null, pair[1]); dd.style.whiteSpace = "pre-wrap"; dl.appendChild(dd); });
     if (it.docs) { dl.appendChild(el("dt", null, "Docs")); var dd = el("dd"); var a = el("a", null, it.docs); a.href = it.docs; a.target = "_blank"; a.rel = "noopener"; dd.appendChild(a); dl.appendChild(dd); }
     d.appendChild(dl);
-    var ops = el("div", "ops"); (it.ops || []).forEach(function (op) { ops.appendChild(el("div", "op", opLine(op))); }); d.appendChild(ops);
+    var ops = el("div", "ops"); (it.ops || []).forEach(function (op) { ops.appendChild(opNode(op)); }); d.appendChild(ops);
     return d;
   }
   function chipsFor(it) {

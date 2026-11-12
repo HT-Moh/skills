@@ -61,3 +61,7 @@ Process traps
   model time for long sessions.
 - Merge only when CI is green; `gh pr checks --watch` in the background, never
   `sleep` loops.
+- A manual item whose text says "use the file created by P0-02" while P0-02 depends on
+  it cannot be done in either order. Put the prerequisite first (secrets file before the
+  rotation, with the current values), then rotate into it. `plan_render.py` prints a
+  `WARNING:` for each such pair.

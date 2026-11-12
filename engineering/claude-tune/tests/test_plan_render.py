@@ -90,3 +90,35 @@ def test_page_header_is_one_stats_line_without_summary_or_legend():
     assert 'id="summary"' not in text and 'id="legend"' not in text
     assert "Tick the changes you want" not in text and "days in window" not in text
     assert header.count("<p") <= 1 and 'id="stats"' in header
+
+
+def test_main_prints_warnings_but_still_renders(tmp_path, monkeypatch, capsys):
+    first = mkitem("P0-01", [{"kind": "manual", "text": "use the file from P0-02"}], risk="manual")
+    second = mkitem("P0-02", [{"kind": "manual", "text": "make the file"}], risk="manual", deps=["P0-01"])
+    plan_path = tmp_path / "p.json"
+    plan_path.write_text(json.dumps(mkplan(first, second)))
+    monkeypatch.setattr("sys.argv", ["plan_render.py", str(plan_path), "--md", str(tmp_path / "p.md")])
+    plan_render.main()
+    out = capsys.readouterr().out
+    assert "WARNING: " in out and "P0-02" in out and out.rstrip().endswith("md=" + str(tmp_path / "p.md"))
+
+
+STEPS = [{"text": "Create the secrets file", "code": "install -m 600 /dev/null ~/.config/claude/secrets.env"},
+         {"text": "Restart the shell"}]
+
+
+def test_md_renders_manual_steps_as_numbered_list_with_fenced_code():
+    manual = mkitem("P0-02", [{"kind": "manual", "text": "one secrets file", "steps": STEPS}], risk="manual")
+    md = plan_render.render_md(mkplan(manual))
+    assert "- Op: manual: one secrets file" in md
+    assert "  1. Create the secrets file" in md and "  2. Restart the shell" in md
+    assert "```bash\n     install -m 600 /dev/null ~/.config/claude/secrets.env\n     ```" in md
+
+
+def test_template_renders_steps_and_pins_the_highlighter_version():
+    tpl = TEMPLATE.read_text()
+    assert 'class="steps"' in tpl or '"steps"' in tpl
+    assert re.search(r"cdnjs\.cloudflare\.com/ajax/libs/highlight\.js/\d+\.\d+\.\d+/highlight\.min\.js", tpl)
+    assert "window.hljs" in tpl
+    links = [line for line in tpl.splitlines() if line.startswith("<link")]
+    assert all("fonts.googleapis.com" in line for line in links), "the artifact viewer blocks third-party stylesheets"

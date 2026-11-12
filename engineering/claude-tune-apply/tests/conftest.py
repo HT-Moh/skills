@@ -1,6 +1,5 @@
 """Shared fixtures for the claude-tune-apply engine tests."""
 import json
-import os
 import sys
 from pathlib import Path
 

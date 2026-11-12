@@ -9,7 +9,8 @@ import json
 import os
 from pathlib import Path
 
-from plan_schema import PlanError, migrate_v1, validate
+from plan_migrate import migrate_v1
+from plan_schema import PlanError, validate
 
 FILE_MODE = 0o600
 DIR_MODE = 0o700

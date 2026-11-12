@@ -16,7 +16,10 @@ import sys
 
 APPLY_SCRIPTS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "claude-tune-apply", "scripts")
 sys.path.insert(0, os.path.realpath(APPLY_SCRIPTS))
-from plan_schema import PHASES, RISKS, effective_risk, migrate_v1, validate  # noqa: E402
+from plan_lint import warnings  # noqa: E402
+from plan_migrate import migrate_v1  # noqa: E402
+from plan_risk import effective_risk  # noqa: E402
+from plan_schema import PHASES, RISKS, validate  # noqa: E402
 from redact import redact  # noqa: E402
 
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "templates", "plan.html")
@@ -56,7 +59,8 @@ def _item_md(item, plan):
         out.append(f"- Depends on: {', '.join(item['depends_on'])}")
     for c in item.get("checks") or []:
         out.append(f"- Checks: {c.get('phase')} {c.get('kind')} {c.get('text') or c.get('file') or ' '.join(c.get('argv') or [])}")
-    out += [f"- Op: {op_line(op)}" for op in item["ops"]]
+    for op in item["ops"]:
+        out += op_md(op)
     return out
 
 
@@ -77,6 +81,16 @@ def render_md(plan):
             "3. Manual items, once done: `/claude-tune-apply --done " + " ".join(manual) + "`",
             "", "`/claude-tune-apply --rollback P1-02` undoes one item; `--explain P1-02` shows why, consumers and checks.", ""]
     return redact("\n".join(out))
+
+
+def op_md(op):
+    """One `- Op:` line; a manual op's steps follow as a numbered list with fenced code."""
+    lines = [f"- Op: {op_line(op)}"]
+    for n, step in enumerate(op.get("steps") or [], 1):
+        lines.append(f"  {n}. {step['text']}")
+        if step.get("code"):
+            lines += [f"     ```{step.get('lang', 'bash')}", *("     " + line for line in step["code"].splitlines()), "     ```"]
+    return lines
 
 
 def op_line(op):
@@ -124,6 +138,8 @@ def main():
     if errors:
         print("\n".join("INVALID: " + e for e in errors))
         sys.exit(1)
+    for warning in warnings(plan):
+        print("WARNING: " + warning)
     render_files(plan, a.plan, a.md, a.html)
     if a.latest:
         from pathlib import Path

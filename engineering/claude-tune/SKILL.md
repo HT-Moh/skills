@@ -91,7 +91,7 @@ match aborts the skill.
    risk, why, evidence, docs URL, impact with a number, `depends_on`, `consumers` (who reads
    a value you delete or replace; grep the key name), `reversible`, `takes_effect`,
    `contains_secret`, structured `checks`, and ops that a script can execute (or a `manual` op
-   with the exact command). Put `expect` (the value you saw) on every `json_set`/`json_delete`
+   whose `steps` give one action each with the exact command in `code`). Put `expect` (the value you saw) on every `json_set`/`json_delete`
    under `env`, `permissions`, `hooks`. Check every item in `reference/traps.md` against the draft.
 5. **Adversarial pass.** Launch brief J with the full draft. Fold its findings in.
    Remove any item that a used feature, a doc page or a trap contradicts.
@@ -106,7 +106,9 @@ match aborts the skill.
    refused path, precondition failed): fix the op and rerun step 6. `blocked by` lines are
    expected for items behind manual work. If the apply skill is absent, say so in the report.
 8. **Report.** Publish `<plan>.html` with the Artifact tool (icon `checklist`, description
-   "Claude Code tuning plan: tick items, copy the preview and apply commands"). In the
+   "Claude Code tuning plan: tick items, copy the preview and apply commands"). Record the
+   link in the plan so `/claude-tune-apply --page` can find and refresh it:
+   `python3 ${CLAUDE_SKILL_DIR}/../claude-tune-apply/scripts/apply.py --set-page <artifact url> --plan <plan>`. In the
    terminal give only what `reference/report.md` asks for: the summary, the five biggest
    levers, the findings by angle, the unused-features list, the contradiction check, the
    not-verified list, the Artifact link and the line

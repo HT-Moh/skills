@@ -16,7 +16,7 @@ def render_after_change(plan_path) -> Path:
     if TUNE_SCRIPTS not in sys.path:
         sys.path.insert(0, TUNE_SCRIPTS)
     import plan_render
-    from plan_schema import migrate_v1
+    from plan_migrate import migrate_v1
     plan_path = Path(os.path.realpath(plan_path))  # through latest.json to the plan file itself
     with open(plan_path, encoding="utf-8") as fh:
         plan = migrate_v1(json.load(fh))

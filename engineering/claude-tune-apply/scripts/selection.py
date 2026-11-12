@@ -7,7 +7,8 @@ dependency is never satisfied by selection: only `--done` records that the user 
 import datetime as dt
 import re
 
-from plan_schema import PlanError, effective_risk, topo_order
+from plan_risk import effective_risk
+from plan_schema import PlanError, topo_order
 
 GROUP_EXCLUDED = ("applied", "done", "rolled_back", "needs_user", "failed", "applied-purged")
 SATISFIED_STATES = ("applied", "done")

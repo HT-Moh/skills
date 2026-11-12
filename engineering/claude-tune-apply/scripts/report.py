@@ -4,10 +4,12 @@ Every string leaves through `redact`, so a credential never reaches the terminal
 model, whatever the plan or the files contain.
 """
 import json
+from pathlib import Path
 
 import consumers
 import selection
-from plan_schema import SENSITIVE_JSON_ROOTS, effective_risk
+from plan_risk import effective_risk
+from plan_schema import SENSITIVE_JSON_ROOTS
 from redact import redact
 
 EXEC_ROOTS = ("hooks", "statusLine", "apiKeyHelper")
@@ -44,6 +46,20 @@ def _check_lines(item: dict) -> list[str]:
     return out or ["  - none"]
 
 
+def _step_lines(item: dict) -> list[str]:
+    out = []
+    for op in item.get("ops") or []:
+        if op.get("kind") != "manual":
+            continue
+        steps = op.get("steps") or []
+        if not steps:
+            out.append(f"  - {op.get('text', '')}")
+        for n, step in enumerate(steps, 1):
+            out.append(f"  {n}. {step['text']}")
+            out += ["     " + line for line in (step.get("code") or "").splitlines()]
+    return out
+
+
 def explain(item: dict, plan: dict) -> str:
     """Why, evidence, impact, risk with its floor reason, consumers, dependencies, checks."""
     declared, effective = item.get("risk"), effective_risk(item)
@@ -56,6 +72,7 @@ def explain(item: dict, plan: dict) -> str:
              "consumers (declared): " + (", ".join(item.get("consumers") or []) or "none declared"),
              "consumers (found by grep): " + (", ".join(discovered) or "none found"),
              "depends on:", *_dependency_lines(item, plan), "checks:", *_check_lines(item),
+             *(["steps:", *_step_lines(item)] if item.get("risk") == "manual" else []),
              f"docs: {item.get('docs') or 'UNVERIFIED'}"]
     return redact("\n".join(lines))
 
@@ -146,6 +163,15 @@ def _next_line(plan: dict) -> str:
     return "Next: nothing open; every item is applied, done or blocked"
 
 
+def page_lines(plan: dict, plan_path) -> str:
+    """Where the plan's Artifact page lives, and the HTML to republish there after a change."""
+    html_path = Path(plan_path).with_name(Path(plan_path).name + ".html")
+    url = plan.get("page_url")
+    if not url:
+        return f"no page recorded. Publish {html_path} with the Artifact tool, then: apply.py --set-page <url>\nhtml: {html_path}"
+    return f"page: {url}\nhtml: {html_path}"
+
+
 def list_table(plan: dict) -> str:
     lines = [f"plan: {plan.get('generated', '?')}  window={plan.get('window_days', '?')}d  items={len(plan['items'])}",
              "id     ph risk    status      blocked-by   title"]
@@ -155,4 +181,6 @@ def list_table(plan: dict) -> str:
     lines += ["", _next_line(plan),
               "apply:  /claude-tune-apply --dry-run P1-01 P1-03   then   /claude-tune-apply P1-01 P1-03 --expect <digest>",
               "manual: /claude-tune-apply --done P0-01      undo: /claude-tune-apply --rollback P1-03"]
+    if plan.get("page_url"):
+        lines.append(f"page: {plan['page_url']}")
     return redact("\n".join(lines))

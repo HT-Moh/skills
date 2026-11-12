@@ -11,6 +11,7 @@ Write it to `~/.claude/tune/plans/<YYYY-MM-DD>-<4 chars of session id>.json`, th
   "window_days": 30,
   "claude_version": "2.1.312",
   "summary": "One paragraph: window, sessions by population, the three biggest levers with numbers.",
+  "page_url": "https://claude.ai/artifact/<id>  (optional; apply.py --set-page writes it after the page is published)",
   "items": [
     {
       "id": "P1-02",
@@ -87,7 +88,14 @@ Write it to `~/.claude/tune/plans/<YYYY-MM-DD>-<4 chars of session id>.json`, th
 | `file_replace` | `file`, `old`, `new` | `old` must occur exactly once; skipped when `new` already present |
 | `symlink` | `link`, `target` | fails when `link` exists and points elsewhere |
 | `file_remove` | `file` | the backup keeps a copy; a symlink is removed as a link |
-| `manual` | `text` | printed to the user, never executed |
+| `manual` | `text`, `steps` | printed to the user, never executed |
+
+A `manual` op's `text` is the one-line summary. Its `steps` are what the user follows: a list
+of `{"text": "one action", "code": "the exact command", "lang": "bash"}` (`code` and `lang`
+optional; `lang` defaults to `bash`). One action per step, in the order it must happen; a
+command the user must run goes in `code`, never inline in `text`. The page renders steps as a
+numbered list with highlighted code blocks; `--explain` prints them. Write `steps` for every
+manual op.
 
 Preconditions: any `json_*` op may carry `expect` (the value at plan time, `null` for
 absent); any file op may carry `sha256` of the target at plan time. The engine refuses the
