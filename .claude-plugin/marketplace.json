@@ -10,9 +10,9 @@
     {
       "name": "skills",
       "source": "./",
-      "description": "Twelve skills: claude-tune and claude-tune-apply, dead-code-sweep, refactor-to-quality, viral-audit, browserless, essentialism, firecrawl, google-power-search, retrospective, stop-slop, linkedin-post.",
+      "description": "Ten skills: dead-code-sweep, refactor-to-quality, viral-audit, browserless, essentialism, firecrawl, google-power-search, retrospective, stop-slop, linkedin-post.",
       "category": "productivity",
-      "tags": ["skills", "refactoring", "audit", "tuning", "marketing", "linkedin"],
+      "tags": ["skills", "refactoring", "audit", "marketing", "linkedin"],
       "repository": "https://github.com/HT-Moh/skills",
       "homepage": "https://github.com/HT-Moh/skills#readme"
     }
