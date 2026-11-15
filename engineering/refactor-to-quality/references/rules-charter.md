@@ -13,7 +13,8 @@ checklist for the `refactor-to-quality` skill — where every rule below is reco
 
 ## Files and functions
 
-- Keep files under 300 lines. Give each file one clear purpose.
+- Keep source files under 300 lines. Give each file one clear purpose. Plans and documents are
+  exempt from the line limit.
 - Give each function one task. Keep it under 30 lines.
 - Keep every statement in a function at the same level of abstraction.
 - Put high-level functions at the top of a file and the details below.
