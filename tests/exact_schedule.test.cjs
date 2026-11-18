@@ -130,7 +130,8 @@ function fixture(events = {}) {
       page.emit('response', response(req));
       return req;
     },
-    run:() => load('./ws_exact_preview').previewExact(s)};
+    run:() => load('./ws_exact_preview').previewExact(s),
+    prepared:(consume, readInstant) => load('./ws_exact_preview').withPreparedExact(s, consume, readInstant)};
   if (!events.confirm) events.confirm = a => a.emitValid();
   return api;
 }
@@ -151,6 +152,33 @@ test('native Confirm request and its response verify without publishing', async 
   assert.equal(result.extra.evidence.schedule.epoch_ms, ctx.epoch_ms);
   assert.deepEqual(f.clicks, ['Confirm']);
   assert.equal(f.page.listenerCount('response'), 0);
+});
+
+test('prepared composer remains usable only inside the consuming invocation', async () => {
+  const f = fixture();
+  let retained;
+  await f.prepared(async prepared => {
+    retained = prepared;
+    assert.equal(prepared.evidence.schedule.epoch_ms, ctx.epoch_ms);
+    await prepared.revalidate();
+  }, async () => ctx.epoch_ms);
+  await assert.rejects(retained.revalidate(), /closed/);
+  assert.deepEqual(f.clicks, ['Confirm']);
+});
+
+test('historical picker epoch cannot substitute for current full-instant reader', async () => {
+  const f = fixture();
+  await assert.rejects(f.prepared(prepared => prepared.revalidate()), /full-instant/);
+  assert.deepEqual(f.clicks, ['Confirm']);
+});
+
+test('prepared composer replacement refuses before callback effect', async () => {
+  const f = fixture();
+  await assert.rejects(f.prepared(async prepared => {
+    f.dom.isConnected = false;
+    await prepared.revalidate();
+  }, async () => ctx.epoch_ms), /replaced|changed/);
+  assert.deepEqual(f.clicks, ['Confirm']);
 });
 
 test('previous outstanding request cannot supply the intended confirmation', async () => {

@@ -9,7 +9,7 @@ import tempfile
 
 import local_chrome
 from process_lifecycle import ProcessScope
-from process_output import MAX_OUTPUT, collect
+from process_output import MAX_OUTPUT, collect, relay
 from profile_lease import ProfileLease, inherit_lease
 
 # Gateway waits only 15s after TERM. All owned descendants share one 10s TERM
@@ -48,7 +48,8 @@ def _result(body):
         raise ValueError("invalid worker result JSON") from exc
 
 
-def run_worker(runtime: Path, request: dict, *, timeout=WORKER_TIMEOUT, grace=CANCEL_GRACE):
+def run_worker(runtime: Path, request: dict, *, timeout=WORKER_TIMEOUT, grace=CANCEL_GRACE,
+               exchange=None, upstream=None, downstream=None):
     """Execute admitted snapshot; hold kept-profile lease through fallback cleanup.
 
     Trust boundary: the already-running protocol launcher, sys.executable and its
@@ -79,10 +80,16 @@ def run_worker(runtime: Path, request: dict, *, timeout=WORKER_TIMEOUT, grace=CA
                 proc = scope.spawn(
                     [sys.executable, "-I", "-S", "-B", "-c", bootstrap, str(runtime),
                      str(held.fd if held is not None else -1),
-                     str(profile.resolve()) if profile else ""],
-                    stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                      str(profile.resolve()) if profile else "", "stream" if exchange else "preview"],
+                    stdin=subprocess.PIPE if exchange else stdin,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     env=env, pass_fds=passed, start_new_session=True,
                 )
+                if exchange is not None:
+                    relay(proc, scope, input=json.dumps(request, ensure_ascii=True, allow_nan=False).encode() + b"\n",
+                          upstream=upstream, downstream=downstream, frame=exchange.frame,
+                          acknowledgment=exchange.acknowledgment, timeout=timeout)
+                    return None
                 result = collect(proc, scope, timeout=timeout)
                 if result.returncode:
                     raise ValueError("preview driver failed before submission")
@@ -99,4 +106,7 @@ def worker_main():
         inherit_lease(sys.argv[3], lease_fd)
     with ProcessScope():
         import exact_preview
-        exact_preview.main()
+        if len(sys.argv) > 4 and sys.argv[4] == "stream":
+            exact_preview.stream_main()
+        else:
+            exact_preview.main()

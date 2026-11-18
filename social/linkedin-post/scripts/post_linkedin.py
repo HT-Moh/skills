@@ -74,14 +74,21 @@ def needs_cookies() -> bool:
     return local_chrome.kept_profile() is None
 
 
-def _drive(node: str, ws_ctx: dict) -> subprocess.CompletedProcess:
+def _drive(node: str, ws_ctx: dict, *, exchange=None) -> subprocess.CompletedProcess | None:
     from process_output import run_bounded
+    if exchange is not None:
+        from process_output import run_stream
+        return run_stream([node, str(HERE / "exact_ws_worker.js")],
+                          input=json.dumps(ws_ctx).encode("utf-8") + b"\n",
+                          upstream=sys.stdin.buffer.fileno(), downstream=sys.stdout.buffer.fileno(),
+                          frame=exchange.frame, acknowledgment=exchange.acknowledgment,
+                          timeout=DRIVER_TIMEOUT_S)
     return run_bounded([node, str(WS_JS)], input=json.dumps(ws_ctx),
                        timeout=DRIVER_TIMEOUT_S)
 
 
 def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
-            document_path=None, document_title=None) -> dict:
+            document_path=None, document_title=None, *, exchange=None) -> dict | None:
     """Default path: drive browserless over CDP/WebSocket via the Node driver.
 
     A WS session with a keepalive is immune to the browserless VIP's 50s idle timeout, so
@@ -103,9 +110,14 @@ def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
             # what made LinkedIn end the user's login.
             ws_ctx.update(cookies=[], keptLogin=True)
         with local_chrome.devtools_endpoint(chrome) as ws_ep:
-            proc = _drive(node, {**ws_ctx, "wsEndpoint": ws_ep, "localBrowser": True})
+            proc = (_drive(node, {**ws_ctx, "wsEndpoint": ws_ep, "localBrowser": True}, exchange=exchange)
+                    if exchange is not None else
+                    _drive(node, {**ws_ctx, "wsEndpoint": ws_ep, "localBrowser": True}))
     else:
-        proc = _drive(node, {**ws_ctx, "wsEndpoint": re.sub(r"^http", "ws", url) + f"?token={token}"})
+        ws_ctx["wsEndpoint"] = re.sub(r"^http", "ws", url) + f"?token={token}"
+        proc = _drive(node, ws_ctx, exchange=exchange) if exchange is not None else _drive(node, ws_ctx)
+    if exchange is not None:
+        return None
     if proc.returncode != 0:
         sys.exit(f"WS driver failed (rc={proc.returncode}): {proc.stderr.strip()[-400:]}")
     try:
