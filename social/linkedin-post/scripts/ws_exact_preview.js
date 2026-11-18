@@ -4,6 +4,7 @@ const {compose} = require('./ws_composer');
 const {publish} = require('./ws_publish');
 const {composer, readText, readActor} = require('./ws_exact_dom');
 const {observeSchedule, verifyScheduleState} = require('./ws_exact_schedule');
+const {instantReader} = require('./ws_exact_instant');
 const {outcome} = require('./ws_page');
 
 async function previewExact(s) {
@@ -21,6 +22,7 @@ async function withPreparedExact(s, consume, readInstant) {
   const previousVerify = s.verifyEmptyComposer;
   let fullInputs = null;
   let active = true;
+  let currentReader;
   try {
     s.withScheduleConfirm = click => observation.confirm(click);
     s.verifyEmptyComposer = async () => {
@@ -67,7 +69,22 @@ async function withPreparedExact(s, consume, readInstant) {
       if (ctx.epoch_ms - Date.now() < ctx.min_lead_hours * 3600000) throw new Error('minimum lead expired');
       if (s.ctx.runtime_digest !== ctx.runtime_digest) throw new Error('runtime changed');
     };
-    const schedule = await observation.finish(verifyCurrent);
+    const verifyInstant = async () => {
+      const epoch = readInstant ? await readInstant(page, root) :
+        await currentReader.evaluate(reader => reader.read());
+      if (epoch !== ctx.epoch_ms) throw new Error('current full instant changed');
+      if (!active) throw new Error('prepared invocation closed');
+      if (ctx.epoch_ms - Date.now() < ctx.min_lead_hours * 3600000) throw new Error('minimum lead expired');
+      if (s.ctx.runtime_digest !== ctx.runtime_digest) throw new Error('runtime changed');
+    };
+    const schedule = await observation.finish(async () => {
+      await verifyCurrent();
+      if (readInstant !== undefined && typeof readInstant !== 'function') {
+        throw new Error('invalid current full-instant reader');
+      }
+      if (!readInstant) currentReader = await page.evaluateHandle(instantReader, root);
+      await verifyInstant();
+    });
     const evidence = {
       actor, schedule, browser_timezone: zone,
       text_sha256: createHash('sha256').update(text, 'utf8').digest('hex'),
@@ -78,9 +95,8 @@ async function withPreparedExact(s, consume, readInstant) {
       get evidence() { return JSON.parse(JSON.stringify(evidence)); },
       revalidate:async () => {
         await verifyCurrent();
-        if (typeof readInstant !== 'function') throw new Error('current full-instant reader unavailable');
-        if (await readInstant(page, root) !== ctx.epoch_ms) throw new Error('current full instant changed');
-        await verifyCurrent();
+        // Actor verification opens/closes UI: the full epoch read must be last.
+        await verifyInstant();
       },
     });
   } finally {
@@ -89,6 +105,10 @@ async function withPreparedExact(s, consume, readInstant) {
     s.snap = snap;
     s.withScheduleConfirm = previousConfirm;
     s.verifyEmptyComposer = previousVerify;
+    if (currentReader) {
+      try { await currentReader.evaluate(reader => reader.close()); }
+      finally { await currentReader.dispose(); }
+    }
   }
 }
 

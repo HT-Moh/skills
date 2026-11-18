@@ -47,7 +47,8 @@ function fixture(events = {}) {
   const clearDeadline = timer => { clearTimeout(timer); deadlines.delete(timer); };
   let text = '';
   let final = false;
-  const dom = {isConnected:true, postingAt:'Posting at Tue, Nov 24, 8:30 AM', enabled:true};
+  const dom = {isConnected:true, postingAt:'Posting at Tue, Nov 24, 8:30 AM', enabled:true,
+    epoch:ctx.epoch_ms,readerClosed:false,readerDisposed:false,instantReads:0};
   const root = {evaluate:async fn => {
     await fire('scheduleState');
     const button = {innerText:'Schedule', textContent:'Schedule', disabled:!dom.enabled,
@@ -71,6 +72,23 @@ function fixture(events = {}) {
       return ctx.account_timezone;
     }
     return dom.postingAt;
+  };
+  page.evaluateHandle = async (factory,current) => {
+    assert.equal(factory.name,'instantReader');
+    assert.equal(current,root,'reader must bind preparation owner root');
+    await fire('instantInit');
+    return {
+      evaluate:async fn => fn({
+        read:async () => {
+          await fire('instantRead');
+          if(dom.readerClosed) throw Error('reader closed');
+          dom.instantReads++;
+          return dom.epoch;
+        },
+        close:async () => {dom.readerClosed=true;await fire('instantClose');},
+      }),
+      dispose:async () => {dom.readerDisposed=true;},
+    };
   };
   const s = {ctx:{...ctx}, page, say:() => {}, at:() => {}, saveControls:async () => {},
     deepCenter:async () => ({x:1,y:1}),
@@ -168,8 +186,70 @@ test('prepared composer remains usable only inside the consuming invocation', as
 
 test('historical picker epoch cannot substitute for current full-instant reader', async () => {
   const f = fixture();
-  await assert.rejects(f.prepared(prepared => prepared.revalidate()), /full-instant/);
+  f.dom.epoch+=365*86400000;
+  await assert.rejects(f.prepared(prepared => prepared.revalidate()), /full instant/);
   assert.deepEqual(f.clicks, ['Confirm']);
+});
+
+test('real reader boundary checks initial instant before consumer and disposes after success',async()=>{
+  const f=fixture();
+  await f.prepared(async prepared=>{
+    assert.ok(f.dom.instantReads>0);
+    assert.equal(f.dom.readerClosed,false);
+    await prepared.revalidate();
+  });
+  assert.equal(f.dom.readerClosed,true);
+  assert.equal(f.dom.readerDisposed,true);
+});
+
+test('last actor UI interaction cannot mutate epoch after final read',async()=>{
+  let reads=0,actorAfterRead=false;
+  const f=fixture({actor:()=>{if(reads) actorAfterRead=true;}});
+  await f.prepared(async prepared=>{
+    reads=0;actorAfterRead=false;
+    await prepared.revalidate();
+    assert.equal(actorAfterRead,false,'no actor UI after final epoch read');
+  },async()=>{reads++;return ctx.epoch_ms;});
+});
+
+test('actor UI changing full year is rejected despite same label',async()=>{
+  let armed=false;
+  const f=fixture({actor:f=>{if(armed)f.dom.epoch+=365*86400000;}});
+  await assert.rejects(f.prepared(async prepared=>{
+    armed=true;await prepared.revalidate();
+  }),/full instant/);
+  assert.equal(f.dom.readerDisposed,true);
+});
+
+for(const stage of ['instantInit','instantRead']) {
+  test(`conflicting Confirm response during ${stage} refuses before consumer`,async()=>{
+    let consumed=false;
+    const f=fixture({[stage]:f=>{
+      const req=request();f.page.emit('request',req);
+      f.page.emit('response',response(req,async()=>body(ctx.epoch_ms+1)));
+    }});
+    await assert.rejects(f.prepared(()=>{consumed=true;}));
+    assert.equal(consumed,false);
+  });
+}
+
+test('reader disposal and hook restoration survive close failure',async()=>{
+  const f=fixture({instantClose:()=>{throw Error('close failed');}});
+  const originalSnap=f.s.snap;
+  let retained;
+  await assert.rejects(f.prepared(prepared=>{retained=prepared;}),/close failed/);
+  assert.equal(f.dom.readerDisposed,true);
+  assert.equal(f.s.snap,originalSnap);
+  assert.equal(f.s.withScheduleConfirm,undefined);
+  assert.equal(f.s.verifyEmptyComposer,undefined);
+  await assert.rejects(retained.revalidate(),/closed/);
+});
+
+test('consumer failure still closes and disposes reader',async()=>{
+  const f=fixture();
+  await assert.rejects(f.prepared(()=>{throw Error('consumer failed');}),/consumer failed/);
+  assert.equal(f.dom.readerClosed,true);
+  assert.equal(f.dom.readerDisposed,true);
 });
 
 test('prepared composer replacement refuses before callback effect', async () => {
