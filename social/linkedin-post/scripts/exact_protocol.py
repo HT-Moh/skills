@@ -14,6 +14,18 @@ from exact_worker import run_worker
 MAX_INPUT = 32768
 
 
+def relay_schedule(root: Path, request: dict, *, upstream: int, downstream: int,
+                   outdir: Path, timeout: float = 230) -> None:
+    """Private transport composition; no public dispatch path enables this yet."""
+    from exact_exchange import Exchange
+    exchange = Exchange(request, now=datetime.now(timezone.utc))
+    with snapshot(root) as (runtime, digest):
+        if digest != exchange.request["runtime_digest"]:
+            raise ValueError("publisher runtime changed")
+        run_worker(runtime, {"request": exchange.request, "outdir": str(outdir)},
+                   exchange=exchange, upstream=upstream, downstream=downstream, timeout=timeout)
+
+
 def _unique(pairs):
     value = {}
     for key, item in pairs:

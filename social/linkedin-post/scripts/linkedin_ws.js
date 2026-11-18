@@ -41,8 +41,7 @@ function readStdin() {
   });
 }
 
-(async () => {
-  const ctx = JSON.parse(await readStdin());
+async function run(ctx, exact = null) {
   const { outdir } = ctx;
   fs.mkdirSync(outdir, { recursive: true });
   const log = [];
@@ -80,19 +79,37 @@ function readStdin() {
     keepalive = setInterval(() => { page.evaluate(() => 0).catch(() => {}); }, 20000);
     const session = { ctx, page, say, at, ...pageTools(page, outdir, say) };
     watchdog = setTimeout(async () => {
+      if (exact) {
+        exact.channel.abort(Error(`exact driver timed out at ${step}`));
+        return;
+      }
       await Promise.race([session.snap(`hang_${step}`), sleep(10000)]);
       out(false, 'hang', { at: step, url: page.url() });
     }, WATCHDOG_MS);
 
     await page.setViewport({ width: 1300, height: 1300 });
     const authFailure = await authenticate(session);
-    if (authFailure) return finish(authFailure);
+    if (authFailure) {
+      if (exact) throw Error(`exact authentication unavailable: ${authFailure.stage}`);
+      return finish(authFailure);
+    }
+
+    if (exact) {
+      const {withPreparedExact} = require('./ws_exact_preview');
+      const {executePrepared} = require('./ws_exact_exchange');
+      const result = await executePrepared(ctx.exact_exchange, exact.channel,
+        consume => withPreparedExact(session, consume),
+        async () => {throw Error('native exact scheduling unavailable');});
+      await exact.channel.terminal(result);
+      return;
+    }
 
     // Only a call with no op may reach the composer. An op this driver does not know (a newer
     // caller, a typo) must stop here, not fall through and start composing a post.
     if (ctx.op) return finish(Object.hasOwn(OPS, ctx.op) ? await OPS[ctx.op](session) : outcome(false, 'unknown-op', { op: ctx.op }));
     return finish(await compose(session) || await publish(session));
   } catch (e) {
+    if (exact) throw e;
     const page = globalThis.__page;
     if (page) {
       await Promise.race([page.screenshot({ path: path.join(outdir, `exception_${step}.jpg`), type: 'jpeg', quality: 50 })
@@ -100,9 +117,22 @@ function readStdin() {
     }
     return out(false, 'exception', { error: e.message, at: step });
   } finally {
+    if (exact) {
+      if (keepalive) clearInterval(keepalive);
+      if (watchdog) clearTimeout(watchdog);
+    }
     if (browser) { try { await browser.disconnect(); } catch (_) {} }
   }
-})();
+}
+
+if (require.main === module) {
+  (async () => run(JSON.parse(await readStdin())))().catch(error => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {run};
 
 // Load the feed with the run's login. Returns null when logged in, else a failed outcome.
 async function authenticate(s) {
