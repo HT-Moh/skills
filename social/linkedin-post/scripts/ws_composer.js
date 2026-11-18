@@ -39,7 +39,10 @@ const MEDIA_MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/
 const MEDIA_BUTTON = { tag: 'BUTTON', ariaRe: '^(add )?media$' };
 
 async function compose(s) {
-  return await openComposer(s) || await typeText(s) || await attachDocument(s) || await attachMedia(s);
+  const opened = await openComposer(s);
+  if (opened) return opened;
+  if (s.verifyEmptyComposer) await s.verifyEmptyComposer();
+  return await typeText(s) || await attachDocument(s) || await attachMedia(s);
 }
 
 async function openComposer(s) {

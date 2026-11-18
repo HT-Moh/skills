@@ -23,13 +23,15 @@ const { sleep, outcome, pageTools } = require('./ws_page');
 const { scanMetrics, ownPosts, firstComment } = require('./ws_activity');
 const { compose } = require('./ws_composer');
 const { publish } = require('./ws_publish');
+const { previewExact } = require('./ws_exact_preview');
 
 // post_linkedin.py kills this driver at 240 s (DRIVER_TIMEOUT_S), which loses the step it
 // hung on. The watchdog ends the run first, with a screenshot of the step
 // that hung; one CDP call may take PROTOCOL_TIMEOUT_MS, so a stalled call fails well inside it.
 const WATCHDOG_MS = 200000;
 const PROTOCOL_TIMEOUT_MS = 90000;
-const OPS = { scan_metrics: scanMetrics, first_comment: firstComment, own_posts: ownPosts };
+const OPS = { scan_metrics: scanMetrics, first_comment: firstComment, own_posts: ownPosts,
+  preview_exact: previewExact };
 
 function readStdin() {
   return new Promise((resolve) => {

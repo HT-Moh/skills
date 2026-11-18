@@ -40,6 +40,10 @@ with its steps in `scripts/ws_composer.js`, `scripts/ws_publish.js` and
 `scripts/ws_activity.js`) and `scripts/linkedin_flow.js` (the `--http` path). Do not
 reinvent them inline.
 
+For StoryProof's machine integration, use the [exact preview protocol](references/exact-protocol.md).
+It verifies text, personal actor and server-interpreted scheduling time; `schedule_exact`
+remains unavailable. Never treat its preview receipt as permission or proof of scheduling.
+
 Your job is the judgement around them:
 
 1. **Compose the post** (or refine what the user gave you) — that's the real work.
