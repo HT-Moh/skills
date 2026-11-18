@@ -43,7 +43,9 @@ async function schedulePost(s) {
   const { postingAt } = filled.extra;
   s.at('schedule-confirm');
   await s.snap('schedule_filled');
-  if (!await s.clickDeep({ tag: 'BUTTON', textExact: 'Confirm' })) {
+  const clickConfirm = () => s.clickDeep({ tag: 'BUTTON', textExact: 'Confirm' });
+  const confirmed = s.withScheduleConfirm ? await s.withScheduleConfirm(clickConfirm) : await clickConfirm();
+  if (!confirmed) {
     await s.snap('no_confirm'); return outcome(false, 'schedule-confirm');
   }
   // Confirm returns through a loading skeleton. Wait for the actual composer control.

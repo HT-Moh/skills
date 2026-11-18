@@ -75,8 +75,9 @@ def needs_cookies() -> bool:
 
 
 def _drive(node: str, ws_ctx: dict) -> subprocess.CompletedProcess:
-    return subprocess.run([node, str(WS_JS)], input=json.dumps(ws_ctx),
-                          capture_output=True, text=True, timeout=DRIVER_TIMEOUT_S)
+    from process_output import run_bounded
+    return run_bounded([node, str(WS_JS)], input=json.dumps(ws_ctx),
+                       timeout=DRIVER_TIMEOUT_S)
 
 
 def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
@@ -161,6 +162,9 @@ def _exit_on_sigterm(signum, frame):
 
 def main():
     signal.signal(signal.SIGTERM, _exit_on_sigterm)
+    if any(arg == "--protocol" or arg.startswith("--protocol=") for arg in sys.argv[1:]):
+        from exact_protocol import main as protocol_main
+        return protocol_main(sys.argv[1:])
     ap = argparse.ArgumentParser()
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--text", help="post body")

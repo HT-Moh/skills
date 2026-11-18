@@ -16,13 +16,15 @@ cookies, as before.
 """
 import contextlib
 import os
+import select
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
+from process_lifecycle import ProcessScope, current_scope, defer_cancellation
+from profile_lease import LEASE_NAME, ProfileLease
 
 CHROME_ENV = "LINKEDIN_LOCAL_CHROME"
 PROFILE_ENV = "LINKEDIN_CHROME_PROFILE"
@@ -36,8 +38,8 @@ DEFAULT_TIMEZONE = "America/Los_Angeles"
 LOGIN_URL = "https://www.linkedin.com/login"
 STARTUP_S = 30
 STOP_S = 10
-# Only a run starts Chrome with this switch. A Chrome on the kept profile that has it is a run
-# whose poster was killed before it closed Chrome; one without it is the user's login window.
+# Only a run starts Chrome with this switch. It identifies a run, but does not
+# establish that its owner is dead or grant another process permission to kill it.
 RUN_MARKER = "--remote-debugging-port=0"
 # The login window and every run use the same switches, so the profile's cookie store is
 # read the way it was written: "basic" keeps the encryption key out of the desktop keyring,
@@ -51,6 +53,33 @@ RUN_SWITCHES = ["--window-size=1300,1300",
                 # A DevTools connection sets navigator.webdriver=true, which a person's browser
                 # never reports. This switch keeps it false.
                 "--disable-blink-features=AutomationControlled"]
+
+
+def owned_lifecycle():
+    """Compatibility entrypoint; process ownership lives in process_lifecycle."""
+    return ProcessScope(grace=STOP_S)
+
+
+@contextlib.contextmanager
+def profile_lease(profile: Path):
+    with ProfileLease(profile) as lease:
+        yield lease.fd
+
+
+def _refuse_active_profile(profile):
+    try:
+        target = os.readlink(profile / "SingletonLock")
+        pid = int(target.rsplit("-", 1)[1])
+    except FileNotFoundError:
+        return
+    except (OSError, ValueError, IndexError) as exc:
+        raise ValueError("publisher profile already active (unknown lock)") from exc
+    if pid <= 0 or _alive(pid):
+        raise ValueError("publisher profile already active")
+
+
+def _spawn(*args, profile=None, **kwargs):
+    return current_scope().spawn(*args, start_new_session=True, **kwargs)
 
 
 def configured_chrome() -> str | None:
@@ -69,37 +98,51 @@ def devtools_endpoint(executable: str):
     """Start Chrome on the kept profile (or a temporary one); yield its DevTools WebSocket
     URL. Raises RuntimeError when Chrome does not report one within STARTUP_S seconds."""
     kept = kept_profile()
-    profile = kept or Path(tempfile.mkdtemp(prefix="li-chrome-"))
-    end_leftover_run(profile)
-    (profile / "DevToolsActivePort").unlink(missing_ok=True)
-    with _run_display() as display:
-        browser = _start(executable, profile, [*RUN_SWITCHES, RUN_MARKER, "about:blank"], display)
-        try:
-            yield _endpoint(profile, browser)
-        finally:
-            _stop(browser)
-            if kept is None:
-                shutil.rmtree(profile, ignore_errors=True)
+    profile = (kept or Path(tempfile.mkdtemp(prefix="li-chrome-"))).resolve()
+    completed = False
+    try:
+        with ProfileLease(profile) as lease:
+            scope = owned_lifecycle()
+            try:
+                with scope:
+                    _refuse_active_profile(profile)
+                    (profile / "DevToolsActivePort").unlink(missing_ok=True)
+                    with _run_display() as display:
+                        browser = _start(executable, profile, [*RUN_SWITCHES, RUN_MARKER, "about:blank"], display)
+                        yield _endpoint(profile, browser)
+            finally:
+                if not scope.errors:
+                    lease.clean_singleton(scope.identities)
+                    completed = True
+    finally:
+        if kept is None and completed:
+            shutil.rmtree(profile, ignore_errors=True)
 
 
 def login(executable: str, profile: Path) -> None:
     """Open a visible Chrome on `profile` at LinkedIn's login page; return once it is closed."""
-    profile.mkdir(parents=True, exist_ok=True)
-    print(f"Log in to LinkedIn in the Chrome window, then close the window. Profile: {profile}")
-    _start(executable, profile, ["--window-size=1300,1000", LOGIN_URL], {}).wait()
+    profile = profile.resolve()
+    with ProfileLease(profile) as lease:
+        scope = owned_lifecycle()
+        try:
+            with scope:
+                _refuse_active_profile(profile)
+                print(f"Log in to LinkedIn in the Chrome window, then close the window. Profile: {profile}")
+                browser = _start(executable, profile, ["--window-size=1300,1000", LOGIN_URL], {})
+                browser.wait()
+        finally:
+            if not scope.errors:
+                lease.clean_singleton(scope.identities)
 
 
 def end_leftover_run(profile: Path) -> None:
-    """End a run's Chrome still open on `profile`. It holds the profile, so the next run's
-    Chrome would exit at once. Chrome names its pid in the SingletonLock link: "<host>-<pid>".
-    A login window, or a lock whose process is gone, is left alone."""
-    try:
-        pid = int(os.readlink(profile / "SingletonLock").rsplit("-", 1)[1])
-        switches = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
-    except (OSError, ValueError, IndexError):
-        return
-    if f"--user-data-dir={profile}".encode() in switches and RUN_MARKER.encode() in switches:
-        _end_group(pid)
+    """Compatibility check, never kill an unowned browser based on its switches.
+
+    RUN_MARKER proves what a process does, not that its owner died. Recovery of a
+    genuinely orphaned browser now requires explicit operator action.
+    """
+    with profile_lease(profile):
+        _refuse_active_profile(profile)
 
 
 @contextlib.contextmanager
@@ -111,26 +154,47 @@ def _run_display():
     if not xvfb:
         yield {}
         return
-    read_end, write_end = os.pipe()
-    server = subprocess.Popen([xvfb, "-displayfd", str(write_end), "-screen", "0", XVFB_SCREEN,
-                               "-nolisten", "tcp"], pass_fds=(write_end,), stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL, start_new_session=True)
-    os.close(write_end)
+    read_end = write_end = server = None
     try:
-        with os.fdopen(read_end) as reported:
-            number = reported.readline().strip()
-        if not number:
-            raise RuntimeError(f"Xvfb exited with code {server.wait()} before it reported a display")
-        yield {"DISPLAY": f":{number}"}
+        with defer_cancellation():
+            read_end, write_end = os.pipe()
+            server = _spawn([xvfb, "-displayfd", str(write_end), "-screen", "0", XVFB_SCREEN,
+                             "-nolisten", "tcp"], pass_fds=(write_end,), stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+            os.close(write_end)
+            write_end = None
+        deadline = time.monotonic() + STARTUP_S
+        number = b""
+        while b"\n" not in number and time.monotonic() < deadline:
+            ready, _, _ = select.select([read_end], [], [], max(0, deadline - time.monotonic()))
+            if not ready:
+                break
+            data = os.read(read_end, 32)
+            if not data:
+                break
+            number += data
+            if len(number) > 16:
+                break
+        if not number.endswith(b"\n") or not number[:-1].isdigit() or len(number) > 7:
+            raise RuntimeError("Xvfb did not report a valid display before startup deadline")
+        yield {"DISPLAY": f":{number[:-1].decode('ascii')}"}
     finally:
-        _stop(server)
+        with defer_cancellation(cleanup=True):
+            try:
+                if server is not None:
+                    _stop(server)
+            finally:
+                if read_end is not None:
+                    os.close(read_end)
+                if write_end is not None:
+                    os.close(write_end)
 
 
 def _start(executable: str, profile: Path, switches: list[str], display: dict) -> subprocess.Popen:
     timezone = os.environ.get(TIMEZONE_ENV, DEFAULT_TIMEZONE)
-    return subprocess.Popen([executable, f"--user-data-dir={profile}", *COMMON_SWITCHES, *switches],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
-                            env={**os.environ, "TZ": timezone, **display})
+    return _spawn([executable, f"--user-data-dir={profile}", *COMMON_SWITCHES, *switches],
+                  profile=profile, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                  env={**os.environ, "TZ": timezone, **display})
 
 
 def _endpoint(profile: Path, browser: subprocess.Popen) -> str:
@@ -138,6 +202,7 @@ def _endpoint(profile: Path, browser: subprocess.Popen) -> str:
     port_file = profile / "DevToolsActivePort"
     deadline = time.monotonic() + STARTUP_S
     while time.monotonic() < deadline:
+        current_scope().refresh()
         if browser.poll() is not None:
             raise RuntimeError(f"local Chrome exited with code {browser.returncode} before it listened "
                                f"(is a Chrome window still open on {profile}?)")
@@ -149,26 +214,8 @@ def _endpoint(profile: Path, browser: subprocess.Popen) -> str:
 
 
 def _stop(browser: subprocess.Popen) -> None:
-    """End Chrome and every process it started (its renderers share its process group)."""
-    with contextlib.suppress(ProcessLookupError):
-        os.killpg(browser.pid, signal.SIGTERM)
-    try:
-        browser.wait(timeout=STOP_S)
-    except subprocess.TimeoutExpired:
-        with contextlib.suppress(ProcessLookupError):
-            os.killpg(browser.pid, signal.SIGKILL)
-        browser.wait()
-
-
-def _end_group(pid: int) -> None:
-    """_stop for a Chrome this process did not start, so cannot wait on: poll until it is gone."""
-    with contextlib.suppress(ProcessLookupError):
-        os.killpg(pid, signal.SIGTERM)
-    deadline = time.monotonic() + STOP_S
-    while _alive(pid) and time.monotonic() < deadline:
-        time.sleep(0.2)
-    with contextlib.suppress(ProcessLookupError):
-        os.killpg(pid, signal.SIGKILL)
+    """Compatibility helper: teardown belongs to the complete synchronous scope."""
+    current_scope().stop()
 
 
 def _alive(pid: int) -> bool:
