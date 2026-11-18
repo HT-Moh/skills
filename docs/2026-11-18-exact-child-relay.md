@@ -76,5 +76,7 @@ its `-I -S` runtime would violate its existing deployment boundary.
 
 StoryProof post-merge CI disposition: controlled OS-cleaner lock contention reproduced
 both failures; relocating fixture roots avoids the demonstrated conflict. Actual CI lock
-owner remains unknown. Narrow CI correction passed independent SPEC/QUALITY review;
-its full local verification remains pending before runtime integration.
+owner remains unknown. Narrow CI correction passed independent SPEC/QUALITY review,
+8,837 local tests with two opt-in skips and twelve import contracts. StoryProof #408
+merged as `f4e0741710d6a5ad3ce2df7ee9d150470e3e8a41`; updated main fetched and
+#310/#279 reconciled before this relay's integration.
