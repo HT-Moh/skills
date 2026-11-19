@@ -6,12 +6,73 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 
 from exact_request import PROTOCOL, admit
 from exact_runtime import snapshot
 from exact_worker import run_worker
 
 MAX_INPUT = 32768
+
+
+def relay_capture(root: Path, envelope: dict, *, upstream: int, downstream: int,
+                  outdir: Path) -> None:
+    """Private source-disabled sibling transport through the existing owners."""
+    from exact_exchange import CaptureExchange
+    from exact_capture import encode_capture
+    from exact_capture_clock import verify_compatibility
+    from process_lifecycle import ProcessScope
+    exchange = CaptureExchange(envelope, now=datetime.now(timezone.utc))
+    with ProcessScope(capture_deadline=exchange.deadline, outer_capture=True):
+        context = {"capture": exchange.envelope, "outdir": str(outdir)}
+        encode_capture(context)
+        verify_compatibility(exchange.envelope["compatibility"], exchange.deadline)
+        with snapshot(root, capture_deadline=exchange.deadline) as (runtime, digest):
+            exchange.deadline.remaining()
+            if digest != exchange.request["runtime_digest"]:
+                raise ValueError("publisher runtime changed")
+            run_worker(runtime, context, exchange=exchange, upstream=upstream, downstream=downstream)
+        exchange.deadline.remaining(0)
+
+
+def capture_main() -> None:
+    """Public capability discovery only; a fresh request never launches a worker/browser."""
+    from exact_capture import PROTOCOL as capture_protocol, CLOCK, LIMITS, fields, decode_capture, encode_capture
+    from exact_capture_clock import Deadline, observe_compatibility
+    from exact_exchange import CaptureExchange
+    from process_output import read_initial
+    try:
+        body = read_initial(sys.stdin.buffer.fileno(), timeout=15, limit=LIMITS["input_bytes"])
+        value = decode_capture(body)
+        if value.get("kind") == "capture_capabilities_request":
+            fields(value, {"protocol", "kind", "request_id"})
+            if value["protocol"] != capture_protocol or _request_id(value) is None:
+                raise ValueError("invalid capture capability request")
+            deadline = Deadline(str(time.clock_gettime_ns(time.CLOCK_MONOTONIC) + 60_000_000_000))
+            compatibility = observe_compatibility(deadline)
+            with snapshot(Path(__file__).parent, capture_deadline=deadline) as (_, digest):
+                result = dict(protocol=capture_protocol, kind="capture_capabilities",
+                              request_id=value["request_id"], runtime_digest=digest, limits=LIMITS,
+                              clock=CLOCK, max_overall_ms=300000, cleanup_ms=15000,
+                              compatibility=compatibility, relay_supported=True,
+                              native_capture_supported=False, schedule_exact=False)
+        else:
+            exchange = CaptureExchange(value, now=datetime.now(timezone.utc))
+            request = exchange.request
+            result = {k: value[k] for k in ("protocol", "request_key", "policy_digest",
+                                           "clock", "expires_at_monotonic_ns")}
+            result.update(kind="capture_terminal", terminal=dict(
+                protocol=request["protocol"], request_id=request["request_id"],
+                attempt_id=request["attempt_id"], request_key=exchange.request_key,
+                runtime_digest=request["runtime_digest"], disposition="refused_before_submit",
+                effect_started=False, reason="Native exact capture and scheduling unavailable",
+                checked_at=datetime.now(timezone.utc).isoformat()))
+            exchange.frame(encode_capture(result))
+        sys.stdout.buffer.write(encode_capture(result))
+        sys.stdout.buffer.flush()
+    except (ValueError, OSError, subprocess.SubprocessError, RuntimeError) as error:
+        print(str(error)[:500], file=sys.stderr)
+        raise SystemExit(1) from error
 
 
 def relay_schedule(root: Path, request: dict, *, upstream: int, downstream: int,
@@ -41,6 +102,8 @@ def _request_id(raw):
 
 
 def main(argv: list[str]) -> None:
+    if argv == ["--protocol", "storyproof.linkedin.capture/1"]:
+        return capture_main()
     raw = {}
     try:
         if argv != ["--protocol", PROTOCOL]:

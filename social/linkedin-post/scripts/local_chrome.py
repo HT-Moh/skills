@@ -23,7 +23,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from process_lifecycle import ProcessScope, current_scope, defer_cancellation
+from process_lifecycle import ProcessScope, current_scope, capture_owner, defer_cancellation
 from profile_lease import LEASE_NAME, ProfileLease
 
 CHROME_ENV = "LINKEDIN_LOCAL_CHROME"
@@ -57,7 +57,7 @@ RUN_SWITCHES = ["--window-size=1300,1300",
 
 def owned_lifecycle():
     """Compatibility entrypoint; process ownership lives in process_lifecycle."""
-    return ProcessScope(grace=STOP_S)
+    return ProcessScope() if capture_owner() is not None else ProcessScope(grace=STOP_S)
 
 
 @contextlib.contextmanager
@@ -116,7 +116,7 @@ def devtools_endpoint(executable: str):
                     completed = True
     finally:
         if kept is None and completed:
-            shutil.rmtree(profile, ignore_errors=True)
+            shutil.rmtree(profile, ignore_errors=scope.capture_deadline is None)
 
 
 def login(executable: str, profile: Path) -> None:
@@ -164,11 +164,20 @@ def _run_display():
             os.close(write_end)
             write_end = None
         deadline = time.monotonic() + STARTUP_S
+        scope = current_scope()
+        capture = scope.capture_deadline is not None
         number = b""
-        while b"\n" not in number and time.monotonic() < deadline:
-            ready, _, _ = select.select([read_end], [], [], max(0, deadline - time.monotonic()))
-            if not ready:
+        while b"\n" not in number:
+            remaining = deadline - time.monotonic()
+            if capture:
+                remaining = min(remaining, scope.check_work())
+            if remaining <= 0:
                 break
+            ready, _, _ = select.select([read_end], [], [], min(remaining, .05) if capture else remaining)
+            if capture:
+                scope.check_work()
+            if not ready:
+                continue  # A poll slice is not the absolute startup deadline.
             data = os.read(read_end, 32)
             if not data:
                 break
@@ -201,15 +210,22 @@ def _endpoint(profile: Path, browser: subprocess.Popen) -> str:
     """Chrome writes its port and browser path to DevToolsActivePort once it listens."""
     port_file = profile / "DevToolsActivePort"
     deadline = time.monotonic() + STARTUP_S
-    while time.monotonic() < deadline:
-        current_scope().refresh()
+    scope = current_scope()
+    capture = scope.capture_deadline is not None
+    while True:
+        remaining = deadline - time.monotonic()
+        if capture:
+            remaining = min(remaining, scope.check_work())
+        if remaining <= 0:
+            break
+        scope.refresh()
         if browser.poll() is not None:
             raise RuntimeError(f"local Chrome exited with code {browser.returncode} before it listened "
                                f"(is a Chrome window still open on {profile}?)")
         lines = port_file.read_text().split() if port_file.is_file() else []
         if len(lines) == 2:
             return f"ws://127.0.0.1:{lines[0]}{lines[1]}"
-        time.sleep(0.2)
+        time.sleep(min(.05 if capture else .2, remaining))
     raise RuntimeError(f"local Chrome reported no DevTools port within {STARTUP_S}s")
 
 

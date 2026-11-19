@@ -10,15 +10,29 @@ import local_chrome
 import post_linkedin
 
 
-def stream_main() -> None:
+def stream_main(*, capture_deadline=None) -> None:
     """Private worker relay; errors stay transport failures, never preview refusals."""
-    from exact_exchange import Exchange, canonical, decode
+    from exact_exchange import Exchange, CaptureExchange, canonical, decode
     from process_output import read_initial
-    value = decode(read_initial(sys.stdin.buffer.fileno(), timeout=200))
-    exchange = Exchange(value["request"], now=datetime.now(timezone.utc))
+    raw = read_initial(sys.stdin.buffer.fileno(),
+                       timeout=capture_deadline.remaining() if capture_deadline else 200)
+    if capture_deadline is not None:
+        from exact_capture import decode_capture, fields
+        from exact_capture_clock import verify_compatibility
+        value = decode_capture(raw)
+        fields(value, {"capture", "outdir"})
+        exchange = CaptureExchange(value["capture"], now=datetime.now(timezone.utc))
+        if exchange.deadline.expiry != capture_deadline.expiry:
+            raise ValueError("worker capture deadline changed")
+        verify_compatibility(exchange.envelope["compatibility"], capture_deadline)
+    else:
+        value = decode(raw)
+        exchange = Exchange(value["request"], now=datetime.now(timezone.utc))
     context = exchange.context
     context["exact_exchange"] = {
         "request_json": canonical(exchange.request).decode("utf-8"), "request_key": exchange.request_key}
+    if capture_deadline is not None:
+        context["exact_exchange"].update(exchange.envelope)
     url, token = post_linkedin.resolve_browser()
     cookies = []
     if post_linkedin.needs_cookies():

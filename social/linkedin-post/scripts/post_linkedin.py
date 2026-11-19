@@ -78,11 +78,18 @@ def _drive(node: str, ws_ctx: dict, *, exchange=None) -> subprocess.CompletedPro
     from process_output import run_bounded
     if exchange is not None:
         from process_output import run_stream
-        return run_stream([node, str(HERE / "exact_ws_worker.js")],
-                          input=json.dumps(ws_ctx).encode("utf-8") + b"\n",
+        deadline = getattr(exchange, "deadline", None)
+        payload = json.dumps(ws_ctx).encode("utf-8") + b"\n"
+        if deadline is not None:
+            from exact_capture import decode_capture
+            decode_capture(payload)
+            deadline.remaining()
+        return run_stream([node, str(HERE / "exact_ws_worker.js"), *(["capture"] if deadline else [])],
+                          input=payload,
                           upstream=sys.stdin.buffer.fileno(), downstream=sys.stdout.buffer.fileno(),
                           frame=exchange.frame, acknowledgment=exchange.acknowledgment,
-                          timeout=DRIVER_TIMEOUT_S)
+                           timeout=DRIVER_TIMEOUT_S, capture_deadline=deadline,
+                           capture_node=deadline is not None)
     return run_bounded([node, str(WS_JS)], input=json.dumps(ws_ctx),
                        timeout=DRIVER_TIMEOUT_S)
 
@@ -103,6 +110,10 @@ def _run_ws(url: str, token: str, ctx: dict, media_paths, outdir: Path,
     ws_ctx.update(mediaPaths=(media_paths or []),
                   mediaPath=(media_paths[0] if media_paths else None),
                   documentPath=document_path, documentTitle=document_title, outdir=str(outdir))
+    if getattr(exchange, "deadline", None) is not None:
+        from exact_capture import encode_capture
+        encode_capture(ws_ctx)
+        exchange.deadline.remaining()
     chrome = local_chrome.configured_chrome()
     if chrome:
         if local_chrome.kept_profile():

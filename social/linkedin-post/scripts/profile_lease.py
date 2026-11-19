@@ -3,8 +3,12 @@ import fcntl
 import json
 import os
 from pathlib import Path
+from types import TracebackType
 
-from process_lifecycle import CleanupError, defer_cancellation
+from process_lifecycle import (
+    CleanupError, cleanup_failure, defer_cancellation, retain_cleanup_failure,
+    capture_owner, ProcessScope,
+)
 
 LEASE_NAME = ".linkedin-poster.lease"
 ACTIVE = b'{"active":true}\n'
@@ -19,14 +23,25 @@ def inherit_lease(profile, fd):
 
 
 class ProfileLease:
-    def __init__(self, profile):
+    """One acquisition or borrowed duplicate, finalized by the retaining capture root.
+
+    Acquisition owns the flock and may clear ACTIVE after verified cleanup. Borrowing
+    owns only a duplicate descriptor: it may quarantine but never clear/unlock the
+    shared lease. Lexical exit hands failure evidence to the root; ``finish_capture``
+    is the root's sole finalization call after control close.
+    """
+    def __init__(self, profile: str | os.PathLike[str]) -> None:
         self.profile = Path(profile).resolve()
-        self.fd = None
+        self.fd: int | None = None
         self.borrowed = False
         self.acquired = False
+        self._capture_owner: ProcessScope | None = None
 
-    def __enter__(self):
+    def __enter__(self) -> "ProfileLease":
         global _borrowed
+        owner = capture_owner()
+        if owner is not None and owner.capture_lease is not None:
+            raise ValueError("capture root already holds a profile lease")
         self.profile.mkdir(parents=True, exist_ok=True)
         try:
             with defer_cancellation():
@@ -63,6 +78,10 @@ class ProfileLease:
                         os.fsync(directory)
                     finally:
                         os.close(directory)
+            if owner is not None:
+                # Transfer finalization responsibility, not acquisition or FD ownership.
+                self._capture_owner = owner
+                owner.capture_lease = self
             return self
         except BaseException:
             self.__exit__(None, None, None)
@@ -102,20 +121,70 @@ class ProfileLease:
         if errors:
             raise CleanupError(errors)
 
-    def __exit__(self, typ, value, traceback):
+    def __exit__(self, typ: type[BaseException] | None, value: BaseException | None,
+                 traceback: TracebackType | None) -> None:
+        if self._capture_owner is not None:
+            if value is not None and self._capture_owner.lease_failure is None:
+                self._capture_owner.lease_failure = value
+            return  # Same acquisition stays locked until the process-root finalization.
+        try:
+            self._release(value)
+        except BaseException as cleanup_error:
+            if isinstance(value, (SystemExit, KeyboardInterrupt)):
+                retain_cleanup_failure(value, cleanup_error)
+                raise value from cleanup_error
+            raise
+
+    def finish_capture(self, disposition: CleanupError | None) -> None:
+        """Called once by the existing root, after final control observation/close."""
+        self._capture_owner = None
+        self.__exit__(type(disposition) if disposition is not None else None, disposition, None)
+
+    def _release(self, value: BaseException | None) -> None:
         global _borrowed
         with defer_cancellation(cleanup=True):
+            primary = None
+            clearing = False
             try:
-                if self.fd is not None and isinstance(value, CleanupError):
-                    self.quarantine(value)
+                failure = cleanup_failure(value)
+                if self.fd is not None and failure is not None:
+                    self.quarantine(failure)
                 elif self.fd is not None and self.acquired:
                     if os.pread(self.fd, 128, 0) != ACTIVE:
                         raise CleanupError(["profile quarantined by a nested owner"])
+                    clearing = True
                     os.ftruncate(self.fd, 0)
                     os.fsync(self.fd)
+            except BaseException as exc:
+                primary = exc
+                retain_cleanup_failure(primary, CleanupError([exc]))
+                if clearing and self.fd is not None:
+                    # Roll back while this SAME acquisition still excludes other
+                    # owners. Restore ACTIVE first: even a failed quarantine write
+                    # must not leave the just-cleared inode admitting another run.
+                    try:
+                        if os.pwrite(self.fd, ACTIVE, 0) != len(ACTIVE):
+                            raise OSError("short active lease rollback write")
+                        os.ftruncate(self.fd, len(ACTIVE))
+                        os.fsync(self.fd)
+                    except BaseException as rollback_error:
+                        retain_cleanup_failure(primary, rollback_error)
+                    try:
+                        self.quarantine(cleanup_failure(primary))
+                    except BaseException as quarantine_error:
+                        retain_cleanup_failure(primary, quarantine_error)
             finally:
                 if self.fd is not None:
-                    os.close(self.fd)
-                    self.fd = None
+                    # Linux may consume the descriptor even when close reports an
+                    # error. Never retry it or replace the original failure with it.
+                    fd, self.fd = self.fd, None
+                    try:
+                        os.close(fd)
+                    except BaseException as close_error:
+                        if primary is None:
+                            primary = close_error
+                        retain_cleanup_failure(primary, close_error)
                 if self.borrowed:
                     _borrowed = False
+            if primary is not None:
+                raise primary
