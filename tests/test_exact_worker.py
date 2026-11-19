@@ -34,7 +34,7 @@ def fake_runtime(tmp_path, source):
     runtime.mkdir()
     # Actual lifecycle code, with an offline preview implementation.
     for name in ("exact_worker.py", "local_chrome.py", "process_lifecycle.py",
-                 "process_output.py", "profile_lease.py", "process_cgroup.py"):
+                 "process_output.py", "profile_lease.py", "process_cgroup.py", "capture_control.py"):
         if (SCRIPTS / name).exists():
             (runtime / name).write_bytes((SCRIPTS / name).read_bytes())
     (runtime / "exact_preview.py").write_text(source)

@@ -42,11 +42,21 @@ function readStdin() {
 }
 
 async function run(ctx, exact = null) {
+  const captureSource = exact?.capture ? require('./ws_exact_capture_source') : null;
+  if (captureSource && !captureSource.native_capture_supported) {
+    throw Error('native bounded capture unavailable');
+  }
+  const captureClock = captureSource ?
+    require('./ws_exact_capture').deadline(ctx.exact_exchange.expires_at_monotonic_ns,exact.control) : null;
+  const work = operation => captureClock ? captureClock.settle(() => {
+    exact.channel.check();
+    return operation();
+  }, 15, 1, null, exact.channel.failure) : operation();
   const { outdir } = ctx;
   fs.mkdirSync(outdir, { recursive: true });
   const log = [];
   const say = (m) => log.push(m);
-  let browser, keepalive, watchdog, exited = false;
+  let browser, ownedPage, keepalive, watchdog, primaryError, exited = false;
   let step = 'connect';
   const at = (name) => { step = name; log.push(`step ${name}`); };
   const out = (ok, stage, extra = {}) => {
@@ -66,8 +76,9 @@ async function run(ctx, exact = null) {
   const finish = (result) => out(result.ok, result.stage, result.extra);
 
   try {
-    browser = await puppeteer.connect({ browserWSEndpoint: ctx.wsEndpoint, protocolTimeout: PROTOCOL_TIMEOUT_MS });
-    const page = await browser.newPage();
+    browser = await work(() => puppeteer.connect({ browserWSEndpoint: ctx.wsEndpoint, protocolTimeout: PROTOCOL_TIMEOUT_MS }));
+    const page = await work(() => browser.newPage());
+    ownedPage = page;
     globalThis.__page = page;
     // A browser dialog ("Leave site?", "Discard post?") blocks every later page call until it
     // is answered. Dismiss it, which keeps the page and the draft, and record what it said.
@@ -87,8 +98,8 @@ async function run(ctx, exact = null) {
       out(false, 'hang', { at: step, url: page.url() });
     }, WATCHDOG_MS);
 
-    await page.setViewport({ width: 1300, height: 1300 });
-    const authFailure = await authenticate(session);
+    await work(() => page.setViewport({ width: 1300, height: 1300 }));
+    const authFailure = await work(() => authenticate(session));
     if (authFailure) {
       if (exact) throw Error(`exact authentication unavailable: ${authFailure.stage}`);
       return finish(authFailure);
@@ -96,10 +107,15 @@ async function run(ctx, exact = null) {
 
     if (exact) {
       const {withPreparedExact} = require('./ws_exact_preview');
-      const {executePrepared} = require('./ws_exact_exchange');
-      const result = await executePrepared(ctx.exact_exchange, exact.channel,
-        consume => withPreparedExact(session, consume),
-        async () => {throw Error('native exact scheduling unavailable');});
+      const {executePrepared, executeCapture} = require('./ws_exact_exchange');
+      const result = captureSource ?
+        await executeCapture(ctx.exact_exchange, exact.channel,
+          consume => withPreparedExact(session, consume),
+          (emit, consume) => captureSource.withSource(session, emit, consume),
+          () => captureSource.effect(session)) :
+        await executePrepared(ctx.exact_exchange, exact.channel,
+          consume => withPreparedExact(session, consume),
+          async () => {throw Error('native exact scheduling unavailable');});
       await exact.channel.terminal(result);
       return;
     }
@@ -109,7 +125,11 @@ async function run(ctx, exact = null) {
     if (ctx.op) return finish(Object.hasOwn(OPS, ctx.op) ? await OPS[ctx.op](session) : outcome(false, 'unknown-op', { op: ctx.op }));
     return finish(await compose(session) || await publish(session));
   } catch (e) {
-    if (exact) throw e;
+    if (exact) {
+      primaryError = e;
+      if (exact.control) exact.control.begin(true);
+      throw e;
+    }
     const page = globalThis.__page;
     if (page) {
       await Promise.race([page.screenshot({ path: path.join(outdir, `exception_${step}.jpg`), type: 'jpeg', quality: 50 })
@@ -121,7 +141,21 @@ async function run(ctx, exact = null) {
       if (keepalive) clearInterval(keepalive);
       if (watchdog) clearTimeout(watchdog);
     }
-    if (browser) { try { await browser.disconnect(); } catch (_) {} }
+    if (captureSource) {
+      // Every acquired cleanup is attempted. Capture never swallows teardown errors.
+      const failures = [];
+      exact.control.startCleanup();
+      if (ownedPage) {
+        try { await exact.control.settle(() => ownedPage.close(), {phase:'browser',share:browser ? 2 : 1}); }
+        catch (e) { failures.push(e); exact.control.begin(true); }
+      }
+      if (browser) {
+        try { await exact.control.settle(() => browser.disconnect(), {phase:'browser'}); }
+        catch (e) { failures.push(e); exact.control.begin(true); }
+      }
+      if (failures.length) throw new AggregateError(
+        [...(primaryError ? [primaryError] : []), ...failures], 'capture browser cleanup failed');
+    } else if (browser) { try { await browser.disconnect(); } catch (_) {} }
   }
 }
 

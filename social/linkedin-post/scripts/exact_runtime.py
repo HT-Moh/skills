@@ -28,9 +28,10 @@ def _same_object(before, after):
 class _Capture:
     """Keep directory capabilities alive until the final namespace check."""
 
-    def __init__(self, stack, deadline):
+    def __init__(self, stack, deadline, capture_deadline=None):
         self.stack = stack
         self.deadline = deadline
+        self.capture_deadline = capture_deadline
         self.directories = 0
         self.entries = 0
         self.files = 0
@@ -38,6 +39,8 @@ class _Capture:
 
     def remaining(self):
         remaining = self.deadline - time.monotonic()
+        if self.capture_deadline is not None:
+            remaining = min(remaining, self.capture_deadline.remaining())
         if remaining <= 0:
             raise ValueError("runtime capture time limit exceeded")
         return remaining
@@ -124,7 +127,7 @@ def _paths(capture, parent, relative=Path("."), depth=0):
 
 
 @contextmanager
-def snapshot(root: Path):
+def snapshot(root: Path, *, capture_deadline=None):
     """Copy and hash the same bytes through pinned, no-follow directory handles.
 
     Python/Node binaries, stdlib, environment and OS remain trusted; version strings
@@ -135,17 +138,27 @@ def snapshot(root: Path):
     preemption of a stalled filesystem/kernel call.
     """
     deadline = time.monotonic() + MAX_CAPTURE_SECONDS
+    if capture_deadline is not None:
+        deadline = min(deadline, time.monotonic() + capture_deadline.remaining())
     node = shutil.which("node")
     if not node:
         raise ValueError("node unavailable")
     with tempfile.TemporaryDirectory(prefix="linkedin-exact-runtime-") as temporary:
         destination = Path(temporary)
         with ExitStack() as stack:
-            capture = _Capture(stack, deadline)
-            version = subprocess.run(
-                [node, "--version"], capture_output=True, text=True, check=True,
-                timeout=min(10, capture.remaining()),
-            ).stdout.strip()
+            capture = _Capture(stack, deadline, capture_deadline)
+            if capture_deadline is None:
+                version = subprocess.run(
+                    [node, "--version"], capture_output=True, text=True, check=True,
+                    timeout=min(10, capture.remaining()),
+                ).stdout.strip()
+            else:
+                from process_output import run_bounded
+                result = run_bounded([node, "--version"], input="", timeout=min(10, capture.remaining()),
+                                     capture_deadline=capture_deadline, auxiliary=True)
+                if result.returncode:
+                    raise ValueError("runtime version probe failed")
+                version = result.stdout.strip()
             identity = {"python": sys.version, "node": version, "files": []}
             root_fd = capture.root(root)
             total = 0

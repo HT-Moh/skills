@@ -59,6 +59,16 @@ Pass `--http` for the stateless browserless `/function` path (`scripts/linkedin_
 It is subject to the proxy's idle and body limits, takes one image at most, and cannot
 attach documents.
 
+## Exact capture transport
+
+The sibling machine protocol `storyproof.linkedin.capture/1` advertises bounded offline
+relay support separately from native capture and scheduling support. Both native flags
+remain false; public capture requests refuse before worker/browser launch. Legacy
+`storyproof.linkedin/1` preview and capability messages retain their existing contract.
+
+Wire bounds, absolute-clock prerequisites, cleanup/exit semantics and offline verification
+are documented in [the B2 publisher candidate](../../docs/2026-11-19-capture-relay-b2.md).
+
 ## Install
 
 Clone the repo once, link the skill into your personal skills directory, restart Claude Code:

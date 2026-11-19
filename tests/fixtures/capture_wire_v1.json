@@ -1,0 +1,32 @@
+{
+  "protocol": "storyproof.linkedin.capture/1",
+  "clock": "linux-clock-monotonic-ns/1",
+  "limits": {
+    "version": "exact-capture/1",
+    "max_chunks": 32,
+    "max_observations": 8,
+    "max_parts": 4,
+    "chunk_bytes": 32768,
+    "body_bytes": 131072,
+    "total_bytes": 1048576,
+    "descriptor_bytes": 2048,
+    "stdout_frames": 35,
+    "frame_bytes": 65536,
+    "stdout_bytes": 2293760,
+    "combined_output_bytes": 2293760,
+    "stderr_bytes": 65536,
+    "input_bytes": 65536,
+    "context_bytes": 65536,
+    "acknowledgment_bytes": 65536,
+    "depth": 32
+  },
+  "invocation_fields": ["request_key", "policy_digest", "clock", "expires_at_monotonic_ns"],
+  "child_fields": ["request_id", "attempt_id", "runtime_digest"],
+  "compatibility_fields": ["platform", "architecture", "node_version", "libuv_version", "time_namespace_id"],
+  "capability_fields": ["protocol", "kind", "request_id", "runtime_digest", "limits", "clock", "max_overall_ms", "cleanup_ms", "compatibility", "relay_supported", "native_capture_supported", "schedule_exact"],
+  "policy_digest": "447f6552356896a94c0629a2cfc2ab295960255b0496ccd027bcb93eb942c72b",
+  "canonical_vector": {
+    "value": {"text": "Écriture 🙂\n", "escape": "\"\\", "values": ["request", "response"]},
+    "sha256": "f4238c553d0d08fcfe1ffbf3ecb9bcc98e604bf44eddec33d44eb58b97c91561"
+  }
+}

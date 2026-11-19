@@ -6,6 +6,11 @@ import re
 from zoneinfo import ZoneInfo
 
 from exact_request import PREVIEW, admit
+from exact_capture import (
+    PROTOCOL as CAPTURE_PROTOCOL, CLOCK, INVOCATION, CHILD, CHUNK, Prefix,
+    decode_capture, encode_capture, fields, policy,
+)
+from exact_capture_clock import Deadline, compatibility
 
 SCHEDULE = PREVIEW | {"attempt_id", "authorization", "operation_key", "preview_key"}
 CORRELATION = {"protocol", "request_id", "attempt_id", "request_key"}
@@ -140,3 +145,87 @@ class Exchange:
         checked = datetime.fromisoformat(evidence["checked_at"].replace("Z", "+00:00"))
         if (instant - checked).total_seconds() < request["min_lead_hours"] * 3600:
             raise ValueError("minimum lead expired")
+
+
+class CaptureExchange:
+    """One sibling validator reused at supervisor and worker relay boundaries."""
+
+    def __init__(self, envelope: dict, *, now: datetime):
+        self._wire = encode_capture(envelope)
+        value = decode_capture(self._wire)
+        fields(value, {"protocol", "kind", "request", "policy", "compatibility"} | INVOCATION)
+        if value["protocol"] != CAPTURE_PROTOCOL or value["kind"] != "capture_request":
+            raise ValueError("unsupported capture request")
+        if value["clock"] != CLOCK:
+            raise ValueError("unsupported capture clock")
+        self.deadline = Deadline(value["expires_at_monotonic_ns"])
+        compatibility(value["compatibility"])
+        self.inner = Exchange(value["request"], now=now)
+        policy(value["policy"])
+        if (value["request_key"] != self.inner.request_key
+                or value["policy_digest"] != hashlib.sha256(canonical(value["policy"])).hexdigest()):
+            raise ValueError("capture request/policy identity mismatch")
+        self.prefix = Prefix(value["policy"])
+        self._invocation = {k: value[k] for k in INVOCATION}
+        self._child = {k: value["request"][k] for k in CHILD}
+        self.phase = "preparing"
+
+    @property
+    def envelope(self) -> dict:
+        return decode_capture(self._wire)
+
+    @property
+    def request_key(self) -> str:
+        return self.inner.request_key
+
+    @property
+    def request(self) -> dict:
+        return self.inner.request
+
+    @property
+    def context(self) -> dict:
+        return self.inner.context
+
+    def _frame(self, raw: bytes, kind: str, keys: set[str], *, child=False) -> dict:
+        value = decode_capture(raw)
+        fields(value, {"protocol", "kind"} | INVOCATION | keys | (CHILD if child else set()))
+        if (value["protocol"] != CAPTURE_PROTOCOL or value["kind"] != kind
+                or any(value[k] != expected for k, expected in self._invocation.items())
+                or (child and any(value[k] != expected for k, expected in self._child.items()))):
+            raise ValueError("capture correlation changed")
+        self.deadline.remaining()
+        return value
+
+    def acknowledgment(self, raw: bytes) -> None:
+        value = self._frame(raw, "capture_acknowledgment", {"acknowledgment"})
+        if self.phase != "ready":
+            raise ValueError("capture acknowledgment out of order")
+        self.inner.acknowledgment(canonical(value["acknowledgment"]))
+        self.phase = "acknowledged"
+
+    def frame(self, raw: bytes) -> str:
+        kind = decode_capture(raw).get("kind")
+        if kind == "capture_ready" and self.phase == "preparing":
+            value = self._frame(raw, kind, {"ready"})
+            if self.inner.frame(canonical(value["ready"])) != "ready":
+                raise ValueError("capture ready required")
+            self.phase = "ready"
+            return "ready"
+        if kind == "capture_chunk" and self.phase == "acknowledged":
+            self.prefix.admit(self._frame(raw, kind, CHUNK, child=True))
+            return "chunk"
+        if kind == "capture_declaration" and self.phase == "acknowledged":
+            value = self._frame(raw, kind, {"status", "reason", "chunks", "bodies", "decoded_bytes"},
+                                child=True)
+            self.prefix.declaration(value)
+            self.phase = "declared"
+            return "declaration"
+        if kind == "capture_terminal" and self.phase in ("preparing", "declared"):
+            value = self._frame(raw, kind, {"terminal"})
+            expected = "refused_before_submit" if self.phase == "preparing" else "uncertain"
+            if (self.inner.frame(canonical(value["terminal"])) != "terminal"
+                    or value["terminal"]["disposition"] != expected):
+                raise ValueError("invalid capture terminal disposition")
+            self.phase = "terminal"
+            return "terminal"
+        raise ValueError("capture frame out of order")
