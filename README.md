@@ -28,6 +28,12 @@ type their name). See
 | [**retrospective**](./productivity/retrospective) | Facilitates a real retrospective instead of a vibes recap — four modes (sprint/iteration retro, blameless incident postmortem, project retro, solo/session retro on git history). Reviews last retro's actions first, gathers data before opinions, digs symptoms to systemic causes (never a person), forces 1–3 owned actions, writes `retros/YYYY-MM-DD.md`. Distilled from Derby & Larsen, Kerth, Google SRE, and the Army AAR. |
 | [**stop-slop**](./productivity/stop-slop) | Removes AI writing patterns from prose — filler phrases, formulaic structures, passive voice, em dashes, vague declaratives. Scores drafts across directness, rhythm, trust, authenticity, and density. Starting point copied from [hardikpandya/stop-slop](https://github.com/hardikpandya/stop-slop) (MIT, © Hardik Pandya). |
 
+### [research/](./research) — customer research and idea validation
+
+| Skill | What it does |
+|-------|--------------|
+| [**validate-startup-ideas**](./research/validate-startup-ideas) | Finds public customer proof, scores pain and demand signals, identifies interview targets, and sets the next validation test. |
+
 ### [marketing/](./marketing) — landing-page, positioning, and growth audits
 
 | Skill | What it does |
