@@ -1,0 +1,85 @@
+{
+  "skill_name": "validate-startup-ideas",
+  "cases": [
+    {
+      "prompt": "Validate my SaaS idea using real customer posts",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Find people who complain about this problem online",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Who should I interview before I build this app?",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Research proof that small shops struggle with returns",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Test whether this feature solves a real customer pain",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Find current workarounds for this startup idea",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Give me customer interview targets for this concept",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Does this product idea have demand? Use public evidence",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Find people who already pay to solve this problem",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Help me choose a cheap validation test for my service",
+      "should_trigger": true
+    },
+    {
+      "prompt": "Write a launch announcement for my product",
+      "should_trigger": false
+    },
+    {
+      "prompt": "Fix the pricing page in my app",
+      "should_trigger": false
+    },
+    {
+      "prompt": "Make a logo for my startup",
+      "should_trigger": false
+    },
+    {
+      "prompt": "Plan a three-day trip to Rome",
+      "should_trigger": false
+    },
+    {
+      "prompt": "Explain how an LLM works",
+      "should_trigger": false
+    },
+    {
+      "prompt": "Create a Python API client",
+      "should_trigger": false
+    },
+    {
+      "prompt": "Review this employment contract",
+      "should_trigger": false
+    },
+    {
+      "prompt": "Summarize this meeting transcript",
+      "should_trigger": false
+    },
+    {
+      "prompt": "Write a LinkedIn post about my company",
+      "should_trigger": false
+    },
+    {
+      "prompt": "Debug this React component",
+      "should_trigger": false
+    }
+  ]
+}
