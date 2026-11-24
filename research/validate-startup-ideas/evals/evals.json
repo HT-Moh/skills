@@ -1,0 +1,45 @@
+{
+  "skill_name": "validate-startup-ideas",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Test this idea: software that helps independent restaurants reduce food waste. Find public customer evidence, identify who I should interview, and tell me the first test.",
+      "expected_output": "A source-backed validation report with a verdict, scored evidence, interview targets, questions, and a test with a pass condition.",
+      "files": [],
+      "expectations": [
+        "Searches for first-hand posts, reviews, or public discussions from restaurant operators.",
+        "Each evidence item includes a source link and customer context.",
+        "Separates problem proof from stated interest in a new tool.",
+        "Scores evidence using first-hand experience, pain, action, recency, and customer fit.",
+        "Names ranked interview groups and public recruiting routes.",
+        "Recommends a next test with a measurable pass condition."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I want to build an AI personal trainer. Tell me if people want it.",
+      "expected_output": "A report that turns the broad request into testable customer and problem assumptions, then seeks behavior evidence.",
+      "files": [],
+      "expectations": [
+        "Asks for or states a precise customer segment before searching.",
+        "Does not treat survey votes or compliments as demand proof.",
+        "Searches for current workarounds, spending, or failed results.",
+        "States evidence limits and avoids market-size claims from a small sample.",
+        "Uses recent-event interview questions instead of a product pitch."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Validate a tool for accountants that collects missing client documents before tax deadlines. I need people to talk to this week.",
+      "expected_output": "A practical report focused on accountants, public evidence, and immediate recruiting routes.",
+      "files": [],
+      "expectations": [
+        "Searches for missing-document, chasing-client, deadline, and tool complaints.",
+        "Prioritizes people who paid for, changed, or built a workaround.",
+        "Gives public communities, search queries, or review sites as recruiting routes.",
+        "Does not collect private contact details or advise bypassing privacy settings.",
+        "Includes a learning-focused outreach note and five or more non-leading questions."
+      ]
+    }
+  ]
+}
