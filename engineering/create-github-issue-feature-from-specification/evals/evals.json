@@ -1,0 +1,39 @@
+{
+  "skill_name": "create-github-issue-feature-from-specification",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create the GitHub feature issue for spec/invoice-export.md in the billing-api repo.",
+      "expected_output": "One feature issue created in billing-api from the specification, with the feature_request.yml field headings and its URL reported.",
+      "files": [],
+      "expectations": [
+        "The agent runs gh issue list --state all --search before any gh issue create call",
+        "Exactly one gh issue create call runs, with --body-file and a title taken from the specification's feature name",
+        "The issue body contains ### headings matching the fields of .github/ISSUE_TEMPLATE/feature_request.yml",
+        "The response ends with the created issue URL"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create the feature issue from the specification.",
+      "expected_output": "The agent asks which specification file to use instead of guessing or creating an issue.",
+      "files": [],
+      "expectations": [
+        "The agent asks for the specification file path",
+        "No gh issue create or gh issue edit call runs before the file is named",
+        "No issue body is drafted from invented requirements"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Create the feature issue for spec/webhook-retries.md in web-app. There may already be an open issue about webhook retries.",
+      "expected_output": "The existing issue is found and updated with gh issue edit; no duplicate is created.",
+      "files": [],
+      "expectations": [
+        "The agent runs gh issue list --state all --search with webhook retries terms and inspects the result",
+        "When a matching issue exists, the agent runs gh issue edit <number> --body-file and does not run gh issue create",
+        "The response names the matched issue number and URL and says it was updated rather than created"
+      ]
+    }
+  ]
+}
