@@ -1,0 +1,42 @@
+{
+  "skill_name": "pr-address-feedback",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Address the review feedback on PR #128 in billing-api. There are about five comments from two reviewers.",
+      "expected_output": "The agent lists every open review thread with an index, presents each item in the full template one at a time, collects a decision per item, and ends with a resolution plan awaiting approval; no files, commits or GitHub posts happen before approval.",
+      "files": [],
+      "expectations": [
+        "The transcript runs gh pr view and a gh api graphql query to fetch review threads before presenting any item",
+        "The first visible message states the total number of items and gives a one-line index in presentation order",
+        "Each item block contains the sections Feedback, Diff context, Current code, Evidence / related context, Assessment and Recommendation",
+        "No file edit, git commit, git push or gh api POST happens before the user approves the plan",
+        "The plan lists the exact reply text and the resolve decision for every item"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Go through the PR comments and fix what the reviewers asked for.",
+      "expected_output": "With no PR argument, the agent resolves the PR for the current branch via gh pr view; when none exists it asks the user which PR to use instead of guessing.",
+      "files": [],
+      "expectations": [
+        "The agent runs gh pr view --json to find the current branch's PR before anything else",
+        "If no PR is found, the agent asks the user for a PR number or URL and does not pick one itself",
+        "The agent does not edit files before a plan is approved, even though the prompt says fix"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The plan for PR #77 in web-app is approved. Two items are Act, one is Reply with reasoning. Carry it out.",
+      "expected_output": "The agent checks out the PR head, commits each Act item, pushes, verifies the SHAs are reachable from the PR head, posts replies inside the existing threads, resolves only the Act threads, and re-requests review last.",
+      "files": [],
+      "expectations": [
+        "gh pr checkout is run and HEAD is compared to the recorded head SHA before any edit",
+        "git push happens before any reply that mentions a commit SHA is posted",
+        "Replies are posted with gh api repos/{owner}/{repo}/pulls/{n}/comments/{comment_id}/replies, not as new top-level comments",
+        "Only the two Act threads are resolved via the resolveReviewThread mutation; the Reply with reasoning thread stays open",
+        "Review is re-requested after all replies and resolutions, and the final summary links each reply and commit"
+      ]
+    }
+  ]
+}
