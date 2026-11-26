@@ -1,0 +1,41 @@
+{
+  "skill_name": "create-architectural-decision-record",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write an ADR for billing-api: we are moving invoice storage from MongoDB to PostgreSQL because we need transactional consistency across invoices and payments. Alternatives were staying on MongoDB with two-phase writes, or CockroachDB. Stakeholders are the platform team and the payments lead.",
+      "expected_output": "A new ADR file in docs/adr/ with the next sequential number, filled front matter, coded consequences and both alternatives with rejection reasons.",
+      "files": [],
+      "expectations": [
+        "A file matching docs/adr/adr-[0-9]{4}-*.md is created and the number follows the highest existing ADR number in that folder",
+        "The file has front matter with title, status, date, authors, tags, supersedes and superseded_by",
+        "The Consequences section contains at least one POS-NNN and one NEG-NNN coded bullet",
+        "Both named alternatives appear under Alternatives Considered, each with a Rejection Reason bullet",
+        "The transcript mentions creating or referencing a tracking issue with gh issue create --template chore_request.yml"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create an ADR about our caching layer.",
+      "expected_output": "The agent asks for the missing inputs (context, decision, alternatives, stakeholders) before writing any file.",
+      "files": [],
+      "expectations": [
+        "The agent asks the user for the decision, alternatives and stakeholders instead of inventing them",
+        "No file is written under docs/adr/ until the inputs are provided",
+        "After the inputs arrive, the output path still follows docs/adr/adr-NNNN-<slug>.md"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "web-app has docs/adr/adr-0001-use-react.md and docs/adr/adr-0002-rest-over-graphql.md. Record the decision to replace adr-0002: we now adopt GraphQL for the mobile client; REST stays for partners. Alternatives: keep REST only, or add BFF per client. Owner is the mobile team.",
+      "expected_output": "A new adr-0003 file whose front matter marks it as superseding ADR-0002, with the status and references pointing to the earlier record.",
+      "files": [],
+      "expectations": [
+        "The new file is named docs/adr/adr-0003-<slug>.md",
+        "The front matter supersedes field references ADR-0002",
+        "The References section lists adr-0002-rest-over-graphql.md as a related ADR",
+        "The agent does not delete or rewrite adr-0002 without being asked; at most it proposes updating its superseded_by field"
+      ]
+    }
+  ]
+}
