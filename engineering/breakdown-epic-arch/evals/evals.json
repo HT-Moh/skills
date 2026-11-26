@@ -1,0 +1,41 @@
+{
+  "skill_name": "breakdown-epic-arch",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Here is the epic PRD at docs/ways-of-work/plan/usage-based-billing/epic.md. Produce the architecture spec for it.",
+      "expected_output": "An architecture specification saved to docs/ways-of-work/plan/usage-based-billing/arch.md with a layered Mermaid diagram, features, enablers, stack, technical value and t-shirt size.",
+      "files": [],
+      "expectations": [
+        "A file is written at docs/ways-of-work/plan/usage-based-billing/arch.md",
+        "The document contains a Mermaid diagram with subgraphs for user, application, service, data and infrastructure layers",
+        "The document lists High-Level Features and Technical Enablers as separate lists",
+        "The document gives a T-Shirt Size Estimate (S, M, L or XL)",
+        "The document contains no implementation code other than pseudocode"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create the architecture document for the notifications epic in web-app.",
+      "expected_output": "The agent looks for docs/ways-of-work/plan/notifications/epic.md and, when it does not exist, asks for the Epic PRD instead of inventing requirements.",
+      "files": [],
+      "expectations": [
+        "The agent reads or searches for the Epic PRD before writing",
+        "When no Epic PRD exists the agent asks for it or for its content rather than writing arch.md from guesses",
+        "No arch.md is written whose features are unrelated to any stated requirement"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Architecture spec for the data-residency epic (PRD in docs/ways-of-work/plan/data-residency/epic.md). We run Python with FastAPI and Django, not TypeScript, and deploy on Kubernetes without Docker Compose.",
+      "expected_output": "An architecture spec whose Technology Stack and diagram reflect the stated Python and Kubernetes stack rather than the default TypeScript assumptions.",
+      "files": [],
+      "expectations": [
+        "The Technology Stack section names Python, FastAPI or Django and Kubernetes",
+        "The Technology Stack section does not list tRPC or Next.js as the chosen stack",
+        "The file is written at docs/ways-of-work/plan/data-residency/arch.md",
+        "The Technical Value section gives a High, Medium or Low rating with a justification"
+      ]
+    }
+  ]
+}
