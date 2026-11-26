@@ -8,6 +8,12 @@
     "url": "https://github.com/HT-Moh"
   },
   "skills": [
+    "./engineering/breakdown-epic-arch",
+    "./engineering/breakdown-epic-pm",
+    "./engineering/breakdown-feature-implementation",
+    "./engineering/breakdown-feature-prd",
+    "./engineering/breakdown-plan",
+    "./engineering/breakdown-test",
     "./engineering/bug-receipt",
     "./engineering/bug-reproduction-brief",
     "./engineering/create-implementation-plan",
