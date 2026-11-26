@@ -1,0 +1,41 @@
+{
+  "skill_name": "breakdown-feature-implementation",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write the implementation plan for monthly-invoice-generation. The feature PRD is at docs/ways-of-work/plan/usage-based-billing/monthly-invoice-generation/prd.md.",
+      "expected_output": "An implementation plan saved next to the PRD as implementation-plan.md with architecture, database, API, frontend and security sections.",
+      "files": [],
+      "expectations": [
+        "A file is written at docs/ways-of-work/plan/usage-based-billing/monthly-invoice-generation/implementation-plan.md",
+        "The document contains a Mermaid system architecture diagram with frontend, API, business logic, data and infrastructure layers",
+        "The Database Schema Design section contains a Mermaid entity-relationship diagram",
+        "The API Design section lists endpoints with request and response formats",
+        "The document contains no implementation code other than pseudocode"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Make an implementation plan for the export feature in web-app.",
+      "expected_output": "The agent looks for a feature PRD under docs/ways-of-work/plan/ and asks for it when none exists, instead of planning from the one-line request.",
+      "files": [],
+      "expectations": [
+        "The agent searches docs/ways-of-work/plan/ for a matching prd.md before writing",
+        "When no PRD exists the agent asks for the PRD or its content",
+        "No implementation-plan.md is written without a referenced PRD"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Implementation plan for region-selector-at-signup (PRD at docs/ways-of-work/plan/data-residency/region-selector-at-signup/prd.md). The feature is backend only; there is no UI change, the region comes from an API header.",
+      "expected_output": "An implementation plan whose frontend section states that no UI changes are needed and whose API and data sections carry the detail.",
+      "files": [],
+      "expectations": [
+        "The Frontend Architecture section states that no UI change is required rather than inventing components",
+        "The API Design section documents the region header, its validation and its error responses",
+        "The file is written at docs/ways-of-work/plan/data-residency/region-selector-at-signup/implementation-plan.md",
+        "The document does not prescribe a monorepo folder layout"
+      ]
+    }
+  ]
+}
