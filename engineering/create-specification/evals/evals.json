@@ -1,0 +1,41 @@
+{
+  "skill_name": "create-specification",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write a specification for the invoice export tool in billing-api. It reads paid invoices from Postgres, renders them as PDF, and uploads them to object storage once a night.",
+      "expected_output": "A new file spec/spec-tool-invoice-export.md that follows the eleven-section template with numbered requirements and acceptance criteria.",
+      "files": [],
+      "expectations": [
+        "A file is created under spec/ whose name matches spec-[a-z0-9-]+.md and starts with one of schema, tool, data, infrastructure, process, architecture, or design",
+        "The file begins with YAML front matter containing title and date_created",
+        "The file contains the headings '## 1. Purpose & Scope' through '## 11. Related Specifications / Further Reading' in order",
+        "Section 3 lists requirements with REQ-NNN identifiers and section 5 lists acceptance criteria with AC-NNN identifiers",
+        "Section 2 defines every acronym used in the document, including PDF"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create a spec.",
+      "expected_output": "The agent asks what the specification is for before writing anything, or states the assumed purpose in one line and proceeds.",
+      "files": [],
+      "expectations": [
+        "No file is written under spec/ before the purpose of the specification is known or explicitly assumed",
+        "The transcript either asks the user for the specification purpose or states the assumed purpose in one sentence",
+        "If a file is written, its name still matches spec-[a-z0-9-]+.md and starts with a valid purpose prefix"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "We already have spec/spec-schema-customer-record.md in web-app. Write a specification for the audit log schema that extends it; the audit log must not store personal data in plain text.",
+      "expected_output": "A new file spec/spec-schema-audit-log.md that references the existing customer record spec and captures the no-plain-text constraint as a security requirement.",
+      "files": [],
+      "expectations": [
+        "A new file is created under spec/ with a name starting with spec-schema- and the existing spec-schema-customer-record.md is not overwritten",
+        "Section 11 links to spec/spec-schema-customer-record.md",
+        "Section 3 contains a SEC-NNN or CON-NNN identifier that states personal data must not be stored in plain text",
+        "Section 4 describes the audit log data contract with a table or code block"
+      ]
+    }
+  ]
+}
