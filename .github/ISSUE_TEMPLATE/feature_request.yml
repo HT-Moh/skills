@@ -1,0 +1,45 @@
+name: Feature request
+description: Propose a new capability or a change to an existing one.
+title: "[Feature]: "
+labels:
+  - enhancement
+type: Feature
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem first, then the change you propose. Keep each section to what a reviewer needs to decide.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard, slow, or impossible today? Who is affected?
+      placeholder: Customers on the EUR plan cannot export invoices as CSV.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-change
+    attributes:
+      label: Proposed change
+      description: What should change, and how should it behave once done?
+      placeholder: Add a CSV export action to the invoice list that respects the account currency.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: Checkable statements that must all be true before this issue closes.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: input
+    id: parent-epic
+    attributes:
+      label: Parent epic number
+      description: The issue number of the epic this feature belongs to, if any (number only).
+      placeholder: "42"
+    validations:
+      required: false
