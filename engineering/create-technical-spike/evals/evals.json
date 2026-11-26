@@ -1,0 +1,40 @@
+{
+  "skill_name": "create-technical-spike",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create a spike for billing-api: can we process refunds through the payment gateway's async webhook API within our 2 second SLA? Owner is the payments team, timebox one week, priority high.",
+      "expected_output": "A spike document under docs/spikes/ named api-...-spike.md with the template sections filled from the prompt, plus a tracking issue created with the spike label.",
+      "files": [],
+      "expectations": [
+        "A file matching docs/spikes/api-*-spike.md is created",
+        "The front matter contains title, category, status, priority, timebox, created, updated, owner and tags",
+        "The document has the sections Summary, Research Question(s), Investigation Plan, Technical Context, Research Findings, Decision and Status History",
+        "The transcript runs or proposes gh issue create --template chore_request.yml --label spike for this spike"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "We need a spike on performance.",
+      "expected_output": "The agent asks for the specific question, owner and timebox before writing, because a spike must hold exactly one research question.",
+      "files": [],
+      "expectations": [
+        "The agent asks what single question the spike must answer and who owns it before creating a file",
+        "No file is written under docs/spikes/ until the question is known",
+        "The agent does not create a spike that bundles several unrelated questions"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The web-app spike architecture-state-management-spike.md is done: we chose a single store with derived selectors. Close it out and record the decision in an ADR.",
+      "expected_output": "The spike document's Decision and Status History sections are completed, an ADR path is referenced, and the spike issue is closed with the decision.",
+      "files": [],
+      "expectations": [
+        "The Decision section of docs/spikes/architecture-state-management-spike.md is filled with recommendation and rationale",
+        "The Status History table gains a Complete row with the resolution summary",
+        "The transcript references an ADR path of the form docs/adr/adr-NNNN-<slug>.md",
+        "The spike issue is closed with gh issue close and the comment names the decision and the ADR path"
+      ]
+    }
+  ]
+}

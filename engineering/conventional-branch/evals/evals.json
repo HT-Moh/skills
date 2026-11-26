@@ -1,0 +1,40 @@
+{
+  "skill_name": "conventional-branch",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create a branch for issue #42 in billing-api. It adds retry logic to the invoice webhook sender.",
+      "expected_output": "A branch named like feature/42-invoice-webhook-retry is created from the detected trunk branch and checked out.",
+      "files": [],
+      "expectations": [
+        "The branch name starts with feature/42- followed by a three to five word lowercase slug",
+        "The transcript runs git symbolic-ref or git show-ref to detect the trunk branch before git checkout -b",
+        "The final message names the created branch and reminds the user to run git push -u origin <branch-name>",
+        "No git push is run"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Make me a bugfix branch for the null cursor crash in web-app.",
+      "expected_output": "The agent asks for the issue number (or offers to create the issue) before creating any branch, because bugfix/ branches require one.",
+      "files": [],
+      "expectations": [
+        "The agent asks for an issue number or offers gh issue create before running git checkout -b",
+        "No branch is created while the issue number is unknown",
+        "Once a number is given, the branch name has the form bugfix/<number>-<slug>"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Is `Feature/Add_Login-Page` a valid branch name for acme's repo? If not, fix it; it is for issue 7.",
+      "expected_output": "The agent reports the violations (uppercase, underscore, missing issue number) and proposes feature/7-add-login-page.",
+      "files": [],
+      "expectations": [
+        "The reply lists uppercase letters and the underscore as rule violations",
+        "The reply flags the missing issue number for a feature/ branch",
+        "The corrected name is lowercase, uses hyphens only, and starts with feature/7-",
+        "The agent does not create the branch unless the user asks for it"
+      ]
+    }
+  ]
+}
