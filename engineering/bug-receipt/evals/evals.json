@@ -1,0 +1,42 @@
+{
+  "skill_name": "bug-receipt",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I fixed the rounding bug in billing-api/src/pricing.ts and the focused test passes now. Close out issue 88 with a bug receipt.",
+      "expected_output": "A complete BUG RECEIPT block with all seven rows, a status justified by the invariants, and the receipt posted as the closing issue comment.",
+      "files": [],
+      "expectations": [
+        "The final answer contains a 'BUG RECEIPT' header followed by the rows Problem, Baseline, Root cause, Change, Proof, Gaps, and Source, none omitted or renamed.",
+        "The status is VERIFIED only if the transcript shows the original failing check and the full test or build gate were run in this session and passed; otherwise the status is PARTIAL with the missing check named under Gaps.",
+        "The Source row reads 'executed now', 'supplied', or 'mixed' and matches what the transcript actually shows was run.",
+        "The transcript runs 'gh issue comment 88 --body-file' with the receipt before any PR merge."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Write a bug receipt for the web-app login outage. I have not been able to reproduce it locally; all I have is the pasted error log from the on-call engineer.",
+      "expected_output": "A PARTIAL or BLOCKED receipt whose Baseline reads 'not run', whose Source reads 'supplied', and whose Gaps row names one concrete next experiment.",
+      "files": [],
+      "expectations": [
+        "The status is PARTIAL or BLOCKED, not VERIFIED.",
+        "The Baseline row contains 'not run' and the Source row reads 'supplied'.",
+        "The Root cause row is marked as an unproven hypothesis rather than stated as fact.",
+        "The Gaps row names exactly one minimal experiment or evidence package that would close the decisive gap.",
+        "The receipt does not claim any command was executed in the current session."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Produce a machine-readable receipt JSON for the acme order-sync fix so CI can check it. Give me a short summary too.",
+      "expected_output": "A receipt.json derived from the template, validated with the shipped script, plus the full BUG RECEIPT block as the user-facing answer.",
+      "files": [],
+      "expectations": [
+        "A JSON file is written starting from assets/receipt.template.json with version 2 and an evidenceSource field.",
+        "The transcript runs 'node scripts/validate-receipt.mjs' on the written file and reports its exit result.",
+        "The user-facing answer still contains the full BUG RECEIPT block with all seven rows despite the request for a short summary.",
+        "The generated receipt JSON is not committed to git."
+      ]
+    }
+  ]
+}
