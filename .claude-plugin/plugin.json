@@ -8,16 +8,19 @@
     "url": "https://github.com/HT-Moh"
   },
   "skills": [
+    "./engineering/create-implementation-plan",
+    "./engineering/create-specification",
     "./engineering/dead-code-sweep",
     "./engineering/refactor-to-quality",
+    "./engineering/update-implementation-plan",
     "./marketing/viral-audit",
-    "./research/validate-startup-ideas",
     "./productivity/browserless",
     "./productivity/essentialism",
     "./productivity/firecrawl",
     "./productivity/google-power-search",
     "./productivity/retrospective",
     "./productivity/stop-slop",
+    "./research/validate-startup-ideas",
     "./social/linkedin-post"
   ]
 }

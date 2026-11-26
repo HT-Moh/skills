@@ -2,5 +2,8 @@
 
 | Skill | What it does |
 |-------|--------------|
+| [**create-implementation-plan**](./create-implementation-plan/SKILL.md) | User-invoked. Writes a phased implementation plan to `plan/<purpose>-<component>-<version>.md` for a feature, refactor, upgrade or infrastructure change; each phase is sized to become one GitHub issue. Vendored from github/awesome-copilot (MIT). |
+| [**create-specification**](./create-specification/SKILL.md) | User-invoked. Writes an AI-readable requirements specification to `spec/spec-<purpose>-<topic>.md` with numbered requirements, constraints, interfaces and acceptance criteria. Vendored from github/awesome-copilot (MIT). |
 | [**dead-code-sweep**](./dead-code-sweep/SKILL.md) | Finds dead code, stale comments/docs, and config/env gaps — mechanical detectors (knip, vulture, ruff) accuse, a six-class reference search convicts or acquits, and every finding ships with a DELETE/REWRITE/KEEP verdict and its evidence line. |
 | [**refactor-to-quality**](./refactor-to-quality/SKILL.md) | Drives a spaghetti/legacy codebase to high quality behind a green test suite: isolates on a branch, builds a safety net (characterization tests if none), applies named refactorings and — only where they remove real duplication — design patterns, commits small, and iterates until an explicit engineering charter (file/function length, complexity, DRY/KISS/YAGNI, layering, folders, tests) fully passes. Resists over-engineering as hard as it raises structure. |
+| [**update-implementation-plan**](./update-implementation-plan/SKILL.md) | User-invoked. Updates an existing plan under `plan/` with new or changed requirements, keeping identifiers and status fields consistent. Vendored from github/awesome-copilot (MIT). |

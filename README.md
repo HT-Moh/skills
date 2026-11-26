@@ -14,8 +14,11 @@ type their name). See
 
 | Skill | What it does |
 |-------|--------------|
+| [**create-implementation-plan**](./engineering/create-implementation-plan) | User-invoked. Writes a phased implementation plan to `plan/<purpose>-<component>-<version>.md` for a feature, refactor, upgrade or infrastructure change; each phase is sized to become one GitHub issue. Vendored from github/awesome-copilot (MIT). |
+| [**create-specification**](./engineering/create-specification) | User-invoked. Writes an AI-readable requirements specification to `spec/spec-<purpose>-<topic>.md` with numbered requirements, constraints, interfaces and acceptance criteria. Vendored from github/awesome-copilot (MIT). |
 | [**dead-code-sweep**](./engineering/dead-code-sweep) | Finds dead code, stale comments/docs that contradict the tree, and config/env gaps. Mechanical detectors (knip, vulture, ruff) accuse; a six-class reference search convicts or acquits; every finding ships with a DELETE/REWRITE/KEEP verdict and its evidence line — blocking gaps reported first, acquitted false positives recorded so the next sweep doesn't re-litigate them. |
 | [**refactor-to-quality**](./engineering/refactor-to-quality) | Turns spaghetti/legacy code into high-quality, maintainable code — behavior-preserving, behind a green test suite. Isolates on a branch, builds a safety net (writes characterization tests where none exist), applies named refactorings and (only to remove real duplication) design patterns, commits one small step at a time, and iterates until an explicit charter (file <300 lines, function <30, args ≤4, DRY/KISS/YAGNI, layering, folder structure, tests, lint, types) fully passes. Distilled from refactoring.guru + Clean Code / Refactoring / Pragmatic Programmer / Code Complete / DDIA. Raises structure and resists over-engineering with equal force. |
+| [**update-implementation-plan**](./engineering/update-implementation-plan) | User-invoked. Updates an existing plan under `plan/` with new or changed requirements, keeping identifiers and status fields consistent. Vendored from github/awesome-copilot (MIT). |
 
 ### [productivity/](./productivity) — daily non-code workflow tools
 
