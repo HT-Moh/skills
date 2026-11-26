@@ -1,0 +1,41 @@
+{
+  "skill_name": "update-implementation-plan",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Update plan/feature-rate-limiting-1.md in billing-api: product now wants per-tenant limits in addition to per-IP limits, and the Redis counters must expire after 24 hours.",
+      "expected_output": "The same plan file rewritten with new requirements, new tasks under the right phase, and refreshed front matter.",
+      "files": [],
+      "expectations": [
+        "The file plan/feature-rate-limiting-1.md is modified in place and no second plan file is created",
+        "Section 1 gains new REQ-NNN or CON-NNN entries for per-tenant limits and the 24 hour expiry",
+        "New TASK-NNN rows are added with identifiers that do not collide with existing ones",
+        "The front matter last_updated field is set to the current date",
+        "All eight numbered section headings from the template are still present"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Update the implementation plan with the new login requirements.",
+      "expected_output": "The agent asks which plan file to update, or lists the candidates under plan/, before editing anything.",
+      "files": [],
+      "expectations": [
+        "No file under plan/ is modified before the target plan file is identified",
+        "The transcript asks the user for the plan file path or lists the files under plan/ and asks which one to use",
+        "The transcript asks for or restates the new login requirements before editing"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Update plan/upgrade-node-runtime-1.md for web-app. Phase 2 is finished as of today and phase 3 is cancelled because the services it covered were deleted. Mark the plan status accordingly.",
+      "expected_output": "The plan file updated with phase 2 tasks marked complete and dated, phase 3 removed or marked as not applicable, and the status badge and front matter changed.",
+      "files": [],
+      "expectations": [
+        "Every TASK-NNN row in phase 2 has the Completed column filled and a Date value",
+        "Phase 3 is either removed or every task row states it is cancelled, and the dependencies section no longer refers to deleted services",
+        "The front matter status and the img.shields.io badge in the introduction show the same value",
+        "No TASK-NNN identifier is declared twice after the edit"
+      ]
+    }
+  ]
+}
