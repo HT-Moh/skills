@@ -1,4 +1,4 @@
-# engineering/ — codebase audit & hygiene tools
+# engineering/ — codebase audit, hygiene and ways-of-work tools
 
 | Skill | What it does |
 |-------|--------------|
@@ -23,3 +23,4 @@
 | [**pr-address-feedback**](./pr-address-feedback/SKILL.md) | User-invoked. Walks PR review comments one by one through `gh`, decides per comment whether to change code or reply with reasoning, and builds an approvable resolution plan before editing anything. Vendored from github/awesome-copilot (MIT). |
 | [**refactor-to-quality**](./refactor-to-quality/SKILL.md) | Drives a spaghetti/legacy codebase to high quality behind a green test suite: isolates on a branch, builds a safety net (characterization tests if none), applies named refactorings and — only where they remove real duplication — design patterns, commits small, and iterates until an explicit engineering charter (file/function length, complexity, DRY/KISS/YAGNI, layering, folders, tests) fully passes. Resists over-engineering as hard as it raises structure. |
 | [**update-implementation-plan**](./update-implementation-plan/SKILL.md) | User-invoked. Updates an existing plan under `plan/` with new or changed requirements, keeping identifiers and status fields consistent. Vendored from github/awesome-copilot (MIT). |
+| [**ways-of-work**](./ways-of-work/SKILL.md) | User-invoked router for the GitHub work-tracking method: maps the phase you are in (epic, feature, spec, plan, issues, branch, bug, PR, decision) to the skill to type and lists the `gh` commands for typed issues, sub-issues and project items. |

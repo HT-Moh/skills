@@ -6,11 +6,12 @@ instructions) that Claude loads on demand when its description matches the task.
 
 ## Skills
 
-Skills are grouped into bucket folders. Most skills are model-invoked (they auto-fire when their description matches; you can also
-type their name). See
+Skills are grouped into bucket folders. Skills are model-invoked (they auto-fire when their description matches; you can also type their
+name) or user-invoked (only typing their name runs them; the vendored ways-of-work skills are
+user-invoked and `/ways-of-work` lists them). See
 [CLAUDE.md](./CLAUDE.md) for repo conventions.
 
-### [engineering/](./engineering) — codebase audit & hygiene tools
+### [engineering/](./engineering) — codebase audit, hygiene and ways-of-work tools
 
 | Skill | What it does |
 |-------|--------------|
@@ -35,6 +36,7 @@ type their name). See
 | [**pr-address-feedback**](./engineering/pr-address-feedback) | User-invoked. Walks PR review comments one by one through `gh`, decides per comment whether to change code or reply with reasoning, and builds an approvable resolution plan before editing anything. Vendored from github/awesome-copilot (MIT). |
 | [**refactor-to-quality**](./engineering/refactor-to-quality) | Turns spaghetti/legacy code into high-quality, maintainable code — behavior-preserving, behind a green test suite. Isolates on a branch, builds a safety net (writes characterization tests where none exist), applies named refactorings and (only to remove real duplication) design patterns, commits one small step at a time, and iterates until an explicit charter (file <300 lines, function <30, args ≤4, DRY/KISS/YAGNI, layering, folder structure, tests, lint, types) fully passes. Distilled from refactoring.guru + Clean Code / Refactoring / Pragmatic Programmer / Code Complete / DDIA. Raises structure and resists over-engineering with equal force. |
 | [**update-implementation-plan**](./engineering/update-implementation-plan) | User-invoked. Updates an existing plan under `plan/` with new or changed requirements, keeping identifiers and status fields consistent. Vendored from github/awesome-copilot (MIT). |
+| [**ways-of-work**](./engineering/ways-of-work) | User-invoked router for the GitHub work-tracking method: maps the phase you are in (epic, feature, spec, plan, issues, branch, bug, PR, decision) to the skill to type and lists the `gh` commands for typed issues, sub-issues and project items. |
 
 ### [productivity/](./productivity) — daily non-code workflow tools
 
@@ -67,7 +69,7 @@ type their name). See
 
 ## Install
 
-As a plugin, all twelve skills in one step (Claude Code 2.1.275 or later):
+As a plugin, all 31 skills in one step (Claude Code 2.1.275 or later):
 
 ```
 /plugin install skills --marketplace HT-Moh/skills
