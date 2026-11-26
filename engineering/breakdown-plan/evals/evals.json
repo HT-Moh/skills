@@ -1,0 +1,41 @@
+{
+  "skill_name": "breakdown-plan",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Build the GitHub project plan for monthly-invoice-generation in billing-api. The PRD, technical breakdown and implementation plan are all under docs/ways-of-work/plan/usage-based-billing/monthly-invoice-generation/.",
+      "expected_output": "project-plan.md and issues-checklist.md written next to the inputs, with an Epic > Feature > Story/Enabler > Test hierarchy, priorities, estimates and dependencies.",
+      "files": [],
+      "expectations": [
+        "Files are written at docs/ways-of-work/plan/usage-based-billing/monthly-invoice-generation/project-plan.md and issues-checklist.md",
+        "The project plan contains a Mermaid work item hierarchy with Epic, Feature, Story, Enabler and Test nodes",
+        "Every story and enabler carries a priority label (priority-critical, priority-high, priority-medium or priority-low) and a story point estimate",
+        "Dependencies are listed as Blocks and Blocked by relationships",
+        "The plan references references/issue-templates.md or reproduces the Epic, Feature, User Story and Technical Enabler templates"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Plan the GitHub issues for the export feature in web-app.",
+      "expected_output": "The agent checks for the PRD, technical breakdown and implementation plan and asks for the missing artifacts before producing a plan.",
+      "files": [],
+      "expectations": [
+        "The agent searches docs/ways-of-work/plan/ for the feature artifacts before writing",
+        "The agent names which of PRD, technical breakdown and implementation plan are missing and asks for them",
+        "No project-plan.md is written while the PRD is missing"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Create the project plan for region-selector-at-signup in acme and then actually create the issues in GitHub, with stories as sub-issues of the feature issue.",
+      "expected_output": "The plan is written, then issues are created with the gh CLI and sub-issue links are made with gh api graphql.",
+      "files": [],
+      "expectations": [
+        "Issues are created with gh issue create or an equivalent gh command",
+        "Sub-issue links use gh api graphql with the addSubIssue mutation",
+        "The issues-checklist.md records each created issue number",
+        "The agent does not create issues before the project plan file exists"
+      ]
+    }
+  ]
+}
