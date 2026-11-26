@@ -2,6 +2,8 @@
 
 | Skill | What it does |
 |-------|--------------|
+| [**bug-receipt**](./bug-receipt/SKILL.md) | User-invoked. Closes a defect or incident with a BUG RECEIPT (VERIFIED, PARTIAL or BLOCKED) and an optional receipt.json validated by the shipped script, posted as the issue's closing comment. Vendored from github/awesome-copilot (MIT). |
+| [**bug-reproduction-brief**](./bug-reproduction-brief/SKILL.md) | User-invoked. Turns a vague, intermittent or environment-specific bug report into a minimal, evidence-backed reproduction before any fix is proposed, posted into the bug issue. Vendored from github/awesome-copilot (MIT). |
 | [**create-implementation-plan**](./create-implementation-plan/SKILL.md) | User-invoked. Writes a phased implementation plan to `plan/<purpose>-<component>-<version>.md` for a feature, refactor, upgrade or infrastructure change; each phase is sized to become one GitHub issue. Vendored from github/awesome-copilot (MIT). |
 | [**create-specification**](./create-specification/SKILL.md) | User-invoked. Writes an AI-readable requirements specification to `spec/spec-<purpose>-<topic>.md` with numbered requirements, constraints, interfaces and acceptance criteria. Vendored from github/awesome-copilot (MIT). |
 | [**dead-code-sweep**](./dead-code-sweep/SKILL.md) | Finds dead code, stale comments/docs, and config/env gaps — mechanical detectors (knip, vulture, ruff) accuse, a six-class reference search convicts or acquits, and every finding ships with a DELETE/REWRITE/KEEP verdict and its evidence line. |

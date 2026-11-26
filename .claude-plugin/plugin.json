@@ -8,6 +8,8 @@
     "url": "https://github.com/HT-Moh"
   },
   "skills": [
+    "./engineering/bug-receipt",
+    "./engineering/bug-reproduction-brief",
     "./engineering/create-implementation-plan",
     "./engineering/create-specification",
     "./engineering/dead-code-sweep",
