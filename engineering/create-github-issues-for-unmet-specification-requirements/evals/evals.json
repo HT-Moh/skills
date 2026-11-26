@@ -1,0 +1,39 @@
+{
+  "skill_name": "create-github-issues-for-unmet-specification-requirements",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Check spec/payment-reconciliation.md against the billing-api codebase and file issues for the requirements that are not implemented.",
+      "expected_output": "Every requirement classified with evidence; one issue created per unimplemented requirement with the feature_request.yml layout; URLs reported.",
+      "files": [],
+      "expectations": [
+        "The response lists every requirement ID with a status of implemented, partial, or unimplemented and the file path or search that supports it",
+        "The agent runs gh issue list --state all --search once per unimplemented requirement before creating",
+        "Each gh issue create call uses --body-file and a title starting with the requirement ID",
+        "No issue is created for a requirement classified as implemented"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "File issues for the unmet requirements.",
+      "expected_output": "The agent asks for the specification file path before searching the codebase or creating issues.",
+      "files": [],
+      "expectations": [
+        "The agent asks which specification file to analyze",
+        "No gh issue create call runs before the file is named",
+        "No requirements are invented"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit spec/rate-limiting.md in web-app and create issues for what is missing. Every requirement in it is already implemented in src/middleware/.",
+      "expected_output": "The agent reports all requirements as implemented with file evidence and creates no issues.",
+      "files": [],
+      "expectations": [
+        "The agent searches the codebase and cites paths under src/middleware/ for each requirement",
+        "No gh issue create call runs",
+        "The response states that zero issues were created and why"
+      ]
+    }
+  ]
+}
