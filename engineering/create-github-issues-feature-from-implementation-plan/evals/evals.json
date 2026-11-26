@@ -1,0 +1,40 @@
+{
+  "skill_name": "create-github-issues-feature-from-implementation-plan",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create GitHub issues for the phases in plan/feature-usage-metering.md in the billing-api repo. Phases 1 and 2 are features, phase 3 is a dependency upgrade.",
+      "expected_output": "Three issues created, one per phase, the first two laid out like feature_request.yml and the third like chore_request.yml, with all three URLs reported.",
+      "files": [],
+      "expectations": [
+        "The agent runs gh issue list --state all --search once per phase before creating",
+        "Exactly three gh issue create calls run, each with --body-file and the phase name as title",
+        "The phase 3 issue carries the chore label and ### headings matching chore_request.yml, while phases 1 and 2 match feature_request.yml",
+        "The response lists each phase with its issue URL"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create issues for the implementation plan.",
+      "expected_output": "The agent asks for the plan file path before doing anything.",
+      "files": [],
+      "expectations": [
+        "The agent asks which plan file to read",
+        "No gh issue create call runs before the file is named",
+        "No phases are invented"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Create the phase issues for plan/search-rewrite.md in acme/web-app and attach them to epic #120.",
+      "expected_output": "One issue per phase created and each linked as a sub-issue of #120 through the addSubIssue GraphQL mutation.",
+      "files": [],
+      "expectations": [
+        "The agent fetches node IDs with gh issue view <n> --json id -q .id for the epic and each phase issue",
+        "The agent runs gh api graphql with the addSubIssue mutation once per phase issue",
+        "The agent does not use gh issue create --parent or gh issue edit --add-sub-issue",
+        "The response lists each phase with its issue URL and confirms the parent link"
+      ]
+    }
+  ]
+}

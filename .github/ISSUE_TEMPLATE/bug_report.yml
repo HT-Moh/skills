@@ -1,0 +1,57 @@
+name: Bug report
+description: Something behaves differently from what the code or documentation promises.
+title: "[Bug]: "
+labels:
+  - bug
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in every required section. A bug that cannot be reproduced from this report will be sent back for more detail.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen.
+      placeholder: The invoice PDF shows the total in the customer's currency.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happens instead. Quote the exact error message when there is one.
+      placeholder: The PDF shows the total in USD for a EUR customer.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction steps
+      description: The shortest list of steps that triggers the bug from a clean state.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Version or commit, operating system, browser or runtime, and any relevant configuration.
+      placeholder: |
+        - Version: v1.4.2
+        - OS: Ubuntu 24.04
+        - Browser: Firefox 130
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant log output or stack trace. This field renders as a code block, so no backticks are needed.
+      render: shell
+    validations:
+      required: false

@@ -1,0 +1,37 @@
+name: Chore request
+description: Maintenance work that changes no user-facing behavior, such as upgrades, refactors, or tooling.
+title: "[Chore]: "
+labels:
+  - chore
+type: Task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Say what the work is, why it is worth doing now, and how we will know it is finished.
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: The concrete work to do.
+      placeholder: Upgrade the HTTP client library from 2.x to 3.x.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The reason this matters now (risk removed, cost saved, blocker cleared).
+      placeholder: 2.x reaches end of life next month and no longer receives security fixes.
+    validations:
+      required: true
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+      description: Checkable statements that must all be true before this issue closes.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
