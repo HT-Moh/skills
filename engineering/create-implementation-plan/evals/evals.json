@@ -1,0 +1,43 @@
+{
+  "skill_name": "create-implementation-plan",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create an implementation plan to add rate limiting to billing-api. Use the spec in spec/spec-process-rate-limiting.md. Target Redis for counters and add a middleware in src/middleware/.",
+      "expected_output": "A new file plan/feature-rate-limiting-1.md following the mandatory template, with phases, task tables, and a status badge.",
+      "files": [],
+      "expectations": [
+        "A file is created under plan/ whose name matches <purpose>-<component>-<version>.md with purpose equal to feature",
+        "The file has YAML front matter with goal, date_created, and status, and the introduction contains an img.shields.io status badge",
+        "Section 2 has at least two 'Implementation Phase N' headings, each with a GOAL-NNN line and a task table with columns Task, Description, Completed, Date",
+        "Each TASK-NNN row names a concrete file path such as src/middleware/",
+        "The agent runs the duplicate identifier shell checks (grep, sort, uniq -d) against the plan file before finishing",
+        "Section 8 links to spec/spec-process-rate-limiting.md"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Make a plan.",
+      "expected_output": "The agent asks what the plan is for, or states a one-line assumption, before writing a plan file.",
+      "files": [],
+      "expectations": [
+        "No file is written under plan/ before the plan purpose is known or explicitly assumed",
+        "The transcript asks the user for the plan purpose or states the assumed purpose in one sentence",
+        "If a file is written, its name uses one of the purpose prefixes upgrade, refactor, feature, data, infrastructure, process, architecture, or design"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Plan the upgrade of web-app from Node 18 to Node 22. There are 40 services; the plan must let several agents work in parallel without stepping on each other.",
+      "expected_output": "A new file plan/upgrade-node-runtime-1.md whose phases are independent and whose task identifiers are each declared once.",
+      "files": [],
+      "expectations": [
+        "A file is created under plan/ with a name starting with upgrade-",
+        "Phases declare any cross-phase dependency explicitly or state that none exist",
+        "No TASK-NNN or GOAL-NNN identifier is declared in more than one table row",
+        "Every phase title is short enough to serve as a GitHub issue title (under 80 characters)",
+        "Section 7 lists at least one RISK-NNN and one ASSUMPTION-NNN entry"
+      ]
+    }
+  ]
+}
