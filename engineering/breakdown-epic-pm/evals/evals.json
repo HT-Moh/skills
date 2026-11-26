@@ -1,0 +1,41 @@
+{
+  "skill_name": "breakdown-epic-pm",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write the epic PRD for 'usage-based billing' in billing-api. Finance wants customers charged per API call instead of flat seats, with invoices generated monthly and a self-serve usage dashboard.",
+      "expected_output": "An Epic PRD saved to docs/ways-of-work/plan/usage-based-billing/epic.md with all eight sections filled from the request.",
+      "files": [],
+      "expectations": [
+        "A file is written at docs/ways-of-work/plan/usage-based-billing/epic.md (repo-relative, no leading slash)",
+        "The document contains the sections Epic Name, Goal, User Personas, High-Level User Journeys, Business Requirements, Success Metrics, Out of Scope and Business Value",
+        "The Goal section has Problem, Solution and Impact subsections",
+        "Business Requirements separates Functional Requirements from Non-Functional Requirements",
+        "Business Value is rated High, Medium or Low with a justification"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Make me an epic PRD for the web-app. We need something around notifications.",
+      "expected_output": "The agent asks clarifying questions about the problem, target users and scope before writing the PRD, or writes a draft that marks each assumption explicitly.",
+      "files": [],
+      "expectations": [
+        "The agent asks at least one clarifying question about the problem, the target users or the expected impact, or labels its assumptions in the draft",
+        "No epic.md is written with empty or placeholder-only sections",
+        "If a file is written, its path matches docs/ways-of-work/plan/<epic-name>/epic.md"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Epic PRD for acme's 'data residency' epic: EU customers must have all data stored in EU regions. Keep migration of existing US customers out of scope for now.",
+      "expected_output": "An Epic PRD whose Out of Scope section lists migration of existing US customers and whose Non-Functional Requirements cover data privacy and compliance.",
+      "files": [],
+      "expectations": [
+        "The Out of Scope section names migration of existing US customers",
+        "Non-Functional Requirements mention data privacy or regulatory compliance",
+        "The file is written at docs/ways-of-work/plan/data-residency/epic.md",
+        "The document contains no implementation code"
+      ]
+    }
+  ]
+}
