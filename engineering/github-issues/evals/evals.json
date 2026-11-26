@@ -1,0 +1,40 @@
+{
+  "skill_name": "github-issues",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "File a bug in acme/billing-api: invoice PDFs render the total in the wrong currency when the customer account is set to EUR. Steps: create an EUR customer, add a 10 EUR line, download the invoice; the PDF shows $10.",
+      "expected_output": "One Bug issue created in acme/billing-api with the Bug Report body layout and its URL reported.",
+      "files": [],
+      "expectations": [
+        "The agent runs gh api repos/acme/billing-api/issues -X POST or gh issue create with --repo acme/billing-api",
+        "The issue body contains the sections Description, Steps to Reproduce, Expected Behavior and Actual Behavior",
+        "The agent sets the issue type Bug through -f type=Bug or the updateIssue GraphQL mutation rather than only adding a bug label",
+        "The response ends with the created issue URL"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create a feature request for dark mode in the web-app repo.",
+      "expected_output": "The agent asks which owner/repository to use before creating anything, or confirms the repository detected from the current directory.",
+      "files": [],
+      "expectations": [
+        "The agent confirms the repository (owner and name) before running a write command",
+        "No gh issue create or gh api POST call runs before the repository is confirmed",
+        "Once confirmed, the issue body follows the Feature Request template with Summary, Motivation, Proposed Solution and Acceptance Criteria"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Issue #42 in acme/web-app is an epic. Make #57 a sub-issue of it and mark #57 as blocked by #51.",
+      "expected_output": "Issue 57 linked as a sub-issue of 42 through the addSubIssue GraphQL mutation and a blocked_by dependency on 51 added through the REST dependencies endpoint.",
+      "files": [],
+      "expectations": [
+        "The agent fetches node IDs with gh issue view <n> --json id and calls gh api graphql with the addSubIssue mutation",
+        "The agent does not attempt gh issue create --parent or gh issue edit --add-sub-issue",
+        "The agent calls gh api repos/acme/web-app/issues/57/dependencies/blocked_by -X POST with -F issue_id set to the numeric id of issue 51",
+        "The response reports both links as done or reports the exact command that failed"
+      ]
+    }
+  ]
+}
