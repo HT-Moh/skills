@@ -1,0 +1,41 @@
+{
+  "skill_name": "breakdown-feature-prd",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write the feature PRD for 'monthly invoice generation' from the usage-based-billing epic (epic.md and arch.md are in docs/ways-of-work/plan/usage-based-billing/).",
+      "expected_output": "A feature PRD saved to docs/ways-of-work/plan/usage-based-billing/monthly-invoice-generation/prd.md with user stories and acceptance criteria.",
+      "files": [],
+      "expectations": [
+        "A file is written at docs/ways-of-work/plan/usage-based-billing/monthly-invoice-generation/prd.md",
+        "The Epic section links to the parent epic.md and arch.md",
+        "User Stories follow the format 'As a <persona>, I want to <action> so that I can <benefit>'",
+        "Each user story or major requirement has acceptance criteria as a checklist or Given/When/Then",
+        "The document has an Out of Scope section"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Feature PRD for 'export to CSV' in web-app.",
+      "expected_output": "The agent asks which epic the feature belongs to and what the user problem is before writing, since no parent epic or context was given.",
+      "files": [],
+      "expectations": [
+        "The agent asks for the parent epic or searches docs/ways-of-work/plan/ for one before writing",
+        "The agent asks at least one clarifying question about the problem or target users",
+        "No prd.md is written with an empty Epic section"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Feature PRD for 'region selector at signup' under the data-residency epic in acme. The only persona is a workspace admin. Edge cases matter: a region that is at capacity, and a user who changes region after creating data.",
+      "expected_output": "A feature PRD with user stories that cover both named edge cases and functional requirements that address them.",
+      "files": [],
+      "expectations": [
+        "User Stories include at least one story for a region at capacity and one for changing region after data exists",
+        "User Personas names the workspace admin as the target user",
+        "The file is written at docs/ways-of-work/plan/data-residency/region-selector-at-signup/prd.md",
+        "Functional Requirements are written as a bulleted list of specific system behaviours"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "skill_name": "breakdown-test",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write the test strategy and QA plan for monthly-invoice-generation in billing-api. All four inputs (prd.md, technical-breakdown.md, implementation-plan.md, project-plan.md) are under docs/ways-of-work/plan/usage-based-billing/monthly-invoice-generation/.",
+      "expected_output": "test-strategy.md, test-issues-checklist.md and qa-plan.md written next to the inputs, grounded in ISTQB techniques and ISO 25010 characteristics.",
+      "files": [],
+      "expectations": [
+        "Three files are written under docs/ways-of-work/plan/usage-based-billing/monthly-invoice-generation/: test-strategy.md, test-issues-checklist.md and qa-plan.md",
+        "The test strategy names the ISTQB test design techniques selected for the feature",
+        "The test strategy rates each of the eight ISO 25010 quality characteristics",
+        "The QA plan defines entry and exit criteria for quality gates",
+        "Test issues carry test type labels such as unit-test, integration-test or e2e-test and a story point estimate"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Make a test plan for the export feature in web-app.",
+      "expected_output": "The agent checks for the four input documents and asks for the missing ones before writing the test strategy.",
+      "files": [],
+      "expectations": [
+        "The agent searches docs/ways-of-work/plan/ for prd.md, technical-breakdown.md, implementation-plan.md and project-plan.md",
+        "The agent names the missing documents and asks for them",
+        "No test-strategy.md is written while the PRD is missing"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Test planning for region-selector-at-signup in acme. It is a backend-only API feature with no UI, so skip browser tests. Then create the test issues in GitHub as sub-issues of feature issue #42.",
+      "expected_output": "Test documents that omit Playwright and browser tests in favour of API, integration and security tests, followed by issue creation through gh with sub-issue links.",
+      "files": [],
+      "expectations": [
+        "The test issues checklist contains no Playwright or browser end-to-end test issues",
+        "The test strategy covers API, integration and security testing for the region header",
+        "Issues are created with the gh CLI and linked as sub-issues of #42 with gh api graphql and the addSubIssue mutation",
+        "The files are written under docs/ways-of-work/plan/data-residency/region-selector-at-signup/"
+      ]
+    }
+  ]
+}
