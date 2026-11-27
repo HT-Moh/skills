@@ -39,7 +39,7 @@ Run the project's CI script if one exists — it usually already chains these ga
 
 The charter has numeric limits; measure them, don't eyeball:
 
-- **File length** — `wc -l` across source files; sort desc to find the >300-line offenders:
+- **File length** — `wc -l` across source files; sort desc to find the >500-line offenders:
   `git ls-files '*.py' '*.ts' '*.js' '*.go' '*.rs' '*.java' | xargs wc -l | sort -rn | head`.
 - **Function length / arg count / nesting / cyclomatic complexity** — use a complexity tool where
   available: `radon cc -s` (Python), `eslint` `complexity`/`max-lines-per-function`/`max-depth`/

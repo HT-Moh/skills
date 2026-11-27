@@ -15,7 +15,7 @@ checkable standard instead of a subjective "looks cleaner".
 - **Applies design patterns sparingly** — only where a real, repeated problem demands one, never
   speculatively. It resists over-engineering (KISS/YAGNI) as hard as it raises structure.
 - **Iterates until the charter fully passes**, then reports every file changed, justifies every new
-  file/class/layer/pattern, and flags anything still over 300 lines.
+  file/class/layer/pattern, and flags anything still over 500 lines.
 
 ## When it triggers
 

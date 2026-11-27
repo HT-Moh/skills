@@ -116,7 +116,7 @@ Emit the mandatory account (the charter's "Report back" rules are hard requireme
 - **Every file created / changed / deleted**, one line each, with why.
 - **Every new file, class, layer, or design pattern justified** — which real duplication or
   concern-separation it bought. No justification → it shouldn't exist; remove it.
-- **Any file still above 300 lines flagged** with a concrete split proposal.
+- **Any file still above 500 lines flagged** with a concrete split proposal.
 - Before/after gate readings (longest file, longest function, lint count, type errors, test count).
 - Charter result: N passed / M waived (with reasons).
 - Commit list (the small-step trail).
