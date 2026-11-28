@@ -13,7 +13,7 @@ checklist for the `refactor-to-quality` skill — where every rule below is reco
 
 ## Files and functions
 
-- Keep source files under 300 lines. Give each file one clear purpose. Plans and documents are
+- Keep source files under 500 lines. Give each file one clear purpose. Plans and documents are
   exempt from the line limit.
 - Give each function one task. Keep it under 30 lines.
 - Keep every statement in a function at the same level of abstraction.
@@ -108,7 +108,7 @@ checklist for the `refactor-to-quality` skill — where every rule below is reco
 
 - List every file you create, change, or delete, and say why.
 - Justify every new file, class, layer, or pattern by the duplication it removes.
-- Flag any file over 300 lines and propose a split.
+- Flag any file over 500 lines and propose a split.
 - Explain why each new folder is needed, after checking whether an existing one fits.
 - Flag any path deeper than three folders.
 - Say plainly when a test fails or a step is skipped. Never claim done while anything is red.
